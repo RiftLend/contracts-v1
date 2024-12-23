@@ -1,3 +1,0 @@
-@contracts-bedrock/=packages/contract/lib/optimism/packages/contracts-bedrock/src/
-@solady/=packages/contract/lib/optimism/packages/contracts-bedrock/lib/solady/src/
-@interop-std/=packages/contract/lib/interop-std/src/

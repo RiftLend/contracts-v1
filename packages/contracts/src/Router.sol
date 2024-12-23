@@ -6,17 +6,18 @@ import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.
 
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
 import "./interfaces/ILendingPool.sol";
-import "@contracts-bedrock/L2/interfaces/ICrossL2Inbox.sol";
+import "./interfaces/ICrossL2Inbox.sol";
 import {ISuperchainAsset} from "./interfaces/ISuperchainAsset.sol";
 import {IAToken} from "./interfaces/IAToken.sol";
 import {IStableDebtToken} from "./interfaces/IStableDebtToken.sol";
 import {IVariableDebtToken} from "./interfaces/IVariableDebtToken.sol";
-import {ISuperchainTokenBridge} from "@contracts-bedrock/L2/interfaces/ISuperchainTokenBridge.sol";
+import {ISuperchainTokenBridge} from "./interfaces/ISuperchainTokenBridge.sol";
+import {ICrossL2Prover} from "./interfaces/ICrossL2Prover.sol";
 
 import {ReserveLogic} from "./libraries/logic/ReserveLogic.sol";
 import {Errors} from "./libraries/helpers/Errors.sol";
-import {SuperPausable} from "@interop-std/utils/SuperPausable.sol";
-import {Predeploys} from "@contracts-bedrock/libraries/Predeploys.sol";
+import {SuperPausable} from "./interop-std/src/utils/SuperPausable.sol";
+import {Predeploys} from "./libraries/Predeploys.sol";
 
 contract Router is Initializable, SuperPausable {
     using SafeERC20 for IERC20;
@@ -62,6 +63,19 @@ contract Router is Initializable, SuperPausable {
             _dispatch(_identifier[i], _data[i]);
         }
     }
+
+    function _validate(Identifier memory _identifier, bytes memory _data) internal {
+        if (_identifier.origin != address(this)) {
+            revert("!lendingPool");
+        }
+        ICrossL2Inbox(Predeploys.CROSS_L2_INBOX).validateMessage(
+            _identifier,
+            keccak256(_data)
+        );
+    }
+
+    function _validate() internal {
+    } 
 
     function _dispatch(Identifier calldata _identifier, bytes calldata _data) internal {
         bytes32 selector = abi.decode(_data[:32], (bytes32));
@@ -272,8 +286,6 @@ contract Router is Initializable, SuperPausable {
             (address sender, address asset, uint256 rateMode) = abi.decode(_data[64:], (address, address, uint256));
             lendingPool.swapBorrowRateMode(sender, asset, rateMode);
         }
-
-        revert InvalidSelector(selector);
     }
 
     /**

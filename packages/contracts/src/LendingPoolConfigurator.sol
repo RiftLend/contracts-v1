@@ -12,8 +12,8 @@ import {ILendingPoolConfigurator} from "./interfaces/ILendingPoolConfigurator.so
 import {ISuperchainAsset} from "./interfaces/ISuperchainAsset.sol";
 
 import {Initializable} from "@solady/utils/Initializable.sol";
-import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import {ITransparentUpgradeableProxy, TransparentUpgradeableProxy} from "@openzeppelin/contracts-v5/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {ProxyAdmin} from "@openzeppelin/contracts-v5/proxy/transparent/ProxyAdmin.sol";
 import {ReserveConfiguration} from "./libraries/configuration/ReserveConfiguration.sol";
 import {Errors} from "./libraries/helpers/Errors.sol";
 import {PercentageMath} from "./libraries/math/PercentageMath.sol";
@@ -466,7 +466,7 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
         ProxyAdmin _proxyAdmin = ProxyAdmin(proxyAdmin);
 
         // Upgrade and call
-        _proxyAdmin.upgradeAndCall(proxy, implementation, initParams);
+        ITransparentUpgradeableProxy(address(proxy)).upgradeToAndCall(implementation, initParams);
     }
 
     function _checkNoLiquidity(address asset) internal view {

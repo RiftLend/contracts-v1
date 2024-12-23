@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import {ILendingPoolAddressesProvider} from "./ILendingPoolAddressesProvider.sol";
 import {DataTypes} from "../libraries/types/DataTypes.sol";
-import "@contracts-bedrock/L2/interfaces/ICrossL2Inbox.sol";
+import "./ICrossL2Inbox.sol";
 
 /**
  * @dev Emitted on deposit()

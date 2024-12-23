@@ -336,13 +336,14 @@ contract LendingPoolDeployer is Script {
 
     function deployProxyAdmin() public returns (address addr_) {
         string memory salt = vm.parseTomlString(deployConfig, ".proxy_admin.salt");
+        address ownerAddr_ = vm.parseTomlAddress(deployConfig, ".proxy_admin.owner_address");
         bytes memory initCode = type(ProxyAdmin).creationCode;
         address preComputedAddress = vm.computeCreate2Address(_implSalt(salt), keccak256(initCode));
         if (preComputedAddress.code.length > 0) {
             console.log("ProxyAdmin already deployed at %s", preComputedAddress, "on chain id: ", block.chainid);
             addr_ = preComputedAddress;
         } else {
-            addr_ = address(new ProxyAdmin{salt: _implSalt(salt)}());
+            addr_ = address(new ProxyAdmin{salt: _implSalt(salt)}(ownerAddr_));
             console.log("Deployed ProxyAdmin at address: ", addr_, "on chain id: ", block.chainid);
         }
     }

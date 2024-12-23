@@ -25,8 +25,8 @@ import {ReserveConfiguration} from "./libraries/configuration/ReserveConfigurati
 import {UserConfiguration} from "./libraries/configuration/UserConfiguration.sol";
 import {DataTypes} from "./libraries/types/DataTypes.sol";
 import {LendingPoolStorage} from "./LendingPoolStorage.sol";
-import {Predeploys} from "@contracts-bedrock/libraries/Predeploys.sol";
-import {SuperPausable} from "@interop-std/utils/SuperPausable.sol";
+import {Predeploys} from "./libraries/Predeploys.sol";
+import {SuperPausable} from "./interop-std/src/utils/SuperPausable.sol";
 
 /**
  * @title LendingPool contract

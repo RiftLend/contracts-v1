@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.8.25;
 
-import {SuperOwnable} from "@interop-std/auth/SuperOwnable.sol";
+import {SuperOwnable} from "../interop-std/src/auth/SuperOwnable.sol";
 
-import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import {ITransparentUpgradeableProxy, TransparentUpgradeableProxy} from "@openzeppelin/contracts-v5/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {ProxyAdmin} from "@openzeppelin/contracts-v5/proxy/transparent/ProxyAdmin.sol";
 
 import "../interfaces/ILendingPoolAddressesProvider.sol";
 
@@ -226,7 +226,7 @@ contract LendingPoolAddressesProvider is SuperOwnable {
             _addresses[id] = address(proxy);
             emit ProxyCreated(id, address(proxy));
         } else {
-            proxy.upgradeToAndCall(newAddress, params);
+            ITransparentUpgradeableProxy(proxyAddress).upgradeToAndCall(newAddress, params);
         }
     }
 
