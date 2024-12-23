@@ -144,7 +144,7 @@ contract LendingPoolDeployer is Script {
         string memory obj = "result";
         vm.serializeAddress(obj, "deployedAddress", deployedContracts.underlying);
         vm.serializeAddress(obj, "ownerAddress", vm.parseTomlAddress(deployConfig, ".token.owner_address"));
-        
+
         vm.serializeAddress(obj, "aTokenAddress", deployedContracts.aTokenImpl);
         vm.serializeAddress(obj, "stableDebtTokenAddress", deployedContracts.stableDebtTokenImpl);
         vm.serializeAddress(obj, "variableDebtTokenAddress", deployedContracts.variableDebtTokenImpl);
@@ -199,12 +199,13 @@ contract LendingPoolDeployer is Script {
         }
     }
 
-    function deployRouter(address _proxyAdmin, address _lendingPool, address _addressesProvider) 
-        public returns (address router, address routerImpl) 
+    function deployRouter(address _proxyAdmin, address _lendingPool, address _addressesProvider)
+        public
+        returns (address router, address routerImpl)
     {
         string memory salt = vm.parseTomlString(deployConfig, ".router.salt");
         bytes32 bsalt = _implSalt(salt);
-        
+
         // First deploy the implementation
         bytes memory initCode = type(Router).creationCode;
         address preComputedAddress = vm.computeCreate2Address(bsalt, keccak256(initCode));
@@ -217,16 +218,13 @@ contract LendingPoolDeployer is Script {
         }
 
         // Then deploy the proxy
-        bytes memory initializerData = 
+        bytes memory initializerData =
             abi.encodeWithSelector(Router.initialize.selector, _lendingPool, _addressesProvider);
-        
-        TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy{salt: bsalt}(
-            routerImpl,
-            _proxyAdmin,
-            initializerData
-        );
+
+        TransparentUpgradeableProxy proxy =
+            new TransparentUpgradeableProxy{salt: bsalt}(routerImpl, _proxyAdmin, initializerData);
         router = address(proxy);
-        
+
         console.log("Deployed Router Proxy at address: ", router, "on chain id: ", block.chainid);
     }
 

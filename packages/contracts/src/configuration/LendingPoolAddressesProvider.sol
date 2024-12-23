@@ -198,7 +198,6 @@ contract LendingPoolAddressesProvider is SuperOwnable {
         emit LendingRateOracleUpdated(lendingRateOracle);
     }
 
-    
     function getRelayer() external view returns (address) {
         return getAddress(RELAYER);
     }
