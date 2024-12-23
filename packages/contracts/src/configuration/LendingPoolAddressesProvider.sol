@@ -21,6 +21,10 @@ contract LendingPoolAddressesProvider is SuperOwnable {
     mapping(bytes32 => address) private _addresses;
     address private _proxyAdmin;
     bytes32 private constant LENDING_POOL = "LENDING_POOL";
+    bytes32 private constant RVAULT_ASSET = "RVAULT_ASSET";
+    bytes32 private constant UNDERLYING = "UNDERLYING";
+    bytes32 private constant SUPER_ASSET = "SUPER_ASSET";
+    
     bytes32 private constant LENDING_POOL_CONFIGURATOR = "LENDING_POOL_CONFIGURATOR";
     bytes32 private constant POOL_ADMIN = "POOL_ADMIN";
     bytes32 private constant EMERGENCY_ADMIN = "EMERGENCY_ADMIN";
@@ -30,9 +34,11 @@ contract LendingPoolAddressesProvider is SuperOwnable {
     bytes32 private constant RELAYER = "RELAYER";
     bytes32 private constant ROUTER = "ROUTER";
 
-    event SuperchainAssetUpdated(address indexed superchainAsset);
+    event SuperAssetUpdated(address indexed superchainAsset);
     event RelayerUpdated(address indexed relayer);
     event RouterUpdated(address indexed router);
+    event RVaultAssetUpdated(address indexed RVaultAsset);
+    event UnderlyingUpdated(address indexed RVaultAsset);
 
     constructor(string memory marketId, address initialOwner, address proxyAdmin) {
         _initializeSuperOwner(uint64(block.chainid), initialOwner);
@@ -101,6 +107,35 @@ contract LendingPoolAddressesProvider is SuperOwnable {
      */
     function getLendingPool() external view returns (address) {
         return getAddress(LENDING_POOL);
+    }
+
+
+    // Set RVaultAsset addresses
+    function setRVaultAsset(address rVaultAsset) external onlyOwner {
+        _addresses[RVAULT_ASSET]=rVaultAsset;
+        emit RVaultAssetUpdated(rVaultAsset);
+    }
+
+    function getRVaultAsset() external view returns (address){
+        return getAddress(RVAULT_ASSET);
+    }
+
+    function setUnderlying(address underlying) external onlyOwner {
+        _addresses[UNDERLYING]=underlying;
+        emit UnderlyingUpdated(underlying);
+    }
+
+    function getUnderlying() external view returns (address){
+        return getAddress(UNDERLYING);
+    }
+
+    function setSuperAsset(address superAsset) external onlyOwner {
+        _addresses[SUPER_ASSET]=superAsset;
+        emit SuperAssetUpdated(superAsset);
+    }
+
+    function getSuperAsset() external view returns (address){
+        return getAddress(SUPER_ASSET);
     }
 
     /**

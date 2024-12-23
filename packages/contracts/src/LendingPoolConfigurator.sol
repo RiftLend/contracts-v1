@@ -9,7 +9,7 @@ import {IInitializableDebtToken} from "./interfaces/IInitializableDebtToken.sol"
 import {IInitializableAToken} from "./interfaces/IInitializableAToken.sol";
 import {IAaveIncentivesController} from "./interfaces/IAaveIncentivesController.sol";
 import {ILendingPoolConfigurator} from "./interfaces/ILendingPoolConfigurator.sol";
-import {ISuperchainAsset} from "./interfaces/ISuperchainAsset.sol";
+import {ISuperAsset} from "./interfaces/ISuperAsset.sol";
 
 import {Initializable} from "@solady/utils/Initializable.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
@@ -148,7 +148,7 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
     }
 
     function withdrawSuperchainAssetSentToken(address asset, address recepient) external onlyProxyAdminOwner {
-        ISuperchainAsset(asset).withdrawTokens(asset, recepient);
+        ISuperAsset(asset).withdrawTokens(asset, recepient);
     }
     /**
      * @dev Updates the aToken implementation for the reserve

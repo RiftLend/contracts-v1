@@ -7,7 +7,7 @@ import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
 import "./interfaces/ILendingPool.sol";
 import "@contracts-bedrock/L2/interfaces/ICrossL2Inbox.sol";
-import {ISuperchainAsset} from "./interfaces/ISuperchainAsset.sol";
+import {ISuperAsset} from "./interfaces/ISuperAsset.sol";
 import {IAToken} from "./interfaces/IAToken.sol";
 import {IStableDebtToken} from "./interfaces/IStableDebtToken.sol";
 import {IVariableDebtToken} from "./interfaces/IVariableDebtToken.sol";
@@ -366,11 +366,13 @@ contract Router is Initializable, SuperPausable {
     ) external whenNotPaused {
         DataTypes.ReserveData memory reserve = lendingPool.getReserveData(asset);
         IERC20(asset).safeTransferFrom(msg.sender, address(this), totalAmount);
-        ISuperchainAsset(reserve.superchainAssetAddress).mint(address(this), totalAmount);
+        address superAsset = addressesProvider.getSuperAsset();
+
+        ISuperAsset(superAsset).mint(address(this), totalAmount);
         for (uint256 i = 1; i < chainIds.length; i++) {
             if (chainIds[i] != block.chainid) {
 ISuperchainTokenBridge(Predeploys.SUPERCHAIN_TOKEN_BRIDGE).sendERC20(
-                    reserve.superchainAssetAddress, address(this), amounts[i], chainIds[i]
+                    superAsset, address(this), amounts[i], chainIds[i]
                 );
             }
             emit CrossChainRepay(chainIds[i], msg.sender, asset, amounts[i], rateMode[i], onBehalfOf);
@@ -444,11 +446,13 @@ ISuperchainTokenBridge(Predeploys.SUPERCHAIN_TOKEN_BRIDGE).sendERC20(
     ) external whenNotPaused {
         DataTypes.ReserveData memory reserve = lendingPool.getReserveData(debtAsset);
         IERC20(debtAsset).safeTransferFrom(msg.sender, address(this), totalDebtToCover);
-        ISuperchainAsset(reserve.superchainAssetAddress).mint(address(this), totalDebtToCover);
+        address superAsset = addressesProvider.getSuperAsset();
+
+        ISuperAsset(superAsset).mint(address(this), totalDebtToCover);
         for (uint256 i = 0; i < chainIds.length; i++) {
             if (chainIds[i] != block.chainid) {
                 ISuperchainTokenBridge(Predeploys.SUPERCHAIN_TOKEN_BRIDGE).sendERC20(
-                    reserve.superchainAssetAddress, address(this), debtToCover[i], chainIds[i]
+                    superAsset, address(this), debtToCover[i], chainIds[i]
                 );
             }
             emit CrossChainLiquidationCall(

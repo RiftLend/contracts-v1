@@ -9,7 +9,7 @@ import {IStableDebtToken} from "./interfaces/IStableDebtToken.sol";
 import {IVariableDebtToken} from "./interfaces/IVariableDebtToken.sol";
 import {IPriceOracleGetter} from "./interfaces/IPriceOracleGetter.sol";
 import {ILendingPoolCollateralManager} from "./interfaces/ILendingPoolCollateralManager.sol";
-import {ISuperchainAsset} from "./interfaces/ISuperchainAsset.sol";
+import {ISuperAsset} from "./interfaces/ISuperAsset.sol";
 
 import {Initializable} from "@solady/utils/Initializable.sol";
 import {GenericLogic} from "./libraries/logic/GenericLogic.sol";
@@ -192,12 +192,13 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
             userConfig.setUsingAsCollateral(collateralReserve.id, false);
             emit ReserveUsedAsCollateralDisabled(collateralAsset, user);
         }
+        address superAsset = _addressesProvider.getSuperAsset();
 
-        ISuperchainAsset(debtReserve.superchainAssetAddress).transfer(
+        ISuperAsset(superAsset).transfer(
             debtReserve.aTokenAddress, vars.actualDebtToLiquidate
         );
         if (debtToCover > vars.actualDebtToLiquidate) {
-            ISuperchainAsset(debtReserve.superchainAssetAddress).transfer(
+            ISuperAsset(superAsset).transfer(
                 sender, debtToCover - vars.actualDebtToLiquidate
             );
         }

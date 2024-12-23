@@ -22,6 +22,13 @@ contract LendingPoolStorage {
      */
     mapping(address => DataTypes.ReserveData) internal _reserves;
 
+    // #33
+    // address underlying;
+    address superAsset;
+    address underlyingAsset;
+    address rvault;
+
+
     /**
      * @notice Mapping of user configuration by user address.
      * @dev Stores the collateral and borrowing configuration for each user.

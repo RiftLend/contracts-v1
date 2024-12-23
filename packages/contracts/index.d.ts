@@ -7,7 +7,7 @@ export const deployment: {
   stableDebtTokenAddress: Address // address of deployed stable debt token contract implementation
   variableDebtTokenAddress: Address // address of deployed variable debt token contract implementation
   lendingPoolAddressesProviderAddress: Address // address of deployed lending pool addresses provider contract
-  superchainAssetAddress: Address // address of deployed superchain asset contract
+  superAsset: Address // address of deployed superchain asset contract
   lendingPoolAddress: Address // address of deployed lending pool contract
   proxyAdminAddress: Address // address of deployed proxy admin contract
   lendingPoolConfiguratorAddress: Address // address of deployed lending pool configurator contract

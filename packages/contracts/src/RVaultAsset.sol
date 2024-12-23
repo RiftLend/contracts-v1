@@ -8,6 +8,8 @@ import {SuperOwnable} from "@interop-std/auth/SuperOwnable.sol";
 import {ERC4626} from "@openzeppelin/contracts-v5/token/ERC20/extensions/ERC4626.sol";
 
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
+import {ERC20} from "@openzeppelin/contracts-v5/token/ERC20/ERC20.sol";
+
 import {ILendingPoolAddressesProvider} from "./interfaces/ILendingPoolAddressesProvider.sol";
 
 /// @dev whenever user uses this with SuperchainTokenBridge, the destination chain will mint aToken (if underlying < totalBalances) and transfer underlying remaining
@@ -27,7 +29,9 @@ contract RVaultAsset is SuperOwnable, ERC4626 {
             provider.getLendingPoolConfigurator() == msg.sender, "Only lending pool configurator can call this function"
         );
         _;
+
     }
+ 
 
     constructor(
         string memory name_,
@@ -36,7 +40,7 @@ contract RVaultAsset is SuperOwnable, ERC4626 {
         address underlying_, // SuperAsset
         ILendingPoolAddressesProvider provider_,
         address admin_
-    ) {
+    ) SuperOwnable()  ERC4626(IERC20(underlying_) ) ERC20(name_,symbol_) {
         _name = name_;
         _symbol = symbol_;
         _decimals = decimals_;
@@ -47,7 +51,7 @@ contract RVaultAsset is SuperOwnable, ERC4626 {
 
     /// @dev minting more than totalBalances will mint aToken and transfer underlying
     /// only callable by SuperchainTokenBridge (which has already burned the aToken amount on source chain)
-    function _mint(address to_, uint256 amount_) internal override {
+    function mint_(address to_, uint256 amount_) internal  {
         if (amount_ > totalBalances) {
             // need to mint more than totalBalances
             balances[to_] += amount_ - totalBalances;
@@ -61,25 +65,25 @@ contract RVaultAsset is SuperOwnable, ERC4626 {
         }
     }
 
-    function mint(address to_, uint256 amount_) external {
+    function mint(address to_, uint256 amount_) external  {
         balances[to_] += amount_;
         totalBalances += amount_;
         IERC20(underlying).safeTransferFrom(msg.sender, address(this), amount_);
         super._mint(to_, amount_);
     }
 
-    function _burn(address from_, uint256 amount_) internal override {
+    function burn_(address from_, uint256 amount_) internal  {
         balances[from_] -= amount_;
         super._burn(from_, amount_);
     }
 
-    function burn(address to_, uint256 amount_) external {
+    function burn(address to_, uint256 amount_) external{
         totalBalances -= amount_;
         _burn(msg.sender, amount_);
         IERC20(underlying).safeTransfer(to_, amount_);
     }
 
-    function transfer(address recipient, uint256 amount) public override returns (bool) {
+    function transfer(address recipient, uint256 amount) public override(IERC20,ERC20)  returns (bool) {
         // Call the parent contract's transfer function
         bool success = super.transfer(recipient, amount);
         if (success) {
@@ -89,7 +93,7 @@ contract RVaultAsset is SuperOwnable, ERC4626 {
         return success;
     }
 
-    function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool) {
+    function transferFrom(address sender, address recipient, uint256 amount) public override(IERC20,ERC20)  returns (bool) {
         // Call the parent contract's transferFrom function
         bool success = super.transferFrom(sender, recipient, amount);
         if (success) {
@@ -120,8 +124,5 @@ contract RVaultAsset is SuperOwnable, ERC4626 {
         IERC20(_token).safeTransfer(_recepient, amount);
     }
 
-    /// @dev Override version function from both parent contracts
-    function version() external pure override(SuperchainERC20, SuperOwnable) returns (string memory) {
-        return "1.0.0";
-    }
+  
 }
