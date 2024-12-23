@@ -116,7 +116,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
 
         _updateStates(reserve, asset, amount, 0, bytes2(uint16(3)));
 
-        IERC20(asset).safeTransferFrom(sender, address(this), amount);
+        IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
         IERC20(asset).safeIncreaseAllowance(superchainAsset, amount);
         ISuperchainAsset(superchainAsset).mint(aToken, amount);
 
@@ -569,7 +569,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
      * @return The reserve's normalized income
      */
     function getReserveNormalizedIncome(address asset) external view virtual returns (uint256) {
-        return _reserves[_reserves[asset].superchainAssetAddress].getNormalizedIncome();
+        return _reserves[asset].getNormalizedIncome();
     }
 
     /**
@@ -578,7 +578,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
      * @return The reserve normalized variable debt
      */
     function getReserveNormalizedVariableDebt(address asset) external view returns (uint256) {
-        return _reserves[_reserves[asset].superchainAssetAddress].getNormalizedDebt();
+        return _reserves[asset].getNormalizedDebt();
     }
 
     /**
