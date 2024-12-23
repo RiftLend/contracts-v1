@@ -23,9 +23,8 @@ contract SuperAsset is SuperchainERC20 {
 
   constructor(
     address underlying_,
-    ILendingPoolAddressesProvider provider_,
-    address admin_
-  )  {
+    ILendingPoolAddressesProvider provider_
+      )  {
 
     underlying = underlying_;
     provider = provider_;

@@ -59,6 +59,9 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
   bytes2 private constant UPDATE_STATE_MASK = bytes2(uint16(1));
   bytes2 private constant UPDATE_RATES_MASK = bytes2(uint16(2));
   uint256 public constant LENDINGPOOL_REVISION = 0x2;
+  uint256 public constant WITHDRAW_COOL_PERIOD = 1 days;
+  mapping(address => uint256) private _lastWithdrawalTime;
+  
 
   modifier onlyLendingPoolConfigurator() {
     _onlyLendingPoolConfigurator();
@@ -102,6 +105,8 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
    * @param provider The address of the LendingPoolAddressesProvider
    *
    */
+
+   
   function initialize(
     ILendingPoolAddressesProvider provider
   ) public initializer {
@@ -135,26 +140,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     // - Rvault
     // both ways we believe the reserves to be operated on superAsset
     
-    address underlying = _addressesProvider.getUnderlying();
-    address rVaultAsset = _addressesProvider.getRVaultAsset();
-    address superAsset = _addressesProvider.getSuperAsset();
-   /*
-     Token Type can be 
-      - 0 for underlying
-      - 1 for superAsset
-      - 2 for rVaultAsset   
-    */
-    uint256 token_type;
-    if (asset == underlying) {
-        token_type= 0;
-    } else if (asset == superAsset) {
-        token_type = 1;
-    } else if (asset == rVaultAsset) {
-        token_type = 2;
-    } else {
-        revert("Unknown token type");
-    }
-
+    (address underlying,address superAsset, address rVaultAsset,uint256 token_type) = getTokenType(asset);
 
     DataTypes.ReserveData storage reserve = _reserves[superAsset];
 
@@ -180,7 +166,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     if (token_type!=2)
         IRVaultAsset(rVaultAsset).mint(address(aToken), amount);
     else{
-        IRVaultAsset(rVaultAsset).transferFrom(msg.sender,address(aToken),amount); 
+        IRVaultAsset(rVaultAsset).transferFrom(sender,address(aToken),amount); 
     }
 
 
@@ -239,6 +225,14 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     address to,
     uint256 toChainId
   ) external onlyRouter {
+
+
+    // Check the cooldown period
+    require(
+        block.timestamp >= _lastWithdrawalTime[msg.sender] + WITHDRAWAL_COOLDOWN_PERIOD,
+        "Withdrawal cooldown period not met"
+    );
+
     DataTypes.ReserveData storage reserve = _reserves[asset];
     address aToken = reserve.aTokenAddress;
 
@@ -257,6 +251,9 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
       _reservesCount,
       _addressesProvider.getPriceOracle()
     );
+
+    // Update the last withdrawal time
+    _lastWithdrawalTime[msg.sender] = block.timestamp;
 
     _updateStates(reserve, asset, 0, amountToWithdraw, bytes2(uint16(3)));
 
@@ -302,7 +299,6 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     );
   }
 
-  // TODO: modify for #33
   function repay(
     address sender,
     address asset,
@@ -310,9 +306,23 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     uint256 rateMode,
     address onBehalfOf
   ) external onlyRouter {
-    DataTypes.ReserveData storage reserve = _reserves[asset];
-    address superAsset = _addressesProvider.getSuperAsset();
 
+    (address underlying,address superAsset, address rVaultAsset,uint256 token_type) = getTokenType(asset);
+    IERC20(asset).safeTransferFrom(address(this), amount);
+    
+    if (token_type == 0) {
+        // Handle underlying asset
+        IERC20(asset).safeIncreaseAllowance(superAsset, amount);
+        ISuperAsset(superAsset).deposit(address(this), amount);
+        asset = superAsset; // Update asset to superAsset for further processing
+    }
+
+    DataTypes.ReserveData storage reserve = _reserves[asset];
+
+
+    // DataTypes.ReserveData storage reserve = _reserves[asset];
+
+    
     /// @dev this will get the debt of the user on the current chain
     (uint256 stableDebt, uint256 variableDebt) = Helpers.getUserCurrentDebt(
       onBehalfOf,
@@ -341,6 +351,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
       paybackAmount = amount;
     }
 
+
     _updateStates(reserve, asset, paybackAmount, 0, bytes2(uint16(3)));
 
     uint256 mode;
@@ -360,6 +371,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
       _usersConfig[onBehalfOf].setBorrowing(reserve.id, false);
     }
 
+    
     IERC20(superAsset).safeTransfer(aToken, paybackAmount);
 
     if (amount - paybackAmount > 0) {
@@ -377,6 +389,8 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
       mode,
       amountBurned
     );
+
+
   }
 
   /**
@@ -1097,6 +1111,30 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
 
       _reservesCount = reservesCount + 1;
     }
+  }
+
+  function getTokenType(address asset) internal view returns (address, address, address, uint256) {
+    address underlying = _addressesProvider.getUnderlying();
+    address rVaultAsset = _addressesProvider.getRVaultAsset();
+    address superAsset = _addressesProvider.getSuperAsset();
+   /*
+     Token Type can be 
+      - 0 for underlying
+      - 1 for superAsset
+      - 2 for rVaultAsset   
+    */
+    uint256 token_type;
+    if (asset == underlying) {
+        token_type= 0;
+    } else if (asset == superAsset) {
+        token_type = 1;
+    } else if (asset == rVaultAsset) {
+        token_type = 2;
+    } else {
+        revert("Unknown token type");
+    }
+    return (underlying,superAsset,rVaultAsset,token_type);
+    
   }
 
   /**

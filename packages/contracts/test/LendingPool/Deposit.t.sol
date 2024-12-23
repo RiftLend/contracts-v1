@@ -50,6 +50,11 @@ contract LendingPoolTest is Test {
 
   // chains
   address owner = makeAddr('owner');
+  address poolAdmin1 = makeAddr('poolAdmin1');
+  address router = makeAddr('router');
+
+  address relayer = makeAddr('relayer');
+  address emergencyAdmin = makeAddr('emergencyAdmin');
   address alice = makeAddr('alice');
 
   LendingPool proxyLp;
@@ -62,7 +67,7 @@ contract LendingPoolTest is Test {
   LendingPoolConfigurator proxyConfigurator;
   LendingPoolAddressesProvider lpAddressProvider;
 
-  function setup() public {
+  function setUp() public {
     uint64 _chainId = 1;
     // string memory _rpc = ""
 
@@ -70,14 +75,11 @@ contract LendingPoolTest is Test {
     // vm.createSelectFork(_rpc);
 
     t.owner = owner;
-    t.emergencyAdmin = owner;
-    t.proxyAdmin = owner;
+    t.emergencyAdmin = emergencyAdmin;
 
     // Deploy underlyingAsset
     underlyingAsset = new TestERC20('TUSDC', 'USDC', 6);
     vm.label(address(underlyingAsset), 'underlyingAsset');
-    INR = new TestERC20('TINR', 'TINR', 6);
-    vm.label(address(INR), 'TINR');
 
     // Deploy SuperProxyAdmin
     address superProxyAdmin = address(
@@ -85,6 +87,7 @@ contract LendingPoolTest is Test {
     );
     vm.label(superProxyAdmin, 'superProxyAdmin');
     t.proxyAdmin = superProxyAdmin;
+    
 
     // deploy implementations
     address aTokenImpl = address(new AToken{salt: 'aTokenImpl'}());
@@ -96,14 +99,13 @@ contract LendingPoolTest is Test {
     );
 
     // lendingPoolAddressProvider
-    lpAddressProvider = new LendingPoolAddressesProvider('TINR', owner, owner);
+    lpAddressProvider = new LendingPoolAddressesProvider('TUSDC', owner, t.proxyAdmin);
     vm.label(address(lpAddressProvider), 'lpAddressProvider');
 
     // SuperAsset for opMainnet
     superAsset = ISuperAsset(address(new SuperAsset(
       address(underlyingAsset),
-      ILendingPoolAddressesProvider(address(lpAddressProvider)),
-      owner
+      ILendingPoolAddressesProvider(address(lpAddressProvider))
     )));
     vm.label(address(superAsset), 'SuperAsset');
 
@@ -119,7 +121,13 @@ contract LendingPoolTest is Test {
 
     // settings in addressProvider
     vm.prank(owner);
-    lpAddressProvider.setPoolAdmin(owner);
+    lpAddressProvider.setPoolAdmin(poolAdmin1);
+
+    vm.prank(owner);
+    lpAddressProvider.setRelayer(relayer);
+
+    vm.prank(owner);
+    lpAddressProvider.setRouter(router);
 
     // implementation configurator
     lpConfigurator = new LendingPoolConfigurator();
@@ -141,21 +149,21 @@ contract LendingPoolTest is Test {
     input[0].aTokenImpl = address(aTokenImpl);
     input[0].stableDebtTokenImpl = address(stableDebtTokenImpl);
     input[0].variableDebtTokenImpl = address(variableDebtTokenImpl);
-    input[0].underlyingAssetDecimals = 18;
+    input[0].underlyingAssetDecimals = 6;
     input[0].interestRateStrategyAddress = address(0x0);
     input[0].underlyingAsset = address(INR);
     input[0].treasury = vm.addr(35);
     input[0].incentivesController = vm.addr(17);
-    input[0].underlyingAssetName = 'Mock rupee';
-    input[0].aTokenName = 'aToken-INR';
-    input[0].aTokenSymbol = 'aINR';
+    input[0].underlyingAssetName = 'Mock USDC';
+    input[0].aTokenName = 'aToken-TUSDC';
+    input[0].aTokenSymbol = 'aTUSDC';
     input[0].variableDebtTokenName = 'vDebt';
     input[0].variableDebtTokenSymbol = 'vDBT';
     input[0].stableDebtTokenName = 'vStable';
     input[0].stableDebtTokenSymbol = 'vSBT';
     input[0].params = 'v';
     input[0].salt = 'salt';
-    vm.prank(owner);
+    vm.prank(poolAdmin1);
     proxyConfigurator.batchInitReserve(input);
 
 
@@ -163,7 +171,7 @@ contract LendingPoolTest is Test {
   function testDeposit() public {
 
     // act
-    address asset = address(INR);
+    address asset = address(underlyingAsset);
     uint256[1] memory amounts ;
     amounts[0] = 1000;
     address onBehalfOf = alice;
@@ -171,7 +179,8 @@ contract LendingPoolTest is Test {
     uint16[1] memory chainIds;
     chainIds[0] = 1;
 
-    vm.prank(alice);
+
+    vm.prank(router);
     proxyLp.deposit(alice,asset, amounts[0], onBehalfOf, referralCode);
 
     // assert
