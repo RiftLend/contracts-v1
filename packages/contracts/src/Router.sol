@@ -58,26 +58,7 @@ contract Router is Initializable, SuperPausable {
         addressesProvider = ILendingPoolAddressesProvider(_addressesProvider);
     }
 
-    function dispatch(Identifier[] calldata _identifier, bytes[] calldata _data) external onlyRelayer whenNotPaused {
-        for (uint256 i = 0; i < _identifier.length; i++) {
-            _dispatch(_identifier[i], _data[i]);
-        }
-    }
-
-    function _validate(Identifier memory _identifier, bytes memory _data) internal {
-        if (_identifier.origin != address(this)) {
-            revert("!lendingPool");
-        }
-        ICrossL2Inbox(Predeploys.CROSS_L2_INBOX).validateMessage(
-            _identifier,
-            keccak256(_data)
-        );
-    }
-
-    function _validate() internal {
-    } 
-
-    function _dispatch(Identifier calldata _identifier, bytes calldata _data) internal {
+    function dispatch(Identifier calldata _identifier, bytes calldata _data) external onlyRelayer whenNotPaused {
         bytes32 selector = abi.decode(_data[:32], (bytes32));
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -347,7 +328,14 @@ contract Router is Initializable, SuperPausable {
     ) external whenNotPaused {
         for (uint256 i = 0; i < chainIds.length; i++) {
             emit CrossChainBorrow(
-                chainIds[i], sendToChainId, msg.sender, asset, amounts[i], interestRateMode[i], onBehalfOf, referralCode
+                chainIds[i],
+                sendToChainId,
+                msg.sender,
+                asset,
+                amounts[i],
+                interestRateMode[i],
+                onBehalfOf,
+                referralCode
             );
         }
     }
@@ -374,7 +362,7 @@ contract Router is Initializable, SuperPausable {
         ISuperchainAsset(reserve.superchainAssetAddress).mint(address(this), totalAmount);
         for (uint256 i = 1; i < chainIds.length; i++) {
             if (chainIds[i] != block.chainid) {
-                ISuperchainTokenBridge(Predeploys.SUPERCHAIN_TOKEN_BRIDGE).sendERC20(
+ISuperchainTokenBridge(Predeploys.SUPERCHAIN_TOKEN_BRIDGE).sendERC20(
                     reserve.superchainAssetAddress, address(this), amounts[i], chainIds[i]
                 );
             }
@@ -457,7 +445,14 @@ contract Router is Initializable, SuperPausable {
                 );
             }
             emit CrossChainLiquidationCall(
-                chainIds[i], msg.sender, collateralAsset, debtAsset, user, debtToCover[i], receiveAToken, sendToChainId
+                chainIds[i],
+                msg.sender,
+                collateralAsset,
+                debtAsset,
+                user,
+                debtToCover[i],
+                receiveAToken,
+                sendToChainId
             );
         }
     }
