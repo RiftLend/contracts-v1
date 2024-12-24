@@ -13,10 +13,10 @@ import {IncentivizedERC20} from "./IncentivizedERC20.sol";
 import {IAaveIncentivesController} from "../interfaces/IAaveIncentivesController.sol";
 import {ILendingPoolAddressesProvider} from "../interfaces/ILendingPoolAddressesProvider.sol";
 
-import {Predeploys} from "../libraries/Predeploys.sol";
-import "../interfaces/ICrossL2Inbox.sol";
-import {ISuperchainAsset} from "../interfaces/ISuperchainAsset.sol";
-import {ISuperchainTokenBridge} from "../interfaces/ISuperchainTokenBridge.sol";
+import {Predeploys} from "@contracts-bedrock/libraries/Predeploys.sol";
+import "@contracts-bedrock/L2/interfaces/ICrossL2Inbox.sol";
+import {ISuperAsset} from "../interfaces/ISuperAsset.sol";
+import {ISuperchainTokenBridge} from "@contracts-bedrock/L2/interfaces/ISuperchainTokenBridge.sol";
 
 /**
  * @title Aave ERC20 AToken
@@ -169,7 +169,7 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
                 _underlyingAsset, receiverOfUnderlying, amount, toChainId
             );
         } else {
-            ISuperchainAsset(_underlyingAsset).burn(receiverOfUnderlying, amount);
+            ISuperAsset(_underlyingAsset).burn(receiverOfUnderlying, amount);
         }
 
         emit Transfer(user, address(0), amount);
@@ -367,12 +367,12 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
                 _underlyingAsset, target, amount, toChainId
             );
         } else {
-            uint256 underlyingAmount = ISuperchainAsset(_underlyingAsset).balances(address(this));
+            uint256 underlyingAmount = ISuperAsset(_underlyingAsset).balanceOf(address(this));
             if (underlyingAmount >= amount) {
-                ISuperchainAsset(_underlyingAsset).burn(target, amount);
+                ISuperAsset(_underlyingAsset).burn(target, amount);
             } else {
-                ISuperchainAsset(_underlyingAsset).burn(target, underlyingAmount);
-                ISuperchainAsset(_underlyingAsset).transfer(target, amount - underlyingAmount);
+                ISuperAsset(_underlyingAsset).burn(target, underlyingAmount);
+                ISuperAsset(_underlyingAsset).transfer(target, amount - underlyingAmount);
             }
         }
         return amount;

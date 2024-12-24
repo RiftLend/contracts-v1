@@ -9,11 +9,11 @@ import {IInitializableDebtToken} from "./interfaces/IInitializableDebtToken.sol"
 import {IInitializableAToken} from "./interfaces/IInitializableAToken.sol";
 import {IAaveIncentivesController} from "./interfaces/IAaveIncentivesController.sol";
 import {ILendingPoolConfigurator} from "./interfaces/ILendingPoolConfigurator.sol";
-import {ISuperchainAsset} from "./interfaces/ISuperchainAsset.sol";
+import {ISuperAsset} from "./interfaces/ISuperAsset.sol";
 
 import {Initializable} from "@solady/utils/Initializable.sol";
-import {ITransparentUpgradeableProxy, TransparentUpgradeableProxy} from "@openzeppelin/contracts-v5/proxy/transparent/TransparentUpgradeableProxy.sol";
-import {ProxyAdmin} from "@openzeppelin/contracts-v5/proxy/transparent/ProxyAdmin.sol";
+import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import {ReserveConfiguration} from "./libraries/configuration/ReserveConfiguration.sol";
 import {Errors} from "./libraries/helpers/Errors.sol";
 import {PercentageMath} from "./libraries/math/PercentageMath.sol";
@@ -148,7 +148,7 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
     }
 
     function withdrawSuperchainAssetSentToken(address asset, address recepient) external onlyProxyAdminOwner {
-        ISuperchainAsset(asset).withdrawTokens(asset, recepient);
+        ISuperAsset(asset).withdrawTokens(asset, recepient);
     }
     /**
      * @dev Updates the aToken implementation for the reserve
@@ -466,7 +466,7 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
         ProxyAdmin _proxyAdmin = ProxyAdmin(proxyAdmin);
 
         // Upgrade and call
-        ITransparentUpgradeableProxy(address(proxy)).upgradeToAndCall(implementation, initParams);
+        _proxyAdmin.upgradeAndCall(proxy, implementation, initParams);
     }
 
     function _checkNoLiquidity(address asset) internal view {

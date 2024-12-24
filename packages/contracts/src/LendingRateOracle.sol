@@ -2,7 +2,7 @@
 pragma solidity 0.8.25;
 
 import {ILendingRateOracle} from "./interfaces/ILendingRateOracle.sol";
-import {SuperOwnable} from "./interop-std/src/auth/SuperOwnable.sol";
+import {SuperOwnable} from "@interop-std/auth/SuperOwnable.sol";
 
 contract LendingRateOracle is ILendingRateOracle, SuperOwnable {
     mapping(address => uint256) borrowRates;

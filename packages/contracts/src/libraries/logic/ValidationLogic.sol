@@ -108,6 +108,7 @@ library ValidationLogic {
      */
     function validateBorrow(
         address asset,
+        address superAddress,
         DataTypes.ReserveData storage reserve,
         address userAddress,
         uint256 amount,
@@ -119,6 +120,7 @@ library ValidationLogic {
         mapping(uint256 => address) storage reserves,
         uint256 reservesCount,
         address oracle
+
     ) external view {
         ValidateBorrowLocalVars memory vars;
 
@@ -182,7 +184,8 @@ library ValidationLogic {
                 Errors.VL_COLLATERAL_SAME_AS_BORROWING_CURRENCY
             );
 
-            vars.availableLiquidity = IERC20(asset).balanceOf(reserve.aTokenAddress);
+            // TODO: check this
+            vars.availableLiquidity = IERC20(superAddress).balanceOf(reserve.aTokenAddress);
 
             //calculate the max available loan size in stable rate mode as a percentage of the
             //available liquidity

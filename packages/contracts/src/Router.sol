@@ -6,18 +6,17 @@ import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.
 
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
 import "./interfaces/ILendingPool.sol";
-import "./interfaces/ICrossL2Inbox.sol";
-import {ISuperchainAsset} from "./interfaces/ISuperchainAsset.sol";
+import "@contracts-bedrock/L2/interfaces/ICrossL2Inbox.sol";
+import {ISuperAsset} from "./interfaces/ISuperAsset.sol";
 import {IAToken} from "./interfaces/IAToken.sol";
 import {IStableDebtToken} from "./interfaces/IStableDebtToken.sol";
 import {IVariableDebtToken} from "./interfaces/IVariableDebtToken.sol";
-import {ISuperchainTokenBridge} from "./interfaces/ISuperchainTokenBridge.sol";
-import {ICrossL2Prover} from "./interfaces/ICrossL2Prover.sol";
+import {ISuperchainTokenBridge} from "@contracts-bedrock/L2/interfaces/ISuperchainTokenBridge.sol";
 
 import {ReserveLogic} from "./libraries/logic/ReserveLogic.sol";
 import {Errors} from "./libraries/helpers/Errors.sol";
-import {SuperPausable} from "./interop-std/src/utils/SuperPausable.sol";
-import {Predeploys} from "./libraries/Predeploys.sol";
+import {SuperPausable} from "@interop-std/utils/SuperPausable.sol";
+import {Predeploys} from "@contracts-bedrock/libraries/Predeploys.sol";
 
 contract Router is Initializable, SuperPausable {
     using SafeERC20 for IERC20;
@@ -58,7 +57,13 @@ contract Router is Initializable, SuperPausable {
         addressesProvider = ILendingPoolAddressesProvider(_addressesProvider);
     }
 
-    function dispatch(Identifier calldata _identifier, bytes calldata _data) external onlyRelayer whenNotPaused {
+    function dispatch(Identifier[] calldata _identifier, bytes[] calldata _data) external onlyRelayer whenNotPaused {
+        for (uint256 i = 0; i < _identifier.length; i++) {
+            _dispatch(_identifier[i], _data[i]);
+        }
+    }
+
+    function _dispatch(Identifier calldata _identifier, bytes calldata _data) internal {
         bytes32 selector = abi.decode(_data[:32], (bytes32));
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -267,6 +272,8 @@ contract Router is Initializable, SuperPausable {
             (address sender, address asset, uint256 rateMode) = abi.decode(_data[64:], (address, address, uint256));
             lendingPool.swapBorrowRateMode(sender, asset, rateMode);
         }
+
+        revert InvalidSelector(selector);
     }
 
     /**
@@ -359,11 +366,13 @@ contract Router is Initializable, SuperPausable {
     ) external whenNotPaused {
         DataTypes.ReserveData memory reserve = lendingPool.getReserveData(asset);
         IERC20(asset).safeTransferFrom(msg.sender, address(this), totalAmount);
-        ISuperchainAsset(reserve.superchainAssetAddress).mint(address(this), totalAmount);
+        address superAsset = addressesProvider.getSuperAsset();
+
+        ISuperAsset(superAsset).mint(address(this), totalAmount);
         for (uint256 i = 1; i < chainIds.length; i++) {
             if (chainIds[i] != block.chainid) {
 ISuperchainTokenBridge(Predeploys.SUPERCHAIN_TOKEN_BRIDGE).sendERC20(
-                    reserve.superchainAssetAddress, address(this), amounts[i], chainIds[i]
+                    superAsset, address(this), amounts[i], chainIds[i]
                 );
             }
             emit CrossChainRepay(chainIds[i], msg.sender, asset, amounts[i], rateMode[i], onBehalfOf);
@@ -437,11 +446,13 @@ ISuperchainTokenBridge(Predeploys.SUPERCHAIN_TOKEN_BRIDGE).sendERC20(
     ) external whenNotPaused {
         DataTypes.ReserveData memory reserve = lendingPool.getReserveData(debtAsset);
         IERC20(debtAsset).safeTransferFrom(msg.sender, address(this), totalDebtToCover);
-        ISuperchainAsset(reserve.superchainAssetAddress).mint(address(this), totalDebtToCover);
+        address superAsset = addressesProvider.getSuperAsset();
+
+        ISuperAsset(superAsset).mint(address(this), totalDebtToCover);
         for (uint256 i = 0; i < chainIds.length; i++) {
             if (chainIds[i] != block.chainid) {
                 ISuperchainTokenBridge(Predeploys.SUPERCHAIN_TOKEN_BRIDGE).sendERC20(
-                    reserve.superchainAssetAddress, address(this), debtToCover[i], chainIds[i]
+                    superAsset, address(this), debtToCover[i], chainIds[i]
                 );
             }
             emit CrossChainLiquidationCall(

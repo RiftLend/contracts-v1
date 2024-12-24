@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import {ILendingPoolAddressesProvider} from "./ILendingPoolAddressesProvider.sol";
 import {DataTypes} from "../libraries/types/DataTypes.sol";
-import "./ICrossL2Inbox.sol";
+import "@contracts-bedrock/L2/interfaces/ICrossL2Inbox.sol";
 
 /**
  * @dev Emitted on deposit()
@@ -264,9 +264,21 @@ interface ILendingPool {
     /**
      * @dev Functions to deposit/withdraw into the reserve
      */
-    function deposit(address sender, address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
+    function deposit(
+        address sender,
+        address asset,
+        uint256 amount,
+        address onBehalfOf,
+        uint16 referralCode
+    ) external;
 
-    function withdraw(address sender, address asset, uint256 amount, address to, uint256 toChainId) external;
+    function withdraw(
+        address sender,
+        address asset,
+        uint256 amount,
+        address to,
+        uint256 toChainId
+    ) external;
 
     /**
      * @dev Functions to borrow from the reserve
@@ -281,7 +293,13 @@ interface ILendingPool {
         uint16 referralCode
     ) external;
 
-    function repay(address sender, address asset, uint256 amount, uint256 rateMode, address onBehalfOf) external;
+    function repay(
+        address sender,
+        address asset,
+        uint256 amount,
+        uint256 rateMode,
+        address onBehalfOf
+    ) external;
 
     function swapBorrowRateMode(address sender, address asset, uint256 rateMode) external;
 
@@ -299,7 +317,12 @@ interface ILendingPool {
         uint256 sendToChainId
     ) external;
 
-    function updateStates(address asset, uint256 depositAmount, uint256 withdrawAmount, bytes2 mask) external;
+    function updateStates(
+        address asset,
+        uint256 depositAmount,
+        uint256 withdrawAmount,
+        bytes2 mask
+    ) external;
 
     function initReserve(
         address asset,
