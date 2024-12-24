@@ -74,8 +74,11 @@ contract Router is Initializable, SuperPausable {
         bytes calldata _proof,
         uint256[] calldata _logIndex
     ) external onlyRelayer whenNotPaused {
+        if (_mode == ValidationMode.CROSS_L2_PROVER_RECEIPT) {
+            _validate(_mode, _identifier[0], _data, _logIndex, _proof);
+        }
         for (uint256 i = 0; i < _identifier.length; i++) {
-            if (_mode != ValidationMode.CUSTOM) {
+            if (_mode != ValidationMode.CUSTOM && _mode != ValidationMode.CROSS_L2_PROVER_RECEIPT) {
                 _validate(_mode, _identifier[i], _data, _logIndex, _proof);
             }
             _dispatch(_identifier[i], _data[i]);
