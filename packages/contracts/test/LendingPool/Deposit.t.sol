@@ -48,7 +48,7 @@ contract LendingPoolTest is Test {
   address testToken;
   mapping(uint256 chainId => temps) public config;
 
-  // chains
+  // Util addresses
   address owner = makeAddr('owner');
   address poolAdmin1 = makeAddr('poolAdmin1');
   address router = makeAddr('router');
