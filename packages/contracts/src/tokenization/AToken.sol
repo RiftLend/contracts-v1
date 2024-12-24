@@ -6,6 +6,7 @@ import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.
 import {WadRayMath} from "../libraries/math/WadRayMath.sol";
 import {Errors} from "../libraries/helpers/Errors.sol";
 import {Initializable} from "@solady/utils/Initializable.sol";
+import {SuperPausable} from "../interop-std/src/utils/SuperPausable.sol";
 
 import {ILendingPool} from "../interfaces/ILendingPool.sol";
 import {IAToken} from "../interfaces/IAToken.sol";
@@ -17,15 +18,22 @@ import {Predeploys} from "../libraries/Predeploys.sol";
 import "../interfaces/ICrossL2Inbox.sol";
 import {ISuperAsset} from "../interfaces/ISuperAsset.sol";
 import {ISuperchainTokenBridge} from "../interfaces/ISuperchainTokenBridge.sol";
+import {ICrossL2Prover} from "../interfaces/ICrossL2Prover.sol";
 
 /**
  * @title Aave ERC20 AToken
  * @dev Implementation of the interest bearing token for the Aave protocol
  * @author Aave
  */
-contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL", 0), IAToken {
+contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL", 0), IAToken, SuperPausable {
     using WadRayMath for uint256;
     using SafeERC20 for IERC20;
+
+    enum Mode {
+        CUSTOM,
+        CROSS_L2_INBOX,
+        CROSS_L2_PROVER
+    }
 
     bytes public constant EIP712_REVISION = bytes("1");
     bytes32 internal constant EIP712_DOMAIN =
@@ -45,6 +53,7 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
     address internal _underlyingAsset;
     IAaveIncentivesController internal _incentivesController;
     ILendingPoolAddressesProvider internal _addressesProvider;
+    ICrossL2Prover internal _crossL2Prover;
 
     event CrossChainMint(address indexed user, uint256 amount, uint256 index);
 
@@ -61,6 +70,18 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
     function _onlyRelayer() internal view {
         require(_addressesProvider.getRelayer() == msg.sender, "!relayer");
     }
+
+    modifier onlyLendingPoolConfigurator() {
+        _onlyLendingPoolConfigurator();
+        _;
+    }
+
+    function _onlyLendingPoolConfigurator() internal view {
+        require(
+            _addressesProvider.getLendingPoolConfigurator() == msg.sender, Errors.LP_CALLER_NOT_LENDING_POOL_CONFIGURATOR
+        );
+    }
+
 
     function getRevision() internal pure virtual returns (uint256) {
         return ATOKEN_REVISION;
@@ -85,7 +106,8 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
         uint8 aTokenDecimals,
         string calldata aTokenName,
         string calldata aTokenSymbol,
-        bytes calldata params
+        bytes calldata params,
+        address crossL2Prover
     ) external override initializer {
         uint256 chainId;
 
@@ -107,6 +129,7 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
         _underlyingAsset = underlyingAsset;
         _incentivesController = incentivesController;
         _addressesProvider = addressesProvider;
+        _crossL2Prover = ICrossL2Prover(crossL2Prover);
         emit Initialized(
             underlyingAsset,
             address(pool),
@@ -119,17 +142,55 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
         );
     }
 
-    function dispatch(Identifier calldata _identifier, bytes calldata _data) external onlyRelayer {
-        if (_identifier.origin != address(this)) revert("!origin");
-        ICrossL2Inbox(Predeploys.CROSS_L2_INBOX).validateMessage(_identifier, keccak256(_data));
+    function dispatch(
+        Mode _mode,
+        Identifier[] calldata _identifier,
+        bytes[] calldata _data,
+        bytes[] calldata _proof,
+        uint256[] calldata _logIndex
+    ) external onlyRelayer whenNotPaused {
+        for (uint256 i = 0; i < _identifier.length; i++) {
+            if (_mode != Mode.CUSTOM) {
+                _validate(_mode, _identifier[i], _data[i], _logIndex[i], _proof[i]);
+            }
+            _dispatch(_identifier[i], _data[i]);
+        }
+    }
 
+    function _validate(
+        Mode _mode,
+        Identifier calldata _identifier,
+        bytes calldata _data,
+        uint256 _logIndex,
+        bytes calldata _proof
+    ) internal {
+        /// @dev use ICrossL2Inbox to validate message
+        if (_mode == Mode.CROSS_L2_INBOX) {
+            if (_identifier.origin != address(this)) {
+                revert("!origin");
+            }
+            ICrossL2Inbox(Predeploys.CROSS_L2_INBOX).validateMessage(_identifier, keccak256(_data));
+        }
+        if (_mode == Mode.CROSS_L2_PROVER) {
+            /// @dev use ICrossL2Prover to validate message
+            (, address emittingContract,, bytes memory unindexedData) = _crossL2Prover.validateEvent(
+                _logIndex, _proof
+            );
+            if (emittingContract != address(this)) {
+                revert("!origin");
+            }
+            if (keccak256(unindexedData) != keccak256(_data)) {
+                revert("!data");
+            }
+        }
+    }
+
+    function _dispatch(Identifier calldata _identifier, bytes calldata _data) internal {
         bytes32 selector = abi.decode(_data[:32], (bytes32));
         if (selector == CrossChainMint.selector && _identifier.chainId != block.chainid) {
             (, uint256 amount,) = abi.decode(_data[32:], (address, uint256, uint256));
             _totalCrossChainSupply += amount;
         }
-
-        revert("Invalid selector");
     }
 
     /**
@@ -453,4 +514,13 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
     function _transfer(address from, address to, uint256 amount) internal override {
         _transfer(from, to, amount, true);
     }
+
+    function setPause(bool val) external onlyLendingPoolConfigurator {
+        if (val) {
+            _pause();
+        } else {
+            _unpause();
+        }
+    }
+
 }

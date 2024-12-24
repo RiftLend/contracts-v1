@@ -45,6 +45,8 @@ interface IInitializableAToken {
      * @param aTokenDecimals The decimals of the aToken, same as the underlying asset's
      * @param aTokenName The name of the aToken
      * @param aTokenSymbol The symbol of the aToken
+     * @param params A set of encoded parameters for additional initialization
+     * @param crossL2Prover The address of the cross-chain prover
      */
     function initialize(
         ILendingPool pool,
@@ -55,6 +57,7 @@ interface IInitializableAToken {
         uint8 aTokenDecimals,
         string calldata aTokenName,
         string calldata aTokenSymbol,
-        bytes calldata params
+        bytes calldata params,
+        address crossL2Prover
     ) external;
 }

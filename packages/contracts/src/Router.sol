@@ -318,8 +318,6 @@ contract Router is Initializable, SuperPausable {
             (address sender, address asset, uint256 rateMode) = abi.decode(_data[64:], (address, address, uint256));
             lendingPool.swapBorrowRateMode(sender, asset, rateMode);
         }
-
-        revert InvalidSelector(selector);
     }
 
     /**
