@@ -25,8 +25,8 @@ import {ReserveConfiguration} from './libraries/configuration/ReserveConfigurati
 import {UserConfiguration} from './libraries/configuration/UserConfiguration.sol';
 import {DataTypes} from './libraries/types/DataTypes.sol';
 import {LendingPoolStorage} from './LendingPoolStorage.sol';
-import {Predeploys} from '@contracts-bedrock/libraries/Predeploys.sol';
-import {SuperPausable} from '@interop-std/utils/SuperPausable.sol';
+import {Predeploys} from './libraries/Predeploys.sol';
+import {SuperPausable} from './interop-std/src/utils/SuperPausable.sol';
 import {IRVaultAsset} from "./interfaces/IRVaultAsset.sol";
 
 /**
@@ -229,7 +229,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
 
     // Check the cooldown period
     require(
-        block.timestamp >= _lastWithdrawalTime[sender] + WITHDRAWAL_COOLDOWN_PERIOD,
+        block.timestamp >= _lastWithdrawalTime[sender] + WITHDRAW_COOL_PERIOD,
         "Withdrawal cooldown period not met"
     );
 
@@ -308,7 +308,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
   ) external onlyRouter {
 
     (address underlying,address superAsset, address rVaultAsset,uint256 token_type) = getTokenType(asset);
-    IERC20(asset).safeTransferFrom(address(this), amount);
+    IERC20(asset).safeTransferFrom(sender, address(this), amount);
     
     if (token_type == 0) {
         // Handle underlying asset
@@ -533,8 +533,8 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         
     if (token_type == 0) {
         // Handle underlying asset
-        IERC20(debtAsset).safeIncreaseAllowance(superAsset, amount);
-        ISuperAsset(superAsset).deposit(address(this), amount);
+        IERC20(debtAsset).safeIncreaseAllowance(superAsset, debtToCover);
+        ISuperAsset(superAsset).deposit(address(this), debtToCover);
         debtAsset = superAsset; // Update asset to superAsset for further processing
     }
 

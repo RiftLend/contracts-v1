@@ -466,7 +466,8 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
         ProxyAdmin _proxyAdmin = ProxyAdmin(proxyAdmin);
 
         // Upgrade and call
-        _proxyAdmin.upgradeAndCall(proxy, implementation, initParams);
+        // TODO: fix this
+        // _proxyAdmin.upgradeAndCall(proxy, implementation, initParams);
     }
 
     function _checkNoLiquidity(address asset) internal view {

@@ -6,17 +6,17 @@ import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.
 
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
 import "./interfaces/ILendingPool.sol";
-import "@contracts-bedrock/L2/interfaces/ICrossL2Inbox.sol";
+import "./interfaces/ICrossL2Inbox.sol";
 import {ISuperAsset} from "./interfaces/ISuperAsset.sol";
 import {IAToken} from "./interfaces/IAToken.sol";
 import {IStableDebtToken} from "./interfaces/IStableDebtToken.sol";
 import {IVariableDebtToken} from "./interfaces/IVariableDebtToken.sol";
-import {ISuperchainTokenBridge} from "@contracts-bedrock/L2/interfaces/ISuperchainTokenBridge.sol";
+import {ISuperchainTokenBridge} from "./interfaces/ISuperchainTokenBridge.sol";
 
 import {ReserveLogic} from "./libraries/logic/ReserveLogic.sol";
 import {Errors} from "./libraries/helpers/Errors.sol";
-import {SuperPausable} from "@interop-std/utils/SuperPausable.sol";
-import {Predeploys} from "@contracts-bedrock/libraries/Predeploys.sol";
+import {SuperPausable} from "./interop-std/src/utils/SuperPausable.sol";
+import {Predeploys} from "./libraries/Predeploys.sol";
 
 contract Router is Initializable, SuperPausable {
     using SafeERC20 for IERC20;

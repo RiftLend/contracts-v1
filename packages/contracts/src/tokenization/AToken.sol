@@ -13,10 +13,10 @@ import {IncentivizedERC20} from "./IncentivizedERC20.sol";
 import {IAaveIncentivesController} from "../interfaces/IAaveIncentivesController.sol";
 import {ILendingPoolAddressesProvider} from "../interfaces/ILendingPoolAddressesProvider.sol";
 
-import {Predeploys} from "@contracts-bedrock/libraries/Predeploys.sol";
-import "@contracts-bedrock/L2/interfaces/ICrossL2Inbox.sol";
+import {Predeploys} from "../libraries/Predeploys.sol";
+import "../interfaces/ICrossL2Inbox.sol";
 import {ISuperAsset} from "../interfaces/ISuperAsset.sol";
-import {ISuperchainTokenBridge} from "@contracts-bedrock/L2/interfaces/ISuperchainTokenBridge.sol";
+import {ISuperchainTokenBridge} from "../interfaces/ISuperchainTokenBridge.sol";
 
 /**
  * @title Aave ERC20 AToken

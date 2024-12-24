@@ -15,7 +15,7 @@ import {LendingPool} from '../../src/LendingPool.sol';
 import {LendingPoolAddressesProvider} from '../../src/configuration/LendingPoolAddressesProvider.sol';
 import {LendingPoolConfigurator} from '../../src/LendingPoolConfigurator.sol';
 import {DefaultReserveInterestRateStrategy} from '../../src/DefaultReserveInterestRateStrategy.sol';
-import {ProxyAdmin} from '../../lib/interop-std/src/utils/SuperProxyAdmin.sol';
+import {ProxyAdmin} from 'src/interop-std/src/utils/SuperProxyAdmin.sol';
 
 import '../../src/interfaces/ISuperAsset.sol';
 
