@@ -57,13 +57,10 @@ contract Router is Initializable, SuperPausable {
         addressesProvider = ILendingPoolAddressesProvider(_addressesProvider);
     }
 
-    function dispatch(Identifier[] calldata _identifier, bytes[] calldata _data) external onlyRelayer whenNotPaused {
-        for (uint256 i = 0; i < _identifier.length; i++) {
-            _dispatch(_identifier[i], _data[i]);
-        }
-    }
-
-    function _dispatch(Identifier calldata _identifier, bytes calldata _data) internal {
+    function dispatch(Identifier calldata _identifier, bytes calldata _data) external onlyRelayer whenNotPaused {
+        if (_identifier.origin != address(this)) revert OriginNotSuperLend();
+        ICrossL2Inbox(Predeploys.CROSS_L2_INBOX).validateMessage(_identifier, keccak256(_data));
+        
         bytes32 selector = abi.decode(_data[:32], (bytes32));
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
