@@ -18,10 +18,10 @@ import "../interfaces/ICrossL2Inbox.sol";
  */
 event Deposit(
     address user,
-    address indexed reserve,
+    address reserve,
     uint256 amount,
-    address indexed onBehalfOf,
-    uint16 indexed referral,
+    address onBehalfOf,
+    uint16 referral,
     uint256 mintMode,
     uint256 amountScaled
 );
@@ -36,14 +36,7 @@ event Deposit(
  * @param amountScaled The amount scaled to the pool's unit
  *
  */
-event Withdraw(
-    address indexed user,
-    address indexed reserve,
-    address indexed to,
-    uint256 amount,
-    uint256 mode,
-    uint256 amountScaled
-);
+event Withdraw(address user, address reserve, address to, uint256 amount, uint256 mode, uint256 amountScaled);
 
 /**
  * @dev Emitted on borrow() and flashLoan() when debt needs to be opened
@@ -61,16 +54,16 @@ event Withdraw(
  *
  */
 event Borrow(
-    address indexed reserve,
+    address reserve,
     uint256 amount,
     address user,
-    address indexed onBehalfOf,
+    address onBehalfOf,
     uint256 borrowRateMode,
     uint256 sendToChainId,
     uint256 borrowRate,
     uint256 mintMode,
     uint256 amountScaled,
-    uint16 indexed referral
+    uint16 referral
 );
 
 /**
@@ -85,13 +78,7 @@ event Borrow(
  *
  */
 event Repay(
-    address indexed reserve,
-    uint256 amount,
-    address indexed user,
-    address indexed repayer,
-    uint256 rateMode,
-    uint256 mode,
-    uint256 amountBurned
+    address reserve, uint256 amount, address user, address repayer, uint256 rateMode, uint256 mode, uint256 amountBurned
 );
 
 /**
@@ -103,13 +90,7 @@ event Repay(
  * @param stableDebtAmount The amount of stable debt being minted
  *
  */
-event Swap(
-    address indexed reserve,
-    address indexed user,
-    uint256 rateMode,
-    uint256 variableDebtAmount,
-    uint256 stableDebtAmount
-);
+event Swap(address reserve, address user, uint256 rateMode, uint256 variableDebtAmount, uint256 stableDebtAmount);
 
 /**
  * @dev Emitted on setUserUseReserveAsCollateral()
@@ -117,7 +98,7 @@ event Swap(
  * @param user The address of the user enabling the usage as collateral
  *
  */
-event ReserveUsedAsCollateralEnabled(address indexed reserve, address indexed user);
+event ReserveUsedAsCollateralEnabled(address reserve, address user);
 
 /**
  * @dev Emitted on setUserUseReserveAsCollateral()
@@ -125,7 +106,7 @@ event ReserveUsedAsCollateralEnabled(address indexed reserve, address indexed us
  * @param user The address of the user enabling the usage as collateral
  *
  */
-event ReserveUsedAsCollateralDisabled(address indexed reserve, address indexed user);
+event ReserveUsedAsCollateralDisabled(address reserve, address user);
 
 /**
  * @dev Emitted on rebalanceStableBorrowRate()
@@ -135,9 +116,7 @@ event ReserveUsedAsCollateralDisabled(address indexed reserve, address indexed u
  * @param amountMinted The amount of stable debt minted
  *
  */
-event RebalanceStableBorrowRate(
-    address indexed reserve, address indexed user, uint256 amountBurned, uint256 amountMinted
-);
+event RebalanceStableBorrowRate(address reserve, address user, uint256 amountBurned, uint256 amountMinted);
 
 /**
  * @dev Emitted on flashLoan()
@@ -154,11 +133,11 @@ event RebalanceStableBorrowRate(
 event FlashLoan(
     uint256 chainId,
     bool borrowExecuted,
-    address indexed initiator,
-    address indexed asset,
+    address initiator,
+    address asset,
     uint256 amount,
     uint256 premium,
-    address indexed target,
+    address target,
     uint16 referralCode
 );
 
@@ -179,9 +158,9 @@ event FlashLoan(
  * @param collateralATokenBurned The amount of collateral aTokens burned
  */
 event LiquidationCall(
-    address indexed collateralAsset,
-    address indexed debtAsset,
-    address indexed user,
+    address collateralAsset,
+    address debtAsset,
+    address user,
     uint256 debtToCover,
     uint256 liquidatedCollateralAmount,
     address liquidator,
@@ -196,13 +175,13 @@ error InvalidChainId(uint256 chainId);
 error InvalidSelector(bytes32 selector);
 error OriginNotSuperLend();
 
-event FlashLoanInitiated(address indexed receiver, address[] assets, uint256[] amounts);
+event FlashLoanInitiated(address receiver, address[] assets, uint256[] amounts);
 
 event RebalanceStableBorrowRateCrossChain(uint256 chainId, address asset, address user);
 
 event CrossChainSwapBorrowRateMode(uint256 chainId, address user, address asset, uint256 rateMode);
 
-event ReserveConfigurationChanged(address indexed asset, uint256 configuration);
+event ReserveConfigurationChanged(address asset, uint256 configuration);
 
 event CrossChainRebalanceStableBorrowRate(uint256 chainId, address asset, address user);
 

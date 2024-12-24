@@ -29,10 +29,11 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
     using WadRayMath for uint256;
     using SafeERC20 for IERC20;
 
-    enum Mode {
+    enum ValidationMode {
         CUSTOM,
         CROSS_L2_INBOX,
-        CROSS_L2_PROVER
+        CROSS_L2_PROVER_EVENT,
+        CROSS_L2_PROVER_RECEIPT
     }
 
     bytes public constant EIP712_REVISION = bytes("1");
@@ -55,7 +56,7 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
     ILendingPoolAddressesProvider internal _addressesProvider;
     ICrossL2Prover internal _crossL2Prover;
 
-    event CrossChainMint(address indexed user, uint256 amount, uint256 index);
+    event CrossChainMint(address user, uint256 amount, uint256 index);
 
     modifier onlyLendingPool() {
         require(_msgSender() == address(_pool), Errors.CT_CALLER_MUST_BE_LENDING_POOL);
@@ -78,10 +79,10 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
 
     function _onlyLendingPoolConfigurator() internal view {
         require(
-            _addressesProvider.getLendingPoolConfigurator() == msg.sender, Errors.LP_CALLER_NOT_LENDING_POOL_CONFIGURATOR
+            _addressesProvider.getLendingPoolConfigurator() == msg.sender,
+            Errors.LP_CALLER_NOT_LENDING_POOL_CONFIGURATOR
         );
     }
-
 
     function getRevision() internal pure virtual returns (uint256) {
         return ATOKEN_REVISION;
@@ -143,44 +144,57 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
     }
 
     function dispatch(
-        Mode _mode,
+        ValidationMode _mode,
         Identifier[] calldata _identifier,
         bytes[] calldata _data,
-        bytes[] calldata _proof,
+        bytes calldata _proof,
         uint256[] calldata _logIndex
     ) external onlyRelayer whenNotPaused {
         for (uint256 i = 0; i < _identifier.length; i++) {
-            if (_mode != Mode.CUSTOM) {
-                _validate(_mode, _identifier[i], _data[i], _logIndex[i], _proof[i]);
+            if (_mode != ValidationMode.CUSTOM) {
+                _validate(_mode, _identifier[i], _data[i], _logIndex, _proof);
             }
             _dispatch(_identifier[i], _data[i]);
         }
     }
 
     function _validate(
-        Mode _mode,
+        ValidationMode _mode,
         Identifier calldata _identifier,
         bytes calldata _data,
-        uint256 _logIndex,
+        uint256[] calldata _logIndex,
         bytes calldata _proof
     ) internal {
         /// @dev use ICrossL2Inbox to validate message
-        if (_mode == Mode.CROSS_L2_INBOX) {
+        if (_mode == ValidationMode.CROSS_L2_INBOX) {
             if (_identifier.origin != address(this)) {
                 revert("!origin");
             }
             ICrossL2Inbox(Predeploys.CROSS_L2_INBOX).validateMessage(_identifier, keccak256(_data));
         }
-        if (_mode == Mode.CROSS_L2_PROVER) {
+        if (_mode == ValidationMode.CROSS_L2_PROVER_EVENT) {
             /// @dev use ICrossL2Prover to validate message
-            (, address emittingContract,, bytes memory unindexedData) = _crossL2Prover.validateEvent(
-                _logIndex, _proof
-            );
+            (, address emittingContract, bytes[] memory topics, bytes memory unindexedData) =
+                _crossL2Prover.validateEvent(_logIndex[0], _proof);
             if (emittingContract != address(this)) {
                 revert("!origin");
             }
-            if (keccak256(unindexedData) != keccak256(_data)) {
+            if (keccak256(abi.encode(topics[0], unindexedData)) != keccak256(_data)) {
                 revert("!data");
+            }
+        }
+        if (_mode == ValidationMode.CROSS_L2_PROVER_RECEIPT) {
+            /// @dev use ICrossL2Prover to validate receipt
+            (, bytes memory rlpEncodedBytes) = _crossL2Prover.validateReceipt(_proof);
+            for (uint256 i = 0; i < _logIndex.length; i++) {
+                (address emittingContract, bytes[] memory topics, bytes memory unindexedData) =
+                    _crossL2Prover.parseLog(_logIndex[i], rlpEncodedBytes);
+                if (emittingContract != address(this)) {
+                    revert("!origin");
+                }
+                if (keccak256(abi.encode(topics[0], unindexedData)) != keccak256(_data)) {
+                    revert("!data");
+                }
             }
         }
     }
@@ -522,5 +536,4 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
             _unpause();
         }
     }
-
 }
