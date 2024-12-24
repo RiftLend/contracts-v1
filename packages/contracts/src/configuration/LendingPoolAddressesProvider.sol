@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import {SuperOwnable} from "../interop-std/src/auth/SuperOwnable.sol";
 
-import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {ITransparentUpgradeableProxy,TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
 import "../interfaces/ILendingPoolAddressesProvider.sol";
@@ -261,6 +261,9 @@ contract LendingPoolAddressesProvider is SuperOwnable {
             emit ProxyCreated(id, address(proxy));
         } else {
             // TODO: fix this
+        ProxyAdmin proxyAdmin = ProxyAdmin(_proxyAdmin);
+        proxyAdmin.upgradeAndCall(ITransparentUpgradeableProxy(address(proxy)), newAddress, params);
+
             // proxy.upgradeToAndCall(newAddress, params);
         }
     }

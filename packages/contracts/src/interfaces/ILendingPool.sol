@@ -314,7 +314,7 @@ interface ILendingPool {
 
     function getReserveNormalizedIncome(address asset) external view returns (uint256);
 
-    function getReserveNormalizedVariableDebt(address asset) external view returns (uint256);
+    function getReserveNormalizedVariableDebt() external view returns (uint256);
 
     function getReserveData(address asset) external view returns (DataTypes.ReserveData memory);
 

@@ -12,7 +12,7 @@ import {ILendingPoolConfigurator} from "./interfaces/ILendingPoolConfigurator.so
 import {ISuperAsset} from "./interfaces/ISuperAsset.sol";
 
 import {Initializable} from "@solady/utils/Initializable.sol";
-import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {ITransparentUpgradeableProxy,TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import {ReserveConfiguration} from "./libraries/configuration/ReserveConfiguration.sol";
 import {Errors} from "./libraries/helpers/Errors.sol";
@@ -72,12 +72,12 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
         }
     }
 
-    function _initReserve(ILendingPool pool, InitReserveInput calldata input) internal {
+    function _initReserve(ILendingPool _pool, InitReserveInput calldata input) internal {
         address aTokenProxyAddress = _initTokenWithProxy(
             input.aTokenImpl,
             abi.encodeWithSelector(
                 IInitializableAToken.initialize.selector,
-                pool,
+                _pool,
                 input.treasury,
                 input.underlyingAsset,
                 IAaveIncentivesController(input.incentivesController),
@@ -94,7 +94,7 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
             input.stableDebtTokenImpl,
             abi.encodeWithSelector(
                 IInitializableDebtToken.initialize.selector,
-                pool,
+                _pool,
                 input.underlyingAsset,
                 IAaveIncentivesController(input.incentivesController),
                 input.underlyingAssetDecimals,
@@ -109,7 +109,7 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
             input.variableDebtTokenImpl,
             abi.encodeWithSelector(
                 IInitializableDebtToken.initialize.selector,
-                pool,
+                _pool,
                 input.underlyingAsset,
                 IAaveIncentivesController(input.incentivesController),
                 input.underlyingAssetDecimals,
@@ -120,7 +120,7 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
             input.salt
         );
 
-        pool.initReserve(
+        _pool.initReserve(
             input.underlyingAsset,
             input.superchainAsset,
             aTokenProxyAddress,
@@ -129,14 +129,14 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
             input.interestRateStrategyAddress
         );
 
-        DataTypes.ReserveConfigurationMap memory currentConfig = pool.getConfiguration(input.underlyingAsset);
+        DataTypes.ReserveConfigurationMap memory currentConfig = _pool.getConfiguration(input.underlyingAsset);
 
         currentConfig.setDecimals(input.underlyingAssetDecimals);
 
         currentConfig.setActive(true);
         currentConfig.setFrozen(false);
 
-        pool.setConfiguration(input.underlyingAsset, currentConfig.data);
+        _pool.setConfiguration(input.underlyingAsset, currentConfig.data);
 
         emit ReserveInitialized(
             input.underlyingAsset,
@@ -460,14 +460,23 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
     function _upgradeTokenImplementation(address proxyAddress, address implementation, bytes memory initParams)
         internal
     {
-        TransparentUpgradeableProxy proxy = TransparentUpgradeableProxy(payable(proxyAddress));
-
+        // Q: Should we add this check?
+        // TransparentUpgradeableProxy proxy = TransparentUpgradeableProxy(payable(proxyAddress));
+        // if (proxyAddress == address(0)) {
+        //     proxy = new TransparentUpgradeableProxy(newAddress, _proxyAdmin, params);
+        //     _addresses[id] = address(proxy);
+        //     emit ProxyCreated(id, address(proxy));
+        // } else {
         // Get the proxy admin
         ProxyAdmin _proxyAdmin = ProxyAdmin(proxyAdmin);
 
         // Upgrade and call
         // TODO: fix this
-        // _proxyAdmin.upgradeAndCall(proxy, implementation, initParams);
+        _proxyAdmin.upgradeAndCall(ITransparentUpgradeableProxy(proxyAddress), implementation, initParams);
+
+        // }
+
+        
     }
 
     function _checkNoLiquidity(address asset) internal view {

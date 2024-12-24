@@ -130,7 +130,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         // - Rvault
         // both ways we believe the reserves to be operated on superAsset
 
-        (address underlying, address superAsset, address rVaultAsset, uint256 token_type) = getTokenType(asset);
+        (, address superAsset, address rVaultAsset, uint256 token_type) = getTokenType(asset);
 
         DataTypes.ReserveData storage reserve = _reserves[superAsset];
 
@@ -260,7 +260,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         external
         onlyRouter
     {
-        (address underlying, address superAsset, address rVaultAsset, uint256 token_type) = getTokenType(asset);
+        (, address superAsset, , uint256 token_type) = getTokenType(asset);
         IERC20(asset).safeTransferFrom(sender, address(this), amount);
 
         if (token_type == 0) {
@@ -408,7 +408,6 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         emit ReserveUsedAsCollateral(sender, asset, useAsCollateral);
     }
 
-    // TODO: modify for #33
     function liquidationCall(
         address sender,
         address collateralAsset,
@@ -419,7 +418,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         uint256 sendToChainId
     ) external onlyRouter {
         address collateralManager = _addressesProvider.getLendingPoolCollateralManager();
-        (address underlying, address superAsset, address rVaultAsset, uint256 token_type) = getTokenType(debtAsset);
+        (, address superAsset,, uint256 token_type) = getTokenType(debtAsset);
 
         IERC20(debtAsset).safeTransferFrom(sender, address(this), debtToCover);
 
@@ -629,10 +628,9 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
 
     /**
      * @dev Returns the normalized income per unit of asset
-     * @param asset The address of the underlying asset of the reserve
      * @return The reserve's normalized income
      */
-    function getReserveNormalizedIncome(address asset) external view virtual returns (uint256) {
+    function getReserveNormalizedIncome() external view virtual returns (uint256) {
         address superAsset = _addressesProvider.getSuperAsset();
 
         return _reserves[superAsset].getNormalizedIncome();
@@ -640,10 +638,9 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
 
     /**
      * @dev Returns the normalized variable debt per unit of asset
-     * @param asset The address of the underlying asset of the reserve
      * @return The reserve normalized variable debt
      */
-    function getReserveNormalizedVariableDebt(address asset) external view returns (uint256) {
+    function getReserveNormalizedVariableDebt() external view returns (uint256) {
         address superAsset = _addressesProvider.getSuperAsset();
 
         return _reserves[superAsset].getNormalizedDebt();

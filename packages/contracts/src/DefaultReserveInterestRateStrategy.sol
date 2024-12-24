@@ -55,22 +55,22 @@ contract DefaultReserveInterestRateStrategy is IReserveInterestRateStrategy {
     uint256 internal immutable _stableRateSlope2;
 
     constructor(
-        ILendingPoolAddressesProvider provider,
-        uint256 optimalUtilizationRate,
-        uint256 baseVariableBorrowRate,
-        uint256 variableRateSlope1,
-        uint256 variableRateSlope2,
-        uint256 stableRateSlope1,
-        uint256 stableRateSlope2
+        ILendingPoolAddressesProvider __provider,
+        uint256 __optimalUtilizationRate,
+        uint256 __baseVariableBorrowRate,
+        uint256 __variableRateSlope1,
+        uint256 __variableRateSlope2,
+        uint256 __stableRateSlope1,
+        uint256 __stableRateSlope2
     ) {
-        OPTIMAL_UTILIZATION_RATE = optimalUtilizationRate;
-        EXCESS_UTILIZATION_RATE = WadRayMath.ray() - optimalUtilizationRate;
-        addressesProvider = provider;
-        _baseVariableBorrowRate = baseVariableBorrowRate;
-        _variableRateSlope1 = variableRateSlope1;
-        _variableRateSlope2 = variableRateSlope2;
-        _stableRateSlope1 = stableRateSlope1;
-        _stableRateSlope2 = stableRateSlope2;
+        OPTIMAL_UTILIZATION_RATE = __optimalUtilizationRate;
+        EXCESS_UTILIZATION_RATE = WadRayMath.ray() - __optimalUtilizationRate;
+        addressesProvider = __provider;
+        _baseVariableBorrowRate = __baseVariableBorrowRate;
+        _variableRateSlope1 = __variableRateSlope1;
+        _variableRateSlope2 = __variableRateSlope2;
+        _stableRateSlope1 = __stableRateSlope1;
+        _stableRateSlope2 = __stableRateSlope2;
     }
 
     function variableRateSlope1() external view returns (uint256) {

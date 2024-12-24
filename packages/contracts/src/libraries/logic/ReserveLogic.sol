@@ -150,7 +150,7 @@ library ReserveLogic {
     function init(
         DataTypes.ReserveData storage reserve,
         address aTokenAddress,
-        address superchainAsset,
+        address ,
         address stableDebtTokenAddress,
         address variableDebtTokenAddress,
         address interestRateStrategyAddress

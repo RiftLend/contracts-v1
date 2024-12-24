@@ -94,7 +94,7 @@ library ValidationLogic {
 
     /**
      * @dev Validates a borrow action
-     * @param asset The address of the asset to borrow
+     * param _asset The address of the asset to borrow
      * @param reserve The reserve state from which the user is borrowing
      * @param userAddress The address of the user
      * @param amount The amount to be borrowed
@@ -107,7 +107,7 @@ library ValidationLogic {
      * @param oracle The price oracle
      */
     function validateBorrow(
-        address asset,
+        address _asset,
         address superAddress,
         DataTypes.ReserveData storage reserve,
         address userAddress,

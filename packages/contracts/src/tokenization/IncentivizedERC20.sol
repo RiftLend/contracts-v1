@@ -23,10 +23,10 @@ abstract contract IncentivizedERC20 is Context, IERC20, IERC20Metadata {
     string private _symbol;
     uint8 private _decimals;
 
-    constructor(string memory name, string memory symbol, uint8 decimals) {
-        _name = name;
-        _symbol = symbol;
-        _decimals = decimals;
+    constructor(string memory __name, string memory __symbol, uint8 __decimals) {
+        _name = __name;
+        _symbol = __symbol;
+        _decimals = __decimals;
     }
 
     /**

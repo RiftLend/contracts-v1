@@ -415,7 +415,7 @@ contract Router is Initializable, SuperPausable {
         address onBehalfOf,
         uint256[] calldata chainIds
     ) external whenNotPaused {
-        DataTypes.ReserveData memory reserve = lendingPool.getReserveData(asset);
+        // DataTypes.ReserveData memory reserve = lendingPool.getReserveData(asset);
         IERC20(asset).safeTransferFrom(msg.sender, address(this), totalAmount);
         address superAsset = addressesProvider.getSuperAsset();
 
@@ -495,7 +495,7 @@ contract Router is Initializable, SuperPausable {
         bool receiveAToken,
         uint256 sendToChainId
     ) external whenNotPaused {
-        DataTypes.ReserveData memory reserve = lendingPool.getReserveData(debtAsset);
+        // DataTypes.ReserveData memory reserve = lendingPool.getReserveData(debtAsset);
         IERC20(debtAsset).safeTransferFrom(msg.sender, address(this), totalDebtToCover);
         address superAsset = addressesProvider.getSuperAsset();
 

@@ -134,7 +134,7 @@ contract LendingPoolDeployer is Script {
         });
     }
 
-    function _implSalt(string memory salt) internal view returns (bytes32) {
+    function _implSalt(string memory salt) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(salt));
     }
 

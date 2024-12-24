@@ -11,6 +11,29 @@ import {IERC20Metadata} from "@openzeppelin/contracts-v5/token/ERC20/extensions/
 
 import {ILendingPoolAddressesProvider} from "./interfaces/ILendingPoolAddressesProvider.sol";
 
+// import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+// import { OFT } from "@layerzerolabs/oft-evm/contracts/OFT.sol";
+
+// contract SuperAsset is OFT {
+//  constructor(
+//     address underlying_,
+//     ILendingPoolAddressesProvider provider_,
+//     address _lzEndpoint,
+//     address _delegate
+//   )
+//     OFT(
+//       IERC20Metadata(underlying).name(),
+//       IERC20Metadata(underlying).symbol(),
+//       _lzEndpoint,
+//       _delegate
+//     )
+//     Ownable(_delegate)
+//   {
+//     underlying = underlying_;
+//     provider = provider_;
+//     _decimals = IERC20Metadata(underlying).decimals();
+//   }
+
 /// @dev whenever user uses this with SuperchainTokenBridge, the destination chain will mint aToken (if underlying < totalBalances) and transfer underlying remaining
 contract SuperAsset is SuperchainERC20 {
     using SafeERC20 for IERC20;

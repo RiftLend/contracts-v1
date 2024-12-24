@@ -82,7 +82,7 @@ contract LendingPoolTest is Test {
         vm.label(address(underlyingAsset), "underlyingAsset");
 
         // Deploy SuperProxyAdmin
-        address superProxyAdmin = address(new ProxyAdmin{salt: "superProxyAdmin"}(owner, _chainId));
+        superProxyAdmin = address(new ProxyAdmin{salt: "superProxyAdmin"}(owner, _chainId));
         vm.label(superProxyAdmin, "superProxyAdmin");
         t.proxyAdmin = superProxyAdmin;
 
