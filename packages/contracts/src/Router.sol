@@ -273,7 +273,6 @@ contract Router is Initializable, SuperPausable {
             lendingPool.swapBorrowRateMode(sender, asset, rateMode);
         }
 
-        revert InvalidSelector(selector);
     }
 
     /**
