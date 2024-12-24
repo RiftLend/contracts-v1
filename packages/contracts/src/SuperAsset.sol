@@ -50,12 +50,13 @@ contract SuperAsset is SuperchainERC20 {
         IERC20(underlying).safeTransferFrom(msg.sender, address(this), amount);
 
         // Mint at 1:1 ratio
-        _mint(msg.sender, amount);
+        _mint(to, amount);
     }
 
-    function withdraw(address to, uint256 amount) public {
+    function withdraw(address to, uint256 amount) external {
         // Burn user's superAsset
         _burn(msg.sender, amount);
+
         IERC20(underlying).safeTransfer(to, amount);
     }
 
