@@ -29,9 +29,7 @@ contract RVaultAsset is SuperOwnable, ERC4626 {
             provider.getLendingPoolConfigurator() == msg.sender, "Only lending pool configurator can call this function"
         );
         _;
-
     }
- 
 
     constructor(
         string memory name_,
@@ -40,7 +38,7 @@ contract RVaultAsset is SuperOwnable, ERC4626 {
         address underlying_, // SuperAsset
         ILendingPoolAddressesProvider provider_,
         address admin_
-    ) SuperOwnable()  ERC4626(IERC20(underlying_) ) ERC20(name_,symbol_) {
+    ) SuperOwnable() ERC4626(IERC20(underlying_)) ERC20(name_, symbol_) {
         _name = name_;
         _symbol = symbol_;
         _decimals = decimals_;
@@ -51,7 +49,7 @@ contract RVaultAsset is SuperOwnable, ERC4626 {
 
     /// @dev minting more than totalBalances will mint aToken and transfer underlying
     /// only callable by SuperchainTokenBridge (which has already burned the aToken amount on source chain)
-    function mint_(address to_, uint256 amount_) internal  {
+    function mint_(address to_, uint256 amount_) internal {
         if (amount_ > totalBalances) {
             // need to mint more than totalBalances
             balances[to_] += amount_ - totalBalances;
@@ -65,25 +63,25 @@ contract RVaultAsset is SuperOwnable, ERC4626 {
         }
     }
 
-    function mint(address to_, uint256 amount_) external  {
+    function mint(address to_, uint256 amount_) external {
         balances[to_] += amount_;
         totalBalances += amount_;
         IERC20(underlying).safeTransferFrom(msg.sender, address(this), amount_);
         super._mint(to_, amount_);
     }
 
-    function burn_(address from_, uint256 amount_) internal  {
+    function burn_(address from_, uint256 amount_) internal {
         balances[from_] -= amount_;
         super._burn(from_, amount_);
     }
 
-    function burn(address to_, uint256 amount_) external{
+    function burn(address to_, uint256 amount_) external {
         totalBalances -= amount_;
         _burn(msg.sender, amount_);
         IERC20(underlying).safeTransfer(to_, amount_);
     }
 
-    function transfer(address recipient, uint256 amount) public override(IERC20,ERC20)  returns (bool) {
+    function transfer(address recipient, uint256 amount) public override(IERC20, ERC20) returns (bool) {
         // Call the parent contract's transfer function
         bool success = super.transfer(recipient, amount);
         if (success) {
@@ -93,7 +91,11 @@ contract RVaultAsset is SuperOwnable, ERC4626 {
         return success;
     }
 
-    function transferFrom(address sender, address recipient, uint256 amount) public override(IERC20,ERC20)  returns (bool) {
+    function transferFrom(address sender, address recipient, uint256 amount)
+        public
+        override(IERC20, ERC20)
+        returns (bool)
+    {
         // Call the parent contract's transferFrom function
         bool success = super.transferFrom(sender, recipient, amount);
         if (success) {
@@ -102,7 +104,7 @@ contract RVaultAsset is SuperOwnable, ERC4626 {
         }
         return success;
     }
-    
+
     // TODO write this out completely.
     /// @dev bridge underlying to another chain using bungee api
     function bridgeUnderlying(address payable _to, bytes memory txData, address _allowanceTarget, uint256 _amount)
@@ -123,6 +125,4 @@ contract RVaultAsset is SuperOwnable, ERC4626 {
         uint256 amount = IERC20(_token).balanceOf(address(this));
         IERC20(_token).safeTransfer(_recepient, amount);
     }
-
-  
 }

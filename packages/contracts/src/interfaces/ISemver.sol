@@ -11,4 +11,3 @@ interface ISemver {
     /// @return Semver contract version as a string.
     function version() external view returns (string memory);
 }
-

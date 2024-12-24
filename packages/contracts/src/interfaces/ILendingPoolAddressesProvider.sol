@@ -72,20 +72,19 @@ interface ILendingPoolAddressesProvider {
 
     function setRelayer(address relayer) external;
 
-
     function getRouter() external view returns (address);
 
-    function setUnderlying(address ) external;
+    function setUnderlying(address) external;
 
-    function getUnderlying() external view returns(address);
+    function getUnderlying() external view returns (address);
 
-    function setRVaultAsset(address ) external;
+    function setRVaultAsset(address) external;
 
-    function getRVaultAsset() external view returns(address);
+    function getRVaultAsset() external view returns (address);
 
-    function setSuperAsset(address ) external;
+    function setSuperAsset(address) external;
 
-    function getSuperAsset() external view returns(address);
-    
+    function getSuperAsset() external view returns (address);
+
     function setRouter(address router) external;
 }

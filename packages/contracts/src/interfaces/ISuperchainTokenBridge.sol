@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import { ISemver } from "./ISemver.sol";
+import {ISemver} from "./ISemver.sol";
 
 /// @title ISuperchainTokenBridge
 /// @notice Interface for the SuperchainTokenBridge contract.
@@ -17,12 +17,7 @@ interface ISuperchainTokenBridge is ISemver {
 
     event RelayERC20(address indexed token, address indexed from, address indexed to, uint256 amount, uint256 source);
 
-    function sendERC20(
-        address _token,
-        address _to,
-        uint256 _amount,
-        uint256 _chainId
-    )
+    function sendERC20(address _token, address _to, uint256 _amount, uint256 _chainId)
         external
         returns (bytes32 msgHash_);
 

@@ -120,7 +120,6 @@ library ValidationLogic {
         mapping(uint256 => address) storage reserves,
         uint256 reservesCount,
         address oracle
-
     ) external view {
         ValidateBorrowLocalVars memory vars;
 

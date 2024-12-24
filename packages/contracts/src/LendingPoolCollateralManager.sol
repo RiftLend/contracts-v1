@@ -194,13 +194,9 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
         }
         address superAsset = _addressesProvider.getSuperAsset();
 
-        ISuperAsset(superAsset).transfer(
-            debtReserve.aTokenAddress, vars.actualDebtToLiquidate
-        );
+        ISuperAsset(superAsset).transfer(debtReserve.aTokenAddress, vars.actualDebtToLiquidate);
         if (debtToCover > vars.actualDebtToLiquidate) {
-            ISuperAsset(superAsset).transfer(
-                sender, debtToCover - vars.actualDebtToLiquidate
-            );
+            ISuperAsset(superAsset).transfer(sender, debtToCover - vars.actualDebtToLiquidate);
         }
 
         emit LiquidationCall(

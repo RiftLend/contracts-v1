@@ -3,7 +3,10 @@
 
 pragma solidity ^0.8.0;
 
-import {ITransparentUpgradeableProxy, TransparentUpgradeableProxy} from "@openzeppelin/contracts-v5/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {
+    ITransparentUpgradeableProxy,
+    TransparentUpgradeableProxy
+} from "@openzeppelin/contracts-v5/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {SuperOwnable} from "../auth/SuperOwnable.sol";
 
 /**

@@ -24,7 +24,7 @@ contract LendingPoolAddressesProvider is SuperOwnable {
     bytes32 private constant RVAULT_ASSET = "RVAULT_ASSET";
     bytes32 private constant UNDERLYING = "UNDERLYING";
     bytes32 private constant SUPER_ASSET = "SUPER_ASSET";
-    
+
     bytes32 private constant LENDING_POOL_CONFIGURATOR = "LENDING_POOL_CONFIGURATOR";
     bytes32 private constant POOL_ADMIN = "POOL_ADMIN";
     bytes32 private constant EMERGENCY_ADMIN = "EMERGENCY_ADMIN";
@@ -109,32 +109,31 @@ contract LendingPoolAddressesProvider is SuperOwnable {
         return getAddress(LENDING_POOL);
     }
 
-
     // Set RVaultAsset addresses
     function setRVaultAsset(address rVaultAsset) external onlyOwner {
-        _addresses[RVAULT_ASSET]=rVaultAsset;
+        _addresses[RVAULT_ASSET] = rVaultAsset;
         emit RVaultAssetUpdated(rVaultAsset);
     }
 
-    function getRVaultAsset() external view returns (address){
+    function getRVaultAsset() external view returns (address) {
         return getAddress(RVAULT_ASSET);
     }
 
     function setUnderlying(address underlying) external onlyOwner {
-        _addresses[UNDERLYING]=underlying;
+        _addresses[UNDERLYING] = underlying;
         emit UnderlyingUpdated(underlying);
     }
 
-    function getUnderlying() external view returns (address){
+    function getUnderlying() external view returns (address) {
         return getAddress(UNDERLYING);
     }
 
     function setSuperAsset(address superAsset) external onlyOwner {
-        _addresses[SUPER_ASSET]=superAsset;
+        _addresses[SUPER_ASSET] = superAsset;
         emit SuperAssetUpdated(superAsset);
     }
 
-    function getSuperAsset() external view returns (address){
+    function getSuperAsset() external view returns (address) {
         return getAddress(SUPER_ASSET);
     }
 
@@ -233,7 +232,6 @@ contract LendingPoolAddressesProvider is SuperOwnable {
         emit LendingRateOracleUpdated(lendingRateOracle);
     }
 
-    
     function getRelayer() external view returns (address) {
         return getAddress(RELAYER);
     }

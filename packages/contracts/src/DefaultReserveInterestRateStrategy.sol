@@ -172,16 +172,16 @@ contract DefaultReserveInterestRateStrategy is IReserveInterestRateStrategy {
             uint256 excessUtilizationRateRatio =
                 (vars.utilizationRate - OPTIMAL_UTILIZATION_RATE).rayDiv(EXCESS_UTILIZATION_RATE);
 
-            vars.currentStableBorrowRate = vars.currentStableBorrowRate + _stableRateSlope1 +
-                _stableRateSlope2.rayMul(excessUtilizationRateRatio);
+            vars.currentStableBorrowRate =
+                vars.currentStableBorrowRate + _stableRateSlope1 + _stableRateSlope2.rayMul(excessUtilizationRateRatio);
 
-            vars.currentVariableBorrowRate = _baseVariableBorrowRate + _variableRateSlope1 +
-                _variableRateSlope2.rayMul(excessUtilizationRateRatio);
+            vars.currentVariableBorrowRate =
+                _baseVariableBorrowRate + _variableRateSlope1 + _variableRateSlope2.rayMul(excessUtilizationRateRatio);
         } else {
-            vars.currentStableBorrowRate = vars.currentStableBorrowRate +
-                _stableRateSlope1.rayMul(vars.utilizationRate.rayDiv(OPTIMAL_UTILIZATION_RATE));
-            vars.currentVariableBorrowRate = _baseVariableBorrowRate +
-                vars.utilizationRate.rayMul(_variableRateSlope1).rayDiv(OPTIMAL_UTILIZATION_RATE);
+            vars.currentStableBorrowRate = vars.currentStableBorrowRate
+                + _stableRateSlope1.rayMul(vars.utilizationRate.rayDiv(OPTIMAL_UTILIZATION_RATE));
+            vars.currentVariableBorrowRate = _baseVariableBorrowRate
+                + vars.utilizationRate.rayMul(_variableRateSlope1).rayDiv(OPTIMAL_UTILIZATION_RATE);
         }
 
         vars.currentLiquidityRate = _getOverallBorrowRate(

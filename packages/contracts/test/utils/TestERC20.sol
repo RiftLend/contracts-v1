@@ -5,6 +5,7 @@ import {ERC20} from "@openzeppelin/contracts-v5/token/ERC20/ERC20.sol";
 
 contract TestERC20 is ERC20 {
     uint8 decimals_;
+
     constructor(string memory _name, string memory _symbol, uint8 _decimals) ERC20(_name, _symbol) {
         decimals_ = _decimals;
     }

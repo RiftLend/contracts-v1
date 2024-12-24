@@ -11,6 +11,7 @@ import {ISuperAsset} from "./interfaces/ISuperAsset.sol";
 import {IAToken} from "./interfaces/IAToken.sol";
 import {IStableDebtToken} from "./interfaces/IStableDebtToken.sol";
 import {IVariableDebtToken} from "./interfaces/IVariableDebtToken.sol";
+import {ICrossL2Prover} from "./interfaces/ICrossL2Prover.sol";
 import {ISuperchainTokenBridge} from "./interfaces/ISuperchainTokenBridge.sol";
 
 import {ReserveLogic} from "./libraries/logic/ReserveLogic.sol";
@@ -22,10 +23,17 @@ contract Router is Initializable, SuperPausable {
     using SafeERC20 for IERC20;
     using ReserveLogic for DataTypes.ReserveData;
 
+    enum Mode {
+        CUSTOM,
+        CROSS_L2_INBOX,
+        CROSS_L2_PROVER
+    }
+
     uint256 public constant ROUTER_REVISION = 0x1;
     ILendingPool public lendingPool;
     ILendingPoolAddressesProvider public addressesProvider;
     address public relayer;
+    ICrossL2Prover public crossL2Prover;
 
     modifier onlyRelayer() {
         _onlyRelayer();
@@ -52,14 +60,52 @@ contract Router is Initializable, SuperPausable {
      * @param _lendingPool The address of the LendingPool contract
      * @param _addressesProvider The address of the LendingPoolAddressesProvider contract
      */
-    function initialize(address _lendingPool, address _addressesProvider) public initializer {
+    function initialize(address _lendingPool, address _addressesProvider, address _crossL2Prover) public initializer {
         lendingPool = ILendingPool(_lendingPool);
         addressesProvider = ILendingPoolAddressesProvider(_addressesProvider);
+        crossL2Prover = ICrossL2Prover(_crossL2Prover);
     }
 
-    function dispatch(Identifier[] calldata _identifier, bytes[] calldata _data) external onlyRelayer whenNotPaused {
+    function dispatch(
+        Mode _mode,
+        Identifier[] calldata _identifier,
+        bytes[] calldata _data,
+        bytes[] calldata _proof,
+        uint256[] calldata _logIndex
+    ) external onlyRelayer whenNotPaused {
         for (uint256 i = 0; i < _identifier.length; i++) {
+            if (_mode != Mode.CUSTOM) {
+                _validate(_mode, _identifier[i], _data[i], _logIndex[i], _proof[i]);
+            }
             _dispatch(_identifier[i], _data[i]);
+        }
+    }
+
+    function _validate(
+        Mode _mode,
+        Identifier calldata _identifier,
+        bytes calldata _data,
+        uint256 _logIndex,
+        bytes calldata _proof
+    ) internal {
+        /// @dev use ICrossL2Inbox to validate message
+        if (_mode == Mode.CROSS_L2_INBOX) {
+            if (_identifier.origin != address(this)) {
+                revert("!origin");
+            }
+            ICrossL2Inbox(Predeploys.CROSS_L2_INBOX).validateMessage(_identifier, keccak256(_data));
+        }
+        if (_mode == Mode.CROSS_L2_PROVER) {
+            /// @dev use ICrossL2Prover to validate message
+            (, address emittingContract,, bytes memory unindexedData) = crossL2Prover.validateEvent(
+                _logIndex, _proof
+            );
+            if (emittingContract != address(this)) {
+                revert("!origin");
+            }
+            if (keccak256(unindexedData) != keccak256(_data)) {
+                revert("!data");
+            }
         }
     }
 
@@ -335,14 +381,7 @@ contract Router is Initializable, SuperPausable {
     ) external whenNotPaused {
         for (uint256 i = 0; i < chainIds.length; i++) {
             emit CrossChainBorrow(
-                chainIds[i],
-                sendToChainId,
-                msg.sender,
-                asset,
-                amounts[i],
-                interestRateMode[i],
-                onBehalfOf,
-                referralCode
+                chainIds[i], sendToChainId, msg.sender, asset, amounts[i], interestRateMode[i], onBehalfOf, referralCode
             );
         }
     }
@@ -371,7 +410,7 @@ contract Router is Initializable, SuperPausable {
         ISuperAsset(superAsset).mint(address(this), totalAmount);
         for (uint256 i = 1; i < chainIds.length; i++) {
             if (chainIds[i] != block.chainid) {
-ISuperchainTokenBridge(Predeploys.SUPERCHAIN_TOKEN_BRIDGE).sendERC20(
+                ISuperchainTokenBridge(Predeploys.SUPERCHAIN_TOKEN_BRIDGE).sendERC20(
                     superAsset, address(this), amounts[i], chainIds[i]
                 );
             }
@@ -456,14 +495,7 @@ ISuperchainTokenBridge(Predeploys.SUPERCHAIN_TOKEN_BRIDGE).sendERC20(
                 );
             }
             emit CrossChainLiquidationCall(
-                chainIds[i],
-                msg.sender,
-                collateralAsset,
-                debtAsset,
-                user,
-                debtToCover[i],
-                receiveAToken,
-                sendToChainId
+                chainIds[i], msg.sender, collateralAsset, debtAsset, user, debtToCover[i], receiveAToken, sendToChainId
             );
         }
     }
