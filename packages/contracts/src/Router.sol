@@ -76,7 +76,7 @@ contract Router is Initializable, SuperPausable {
     ) external onlyRelayer whenNotPaused {
         for (uint256 i = 0; i < _identifier.length; i++) {
             if (_mode != ValidationMode.CUSTOM) {
-                _validate(_mode, _identifier[i], _data[i], _logIndex, _proof);
+                _validate(_mode, _identifier[i], _data, _logIndex, _proof);
             }
             _dispatch(_identifier[i], _data[i]);
         }
@@ -85,7 +85,7 @@ contract Router is Initializable, SuperPausable {
     function _validate(
         ValidationMode _mode,
         Identifier calldata _identifier,
-        bytes calldata _data,
+        bytes[] calldata _data,
         uint256[] calldata _logIndex,
         bytes calldata _proof
     ) internal {
@@ -94,7 +94,7 @@ contract Router is Initializable, SuperPausable {
             if (_identifier.origin != address(this)) {
                 revert("!origin");
             }
-            ICrossL2Inbox(Predeploys.CROSS_L2_INBOX).validateMessage(_identifier, keccak256(_data));
+            ICrossL2Inbox(Predeploys.CROSS_L2_INBOX).validateMessage(_identifier, keccak256(_data[0]));
         }
         if (_mode == ValidationMode.CROSS_L2_PROVER_EVENT) {
             /// @dev use ICrossL2Prover to validate message
@@ -103,7 +103,7 @@ contract Router is Initializable, SuperPausable {
             if (emittingContract != address(this)) {
                 revert("!origin");
             }
-            if (keccak256(abi.encode(topics[0], unindexedData)) != keccak256(_data)) {
+            if (keccak256(abi.encode(topics[0], unindexedData)) != keccak256(_data[0])) {
                 revert("!data");
             }
         }
@@ -116,7 +116,7 @@ contract Router is Initializable, SuperPausable {
                 if (emittingContract != address(this)) {
                     revert("!origin");
                 }
-                if (keccak256(abi.encode(topics[0], unindexedData)) != keccak256(_data)) {
+                if (keccak256(abi.encode(topics[0], unindexedData)) != keccak256(_data[i])) {
                     revert("!data");
                 }
             }
