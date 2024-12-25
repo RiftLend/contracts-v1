@@ -7,13 +7,13 @@ import {WadRayMath} from "../libraries/math/WadRayMath.sol";
 import {Errors} from "../libraries/helpers/Errors.sol";
 import {Initializable} from "@solady/utils/Initializable.sol";
 import {SuperPausable} from "../interop-std/src/utils/SuperPausable.sol";
-import {Validation} from "../libraries/helpers/Validation.sol";
 
 import {ILendingPool} from "../interfaces/ILendingPool.sol";
 import {IAToken} from "../interfaces/IAToken.sol";
 import {IncentivizedERC20} from "./IncentivizedERC20.sol";
 import {IAaveIncentivesController} from "../interfaces/IAaveIncentivesController.sol";
 import {ILendingPoolAddressesProvider} from "../interfaces/ILendingPoolAddressesProvider.sol";
+import "../interfaces/IValidater.sol";
 
 import {Predeploys} from "../libraries/Predeploys.sol";
 import "../interfaces/ICrossL2Inbox.sol";
@@ -26,7 +26,7 @@ import {ICrossL2Prover} from "../interfaces/ICrossL2Prover.sol";
  * @dev Implementation of the interest bearing token for the Aave protocol
  * @author Aave
  */
-contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL", 0), IAToken, SuperPausable, Validation {
+contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL", 0), IAToken, SuperPausable {
     using WadRayMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -48,7 +48,7 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
     address internal _underlyingAsset;
     IAaveIncentivesController internal _incentivesController;
     ILendingPoolAddressesProvider internal _addressesProvider;
-    ICrossL2Prover internal _crossL2Prover;
+    IValidater public _validater;
 
     event CrossChainMint(address user, uint256 amount, uint256 index);
 
@@ -98,11 +98,11 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
         address underlyingAsset,
         IAaveIncentivesController incentivesController,
         ILendingPoolAddressesProvider addressesProvider,
+        IValidater validater,
         uint8 aTokenDecimals,
         string calldata aTokenName,
         string calldata aTokenSymbol,
-        bytes calldata params,
-        address crossL2Prover
+        bytes calldata params
     ) external override initializer {
         uint256 chainId;
 
@@ -124,12 +124,13 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
         _underlyingAsset = underlyingAsset;
         _incentivesController = incentivesController;
         _addressesProvider = addressesProvider;
-        _crossL2Prover = ICrossL2Prover(crossL2Prover);
+        _validater = validater;
         emit Initialized(
             underlyingAsset,
             address(pool),
             treasury,
             address(incentivesController),
+            address(validater),
             aTokenDecimals,
             aTokenName,
             aTokenSymbol,
@@ -146,7 +147,7 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
     ) external onlyRelayer whenNotPaused {
         for (uint256 i = 0; i < _identifier.length; i++) {
             if (_mode != ValidationMode.CUSTOM) {
-                _validate(_mode, _identifier[i], _data, _logIndex, _proof);
+                _validater.validate(_mode, _identifier[i], _data, _logIndex, _proof);
             }
             _dispatch(_identifier[i], _data[i]);
         }

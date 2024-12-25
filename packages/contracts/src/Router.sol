@@ -11,16 +11,15 @@ import {ISuperAsset} from "./interfaces/ISuperAsset.sol";
 import {IAToken} from "./interfaces/IAToken.sol";
 import {IStableDebtToken} from "./interfaces/IStableDebtToken.sol";
 import {IVariableDebtToken} from "./interfaces/IVariableDebtToken.sol";
-import {ICrossL2Prover} from "./interfaces/ICrossL2Prover.sol";
 import {ISuperchainTokenBridge} from "./interfaces/ISuperchainTokenBridge.sol";
+import "./interfaces/IValidater.sol";
 
 import {ReserveLogic} from "./libraries/logic/ReserveLogic.sol";
 import {Errors} from "./libraries/helpers/Errors.sol";
-import {Validation} from "./libraries/helpers/Validation.sol";
 import {SuperPausable} from "./interop-std/src/utils/SuperPausable.sol";
 import {Predeploys} from "./libraries/Predeploys.sol";
 
-contract Router is Initializable, SuperPausable, Validation {
+contract Router is Initializable, SuperPausable {
     using SafeERC20 for IERC20;
     using ReserveLogic for DataTypes.ReserveData;
 
@@ -29,7 +28,7 @@ contract Router is Initializable, SuperPausable, Validation {
     ILendingPool public lendingPool;
     ILendingPoolAddressesProvider public addressesProvider;
     address public relayer;
-    ICrossL2Prover public crossL2Prover;
+    IValidater public validater;
 
     modifier onlyRelayer() {
         _onlyRelayer();
@@ -56,10 +55,10 @@ contract Router is Initializable, SuperPausable, Validation {
      * @param _lendingPool The address of the LendingPool contract
      * @param _addressesProvider The address of the LendingPoolAddressesProvider contract
      */
-    function initialize(address _lendingPool, address _addressesProvider, address _crossL2Prover) public initializer {
+    function initialize(address _lendingPool, address _addressesProvider, address _validater) public initializer {
         lendingPool = ILendingPool(_lendingPool);
         addressesProvider = ILendingPoolAddressesProvider(_addressesProvider);
-        crossL2Prover = ICrossL2Prover(_crossL2Prover);
+        validater = IValidater(_validater);
     }
 
     function dispatch(
@@ -70,11 +69,11 @@ contract Router is Initializable, SuperPausable, Validation {
         uint256[] calldata _logIndex
     ) external onlyRelayer whenNotPaused {
         if (_mode == ValidationMode.CROSS_L2_PROVER_RECEIPT) {
-            _validate(_mode, _identifier[0], _data, _logIndex, _proof);
+            validater.validate(_mode, _identifier[0], _data, _logIndex, _proof);
         }
         for (uint256 i = 0; i < _identifier.length; i++) {
             if (_mode != ValidationMode.CUSTOM && _mode != ValidationMode.CROSS_L2_PROVER_RECEIPT) {
-                _validate(_mode, _identifier[i], _data, _logIndex, _proof);
+                validater.validate(_mode, _identifier[i], _data, _logIndex, _proof);
             }
             _dispatch(_identifier[i], _data[i]);
         }

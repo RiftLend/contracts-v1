@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import {ILendingPool} from "./ILendingPool.sol";
 import {IAaveIncentivesController} from "./IAaveIncentivesController.sol";
 import {ILendingPoolAddressesProvider} from "./ILendingPoolAddressesProvider.sol";
+import {IValidater} from "./IValidater.sol";
 
 /**
  * @title IInitializableAToken
@@ -18,6 +19,7 @@ interface IInitializableAToken {
      * @param pool The address of the associated lending pool
      * @param treasury The address of the treasury
      * @param incentivesController The address of the incentives controller for this aToken
+     * @param validater The address of the validater
      * @param aTokenDecimals the decimals of the underlying
      * @param aTokenName the name of the aToken
      * @param aTokenSymbol the symbol of the aToken
@@ -29,6 +31,7 @@ interface IInitializableAToken {
         address indexed pool,
         address treasury,
         address incentivesController,
+        address validater,
         uint8 aTokenDecimals,
         string aTokenName,
         string aTokenSymbol,
@@ -42,11 +45,11 @@ interface IInitializableAToken {
      * @param underlyingAsset The address of the underlying asset of this aToken (E.g. WETH for aWETH)
      * @param incentivesController The smart contract managing potential incentives distribution
      * @param addressesProvider The addresses provider
+     * @param validater The address of the validater
      * @param aTokenDecimals The decimals of the aToken, same as the underlying asset's
      * @param aTokenName The name of the aToken
      * @param aTokenSymbol The symbol of the aToken
      * @param params A set of encoded parameters for additional initialization
-     * @param crossL2Prover The address of the cross-chain prover
      */
     function initialize(
         ILendingPool pool,
@@ -54,10 +57,10 @@ interface IInitializableAToken {
         address underlyingAsset,
         IAaveIncentivesController incentivesController,
         ILendingPoolAddressesProvider addressesProvider,
+        IValidater validater,
         uint8 aTokenDecimals,
         string calldata aTokenName,
         string calldata aTokenSymbol,
-        bytes calldata params,
-        address crossL2Prover
+        bytes calldata params
     ) external;
 }

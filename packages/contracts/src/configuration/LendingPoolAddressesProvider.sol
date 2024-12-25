@@ -33,10 +33,12 @@ contract LendingPoolAddressesProvider is SuperOwnable {
     bytes32 private constant LENDING_RATE_ORACLE = "LENDING_RATE_ORACLE";
     bytes32 private constant RELAYER = "RELAYER";
     bytes32 private constant ROUTER = "ROUTER";
+    bytes32 private constant VALIDATER = "VALIDATER";
 
     event SuperAssetUpdated(address indexed superchainAsset);
     event RelayerUpdated(address indexed relayer);
     event RouterUpdated(address indexed router);
+    event ValidaterUpdated(address indexed validater);
     event RVaultAssetUpdated(address indexed RVaultAsset);
     event UnderlyingUpdated(address indexed RVaultAsset);
 
@@ -107,6 +109,15 @@ contract LendingPoolAddressesProvider is SuperOwnable {
      */
     function getLendingPool() external view returns (address) {
         return getAddress(LENDING_POOL);
+    }
+
+    function setValidater(address validater) external onlyOwner {
+        _addresses[VALIDATER] = validater;
+        emit ValidaterUpdated(validater);
+    }
+
+    function getValidater() external view returns (address) {
+        return getAddress(VALIDATER);
     }
 
     // Set RVaultAsset addresses
