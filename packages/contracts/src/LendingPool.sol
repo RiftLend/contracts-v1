@@ -267,7 +267,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
                 onBehalfOf,
                 sendToChainId,
                 amount,
-                interestRateMode,
+                2, // only allow variable rate borrowing
                 reserve.aTokenAddress,
                 referralCode,
                 true
@@ -848,7 +848,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         DataTypes.UserConfigurationMap storage userConfig = _usersConfig[vars.onBehalfOf];
 
         address oracle = _addressesProvider.getPriceOracle();
-
+        // ToDo: Ensure rigourous testing of this scenario where decimals differ (  oracle returns answers with diferrent decimals etc. )
         uint256 amountInETH = (IPriceOracleGetter(oracle).getAssetPrice(vars.asset) * vars.amount)
             / 10 ** reserve.configuration.getDecimals();
         address superAsset = _addressesProvider.getSuperAsset();

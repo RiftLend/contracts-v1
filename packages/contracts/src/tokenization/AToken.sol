@@ -210,6 +210,7 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
             (address user, uint256 amount) = abi.decode(_data[32:], (address, uint256));
             _crossChainUserBalance[user] += amount;
         }
+        
     }
 
     /**
