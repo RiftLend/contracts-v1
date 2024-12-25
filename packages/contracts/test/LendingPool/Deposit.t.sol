@@ -103,9 +103,7 @@ contract LendingPoolTest is Test {
             address(
                 new SuperAsset(
                     address(underlyingAsset),
-                    ILendingPoolAddressesProvider(address(lpAddressProvider)),
-                    lzEndpoint,
-                    lzDelegate
+                    lzEndpoint
                 )
             )
         );

@@ -296,7 +296,6 @@ contract LendingPoolDeployer is Script {
         string memory symbol = vm.parseTomlString(deployConfig, ".superchain_asset_1.symbol");
         uint256 decimals = vm.parseTomlUint(deployConfig, ".superchain_asset_1.decimals");
         address lzEndpoint = vm.parseTomlAddress(deployConfig, ".superchain_asset_1.lzEndpoint");
-        address lzdelegate = vm.parseTomlAddress(deployConfig, ".superchain_asset_1.lzdelegate");
 
         require(decimals <= type(uint8).max, "decimals exceeds uint8 range");
         bytes memory initCode = abi.encodePacked(
@@ -312,7 +311,8 @@ contract LendingPoolDeployer is Script {
         } else {
             addr_ = address(
                 new SuperAsset{salt: _implSalt(salt)}(
-                    underlying, ILendingPoolAddressesProvider(lpAddressProvider), lzEndpoint, lzdelegate
+                    underlying,
+                    lzEndpoint
                 )
             );
             console.log("Deployed SuperAsset at address: ", addr_, "on chain id: ", block.chainid);

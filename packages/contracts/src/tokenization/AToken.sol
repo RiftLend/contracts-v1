@@ -55,6 +55,7 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
     IAaveIncentivesController internal _incentivesController;
     ILendingPoolAddressesProvider internal _addressesProvider;
     ICrossL2Prover internal _crossL2Prover;
+    mapping(address => uint256) public _crossChainUserBalance;
 
     event CrossChainMint(address user, uint256 amount, uint256 index);
 
@@ -204,6 +205,10 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
         if (selector == CrossChainMint.selector && _identifier.chainId != block.chainid) {
             (, uint256 amount,) = abi.decode(_data[32:], (address, uint256, uint256));
             _totalCrossChainSupply += amount;
+        }
+        if (selector == Mint.selector) {
+            (address user, uint256 amount) = abi.decode(_data[32:], (address, uint256));
+            _crossChainUserBalance[user] += amount;
         }
     }
 

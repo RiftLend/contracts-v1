@@ -5,17 +5,16 @@ import {Predeploys} from "./libraries/Predeploys.sol";
 import {SuperchainERC20} from "./SuperchainERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
 import {SuperOwnable} from "./interop-std/src/auth/SuperOwnable.sol";
-import {ERC4626} from "@openzeppelin/contracts-v5/token/ERC20/extensions/ERC4626.sol";
-
-import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
-import {ERC20} from "@openzeppelin/contracts-v5/token/ERC20/ERC20.sol";
-
-import {ILendingPoolAddressesProvider} from "./interfaces/ILendingPoolAddressesProvider.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {OFT} from "@layerzerolabs/oft-evm/contracts/OFT.sol";
 
+import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
+import {ERC20} from "@openzeppelin/contracts-v5/token/ERC20/ERC20.sol";
+import {IERC4626} from "@openzeppelin/contracts-v5/interfaces/IERC4626.sol";
+import {ILendingPoolAddressesProvider} from "./interfaces/ILendingPoolAddressesProvider.sol";
+
 /// @dev whenever user uses this with SuperchainTokenBridge, the destination chain will mint aToken (if underlying < totalBalances) and transfer underlying remaining
-contract RVaultAsset is ERC4626, OFT {
+contract RVaultAsset is OFT, SuperOwnable, IERC4626 {
     using SafeERC20 for IERC20;
 
     string private _name;
