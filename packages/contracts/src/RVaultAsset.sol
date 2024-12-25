@@ -11,9 +11,11 @@ import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
 import {ERC20} from "@openzeppelin/contracts-v5/token/ERC20/ERC20.sol";
 
 import {ILendingPoolAddressesProvider} from "./interfaces/ILendingPoolAddressesProvider.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {OFT} from "@layerzerolabs/oft-evm/contracts/OFT.sol";
 
 /// @dev whenever user uses this with SuperchainTokenBridge, the destination chain will mint aToken (if underlying < totalBalances) and transfer underlying remaining
-contract RVaultAsset is SuperOwnable, ERC4626 {
+contract RVaultAsset is ERC4626, OFT {
     using SafeERC20 for IERC20;
 
     string private _name;
@@ -37,14 +39,16 @@ contract RVaultAsset is SuperOwnable, ERC4626 {
         uint8 decimals_,
         address underlying_, // SuperAsset
         ILendingPoolAddressesProvider provider_,
-        address admin_
-    ) SuperOwnable() ERC4626(IERC20(underlying_)) ERC20(name_, symbol_) {
+        address admin_,
+        address lzEndpoint_,
+        address delegate_
+    ) ERC4626(IERC20(underlying_)) OFT(name_, symbol_, lzEndpoint_, delegate_) Ownable(delegate_) {
         _name = name_;
         _symbol = symbol_;
         _decimals = decimals_;
         underlying = underlying_;
         provider = provider_;
-        _initializeSuperOwner(uint64(block.chainid), admin_);
+        // _initializeSuperOwner(uint64(block.chainid), admin_);
     }
 
     /// @dev minting more than totalBalances will mint aToken and transfer underlying
@@ -124,5 +128,9 @@ contract RVaultAsset is SuperOwnable, ERC4626 {
         require(_token != underlying, "Cannot withdraw underlying");
         uint256 amount = IERC20(_token).balanceOf(address(this));
         IERC20(_token).safeTransfer(_recepient, amount);
+    }
+
+    function decimals() public view override(ERC4626, ERC20) returns (uint8) {
+        return _decimals;
     }
 }

@@ -4,7 +4,7 @@ pragma solidity 0.8.25;
 import {IERC7802, IERC165} from "./interfaces/IERC7802.sol";
 import {ISemver} from "./interfaces/ISemver.sol";
 import {Predeploys} from "./libraries/Predeploys.sol";
-import {ERC20} from "@solady/tokens/ERC20.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Unauthorized} from "./libraries/op/errors/CommonErrors.sol";
 
@@ -14,6 +14,9 @@ import {Unauthorized} from "./libraries/op/errors/CommonErrors.sol";
 abstract contract SuperchainERC20 is ERC20, IERC7802, ISemver {
     /// @notice Semantic version.
     /// @custom:semver 1.0.0-beta.6
+
+    constructor(string memory _name, string memory _symbol) {}
+
     function version() external view virtual returns (string memory) {
         return "1.0.0-beta.6";
     }

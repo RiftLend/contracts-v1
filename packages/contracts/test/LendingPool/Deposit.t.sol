@@ -95,9 +95,19 @@ contract LendingPoolTest is Test {
         lpAddressProvider = new LendingPoolAddressesProvider("TUSDC", owner, t.proxyAdmin);
         vm.label(address(lpAddressProvider), "lpAddressProvider");
 
+        address lzEndpoint = makeAddr("lzEndpoint");
+        address lzDelegate = makeAddr("lzdelegate");
+
         // SuperAsset for opMainnet
         superAsset = ISuperAsset(
-            address(new SuperAsset(address(underlyingAsset), ILendingPoolAddressesProvider(address(lpAddressProvider))))
+            address(
+                new SuperAsset(
+                    address(underlyingAsset),
+                    ILendingPoolAddressesProvider(address(lpAddressProvider)),
+                    lzEndpoint,
+                    lzDelegate
+                )
+            )
         );
         vm.label(address(superAsset), "SuperAsset");
 
