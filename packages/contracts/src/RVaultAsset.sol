@@ -7,23 +7,26 @@ import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.
 import {SuperOwnable} from "./interop-std/src/auth/SuperOwnable.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {OFT} from "@layerzerolabs/oft-evm/contracts/OFT.sol";
+import {ERC20} from "@openzeppelin/contracts-v5/token/ERC20/ERC20.sol";
 
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
-import {ERC20} from "@openzeppelin/contracts-v5/token/ERC20/ERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts-v5/interfaces/IERC4626.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts-v5/token/ERC20/extensions/IERC20Metadata.sol";
 import {ILendingPoolAddressesProvider} from "./interfaces/ILendingPoolAddressesProvider.sol";
 
-/// @dev whenever user uses this with SuperchainTokenBridge, the destination chain will mint aToken (if underlying < totalBalances) and transfer underlying remaining
-contract RVaultAsset is OFT, SuperOwnable, IERC4626 {
+/// @dev whenever user uses this with SuperchainTokenBridge,
+// the destination chain will mint aToken (if underlying < totalBalances)
+// and transfer underlying remaining
+
+contract RVaultAsset is OFT, IERC4626 {
     using SafeERC20 for IERC20;
 
-    string private _name;
-    string private _symbol;
-    uint8 private immutable _decimals;
     address public underlying; // address of underlying asset
     mapping(address user => uint256 balance) public balances; // user balance of underlying
     uint256 public totalBalances; // total balances of underlying
-    ILendingPoolAddressesProvider public immutable provider;
+    ILendingPoolAddressesProvider provider;
+    address admin;
+    address address_zero;
 
     modifier onlyLendingPoolConfigurator() {
         require(
@@ -32,21 +35,20 @@ contract RVaultAsset is OFT, SuperOwnable, IERC4626 {
         _;
     }
 
+    // delegate for layerzero OFT is zero address
+
     constructor(
-        string memory name_,
-        string memory symbol_,
-        uint8 decimals_,
         address underlying_, // SuperAsset
         ILendingPoolAddressesProvider provider_,
         address admin_,
-        address lzEndpoint_,
-        address delegate_
-    ) ERC4626(IERC20(underlying_)) OFT(name_, symbol_, lzEndpoint_, delegate_) Ownable(delegate_) {
-        _name = name_;
-        _symbol = symbol_;
-        _decimals = decimals_;
+        address lzEndpoint_
+    )
+        OFT(IERC20Metadata(underlying_).name(), IERC20Metadata(underlying_).symbol(), lzEndpoint_, address_zero)
+        Ownable(address_zero)
+    {
         underlying = underlying_;
         provider = provider_;
+        admin = admin_;
         // _initializeSuperOwner(uint64(block.chainid), admin_);
     }
 
@@ -129,7 +131,111 @@ contract RVaultAsset is OFT, SuperOwnable, IERC4626 {
         IERC20(_token).safeTransfer(_recepient, amount);
     }
 
-    function decimals() public view override(ERC4626, ERC20) returns (uint8) {
-        return _decimals;
+    /*
+    ERC4626 Vault compliant functions
+    Note that we are not strictly following the ERC4626 standard, as we are maintaing a 1:1 peg of underlying and rvaultasset.
+    Here are the design choices:
+    - Preview functions will return the passed in value, as we are maintaining a 1:1 peg
+    - maxDeposit will return type(uint256).max, as we are allowing unlimited deposits
+    - maxMint will return type(uint256).max, as we are allowing unlimited mints
+    - maxWithdraw will return the balance of the owner, as they can withdraw all their balance
+    - maxRedeem will return the balance of the owner, as they can redeem all their shares
+    - convertToAssets will return the passed in value, as we are maintaining a 1:1 peg
+    - convertToShares will return the passed in value, as we are maintaining a 1:1 peg
+    - mint will mint the passed in value, as we are maintaining a 1:1 peg
+    - burn will burn the passed in value, as we are maintaining a 1:1 peg
+    */
+    // Returns the address of the underlying asset token
+    function asset() public view virtual override returns (address) {
+        return underlying;
     }
+
+    // Returns the total managed assets
+    function totalAssets() public view virtual override returns (uint256) {
+        return IERC20(asset()).balanceOf(address(this));
+    }
+
+    // Deposit assets and return shares (1:1 peg)
+    function deposit(uint256 assets, address receiver) public virtual override returns (uint256 shares) {
+        shares = assets; // 1:1 peg
+        IERC20(asset()).safeTransferFrom(msg.sender, address(this), assets);
+        _mint(receiver, shares);
+        return shares;
+    }
+
+    // Mint shares and return assets (1:1 peg)
+    function mint(uint256 shares, address receiver) public virtual override returns (uint256 assets) {
+        assets = shares; // 1:1 peg
+        IERC20(asset()).safeTransferFrom(msg.sender, address(this), assets);
+        _mint(receiver, shares);
+        return assets;
+    }
+
+    // Withdraw assets and burn shares (1:1 peg)
+    function withdraw(uint256 assets, address receiver, address owner)
+        public
+        virtual
+        override
+        returns (uint256 shares)
+    {
+        shares = assets; // 1:1 peg
+        _spendAllowance(owner, msg.sender, shares);
+        _burn(owner, shares);
+        IERC20(asset()).transfer(receiver, assets);
+        return shares;
+    }
+
+    // Redeem shares and return assets (1:1 peg)
+    function redeem(uint256 shares, address receiver, address owner) public virtual override returns (uint256 assets) {
+        assets = shares; // 1:1 peg
+        _spendAllowance(owner, msg.sender, shares);
+        _burn(owner, shares);
+        IERC20(asset()).transfer(receiver, assets);
+        return assets;
+    }
+
+    // Preview and conversion functions as provided earlier
+    function previewMint(uint256 shares) public view virtual override returns (uint256 assets) {
+        return shares;
+    }
+
+    function previewDeposit(uint256 assets) public view virtual override returns (uint256 shares) {
+        return assets;
+    }
+
+    function previewWithdraw(uint256 assets) public view virtual override returns (uint256 shares) {
+        return assets;
+    }
+
+    function previewRedeem(uint256 shares) public view virtual override returns (uint256 assets) {
+        return shares;
+    }
+
+    function convertToAssets(uint256 shares) public view virtual override returns (uint256 assets) {
+        return shares;
+    }
+
+    function convertToShares(uint256 assets) public view virtual override returns (uint256 shares) {
+        return assets;
+    }
+
+    function maxDeposit(address) public view virtual override returns (uint256) {
+        return type(uint256).max;
+    }
+
+    function maxMint(address) public view virtual override returns (uint256) {
+        return type(uint256).max;
+    }
+
+    function maxWithdraw(address owner) public view virtual override returns (uint256) {
+        return balanceOf(owner);
+    }
+
+    function maxRedeem(address owner) public view virtual override returns (uint256) {
+        return balanceOf(owner);
+    }
+
+    ////////////////////////////////////////
+
+    
 }

@@ -15,10 +15,11 @@ contract SuperAsset is OFT, SuperchainERC20 {
     using SafeERC20 for IERC20;
 
     address public underlying;
+    address address_zero;
 
     constructor(address underlying_, address _lzEndpoint)
-        OFT(IERC20Metadata(underlying_).name(), IERC20Metadata(underlying_).symbol(), _lzEndpoint, address(0))
-        Ownable(address(0))
+        OFT(IERC20Metadata(underlying_).name(), IERC20Metadata(underlying_).symbol(), _lzEndpoint, address_zero)
+        Ownable(address_zero)
         SuperchainERC20(IERC20Metadata(underlying_).name(), IERC20Metadata(underlying_).symbol())
     {
         underlying = underlying_;

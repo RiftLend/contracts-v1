@@ -96,7 +96,7 @@ contract LendingPoolTest is Test {
         vm.label(address(lpAddressProvider), "lpAddressProvider");
 
         address lzEndpoint = makeAddr("lzEndpoint");
-        address lzDelegate = makeAddr("lzdelegate");
+        // address lzDelegate = makeAddr("lzdelegate");
 
         // SuperAsset for opMainnet
         superAsset = ISuperAsset(
