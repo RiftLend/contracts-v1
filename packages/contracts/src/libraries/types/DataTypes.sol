@@ -27,7 +27,6 @@ library DataTypes {
 
     enum InterestRateMode {
         NONE,
-        STABLE,
         VARIABLE
     }
 }

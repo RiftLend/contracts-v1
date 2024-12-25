@@ -29,12 +29,6 @@ contract LendingPoolStorage {
     mapping(address => DataTypes.UserConfigurationMap) internal _usersConfig;
 
     /**
-     * @notice Tracks initiated deposit amounts by user and asset.
-     * @dev Records the amount deposited by each user for each asset before final processing.
-     */
-    mapping(address user => mapping(address asset => uint256 amount)) internal initiatedDepositAmount;
-
-    /**
      * @notice List of reserves indexed by reserve ID.
      * @dev Maps a reserve's unique ID to its corresponding address.
      */
@@ -51,6 +45,7 @@ contract LendingPoolStorage {
      */
     bool internal _paused;
 
+    // TODO: remove this
     /**
      * @notice Maximum size of stable rate borrow as a percentage of total liquidity.
      */

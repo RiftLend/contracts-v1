@@ -100,7 +100,7 @@ library ReserveLogic {
      *
      */
     function updateState(DataTypes.ReserveData storage reserve) internal {
-        uint256 scaledVariableDebt = IVariableDebtToken(reserve.variableDebtTokenAddress).scaledTotalSupply();
+        uint256 scaledVariableDebt = IVariableDebtToken(reserve.variableDebtTokenAddress).scaledTotalSupply(); // debt with interest
         uint256 previousVariableBorrowIndex = reserve.variableBorrowIndex;
         uint256 previousLiquidityIndex = reserve.liquidityIndex;
         uint40 lastUpdatedTimestamp = reserve.lastUpdateTimestamp;
@@ -192,41 +192,34 @@ library ReserveLogic {
     ) internal {
         UpdateInterestRatesLocalVars memory vars;
 
-        vars.stableDebtTokenAddress = reserve.stableDebtTokenAddress;
-
-        (vars.totalStableDebt, vars.avgStableRate) =
-            IStableDebtToken(vars.stableDebtTokenAddress).getTotalSupplyAndAvgRate();
-
         //calculates the total variable debt locally using the scaled total supply instead
         //of totalSupply(), as it's noticeably cheaper. Also, the index has been
         //updated by the previous updateState() call
         vars.totalVariableDebt =
             IVariableDebtToken(reserve.variableDebtTokenAddress).scaledTotalSupply().rayMul(reserve.variableBorrowIndex);
 
-        (vars.newLiquidityRate, vars.newStableRate, vars.newVariableRate) = IReserveInterestRateStrategy(
+        (vars.newLiquidityRate,, vars.newVariableRate) = IReserveInterestRateStrategy(
             reserve.interestRateStrategyAddress
         ).calculateInterestRates(
             reserveAddress,
             aTokenAddress,
             liquidityAdded,
             liquidityTaken,
-            vars.totalStableDebt,
+            0,
             vars.totalVariableDebt,
-            vars.avgStableRate,
+            0,
             reserve.configuration.getReserveFactor()
         );
         require(vars.newLiquidityRate <= type(uint128).max, Errors.RL_LIQUIDITY_RATE_OVERFLOW);
-        require(vars.newStableRate <= type(uint128).max, Errors.RL_STABLE_BORROW_RATE_OVERFLOW);
         require(vars.newVariableRate <= type(uint128).max, Errors.RL_VARIABLE_BORROW_RATE_OVERFLOW);
 
         reserve.currentLiquidityRate = uint128(vars.newLiquidityRate);
-        reserve.currentStableBorrowRate = uint128(vars.newStableRate);
         reserve.currentVariableBorrowRate = uint128(vars.newVariableRate);
 
         emit ReserveDataUpdated(
             reserveAddress,
             vars.newLiquidityRate,
-            vars.newStableRate,
+            0,
             vars.newVariableRate,
             reserve.liquidityIndex,
             reserve.variableBorrowIndex

@@ -23,7 +23,7 @@ contract LendingPoolAddressesProvider is SuperOwnable {
     string private _marketId;
     mapping(bytes32 => address) private _addresses;
     address private _proxyAdmin;
-    bytes32 private constant LENDING_POOL = "LENDING_POOL";
+    bytes32 immutable LENDING_POOL; // naming will be like `"OpSuperchain_LENDING_POOL"` or `"EthArb_LENDING_POOL"`
     bytes32 private constant RVAULT_ASSET = "RVAULT_ASSET";
     bytes32 private constant UNDERLYING = "UNDERLYING";
     bytes32 private constant SUPER_ASSET = "SUPER_ASSET";
@@ -43,10 +43,11 @@ contract LendingPoolAddressesProvider is SuperOwnable {
     event RVaultAssetUpdated(address indexed RVaultAsset);
     event UnderlyingUpdated(address indexed RVaultAsset);
 
-    constructor(string memory marketId, address initialOwner, address proxyAdmin) {
+    constructor(string memory marketId, address initialOwner, address proxyAdmin, bytes32 _lendingPool) {
         _initializeSuperOwner(uint64(block.chainid), initialOwner);
         _setMarketId(marketId);
         _proxyAdmin = proxyAdmin;
+        LENDING_POOL = _lendingPool;
     }
 
     /**
@@ -118,10 +119,6 @@ contract LendingPoolAddressesProvider is SuperOwnable {
         emit RVaultAssetUpdated(rVaultAsset);
     }
 
-    function getRVaultAsset() external view returns (address) {
-        return getAddress(RVAULT_ASSET);
-    }
-
     function setUnderlying(address underlying) external onlyOwner {
         _addresses[UNDERLYING] = underlying;
         emit UnderlyingUpdated(underlying);
@@ -132,6 +129,7 @@ contract LendingPoolAddressesProvider is SuperOwnable {
     }
 
     function setSuperAsset(address superAsset) external onlyOwner {
+        if (LENDING_POOL != keccak256("OpSuperchain_LENDING_POOL")) revert("!allowed");
         _addresses[SUPER_ASSET] = superAsset;
         emit SuperAssetUpdated(superAsset);
     }
@@ -242,6 +240,10 @@ contract LendingPoolAddressesProvider is SuperOwnable {
     function setRelayer(address relayer) external onlyOwner {
         _addresses[RELAYER] = relayer;
         emit RelayerUpdated(relayer);
+    }
+
+    function getRVaultAsset() external view returns (bytes32, address) {
+        return (LENDING_POOL, _addresses[RVAULT_ASSET]);
     }
 
     /**
