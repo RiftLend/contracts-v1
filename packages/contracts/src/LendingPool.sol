@@ -151,22 +151,13 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             _updateStates(reserve, asset, amount, 0, bytes2(uint16(3)));
         }
 
-        // Transfer the asset of worth `amount` to the LendingPool contract
-        IERC20(asset).safeTransferFrom(sender, address(this), amount);
-
-        // Only mint superAsset if the asset is underlying
-
-        if (token_type == 0) {
-            IERC20(asset).safeIncreaseAllowance(superAsset, amount);
-            ISuperAsset(superAsset).deposit(rVaultAsset, amount);
-        }
-
-        // Handle RVault operations with unchecked where safe
         unchecked {
-            if (token_type != 2) {
+            if (token_type == 1) {
+                // tokenType == 1 means it is either SuperAsset or Underlying
                 IRVaultAsset(rVaultAsset).mint(address(aToken), amount);
             } else {
-                IRVaultAsset(rVaultAsset).transferFrom(sender, address(aToken), amount);
+                // Transfer the asset of worth `amount` to the LendingPool contract
+                IERC20(asset).safeTransferFrom(sender, address(aToken), amount);
             }
         }
 
@@ -933,21 +924,17 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         address underlying = _addressesProvider.getUnderlying();
         address rVaultAsset = _addressesProvider.getRVaultAsset();
         address superAsset = _addressesProvider.getSuperAsset();
+        
         /*
-     Token Type can be 
-      - 0 for underlying
-      - 1 for superAsset
-      - 2 for rVaultAsset   
+         Token Type can be 
+        - 1 underlying or superAsset
+        - else 2 - rVaultAsset
         */
         uint256 token_type;
-        if (asset == underlying) {
-            token_type = 0;
-        } else if (asset == superAsset) {
+        if (asset == underlying || asset == superAsset) {
             token_type = 1;
-        } else if (asset == rVaultAsset) {
-            token_type = 2;
         } else {
-            revert("Unknown token type");
+            token_type = 2;
         }
         return (underlying, superAsset, rVaultAsset, token_type);
     }
