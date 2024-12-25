@@ -99,14 +99,7 @@ contract LendingPoolTest is Test {
         // address lzDelegate = makeAddr("lzdelegate");
 
         // SuperAsset for opMainnet
-        superAsset = ISuperAsset(
-            address(
-                new SuperAsset(
-                    address(underlyingAsset),
-                    lzEndpoint
-                )
-            )
-        );
+        superAsset = ISuperAsset(address(new SuperAsset(address(underlyingAsset), lzEndpoint)));
         vm.label(address(superAsset), "SuperAsset");
 
         // implementation LendingPool
