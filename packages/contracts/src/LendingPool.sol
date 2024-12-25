@@ -122,7 +122,6 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     * @param onBehalfOf The address on whose behalf the deposit is made.
     * @param referralCode The referral code for the deposit.
     */
-
     function deposit(address sender, address asset, uint256 amount, address onBehalfOf, uint16 referralCode)
         external
         onlyRouter
@@ -130,16 +129,9 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         if (amount == 0 || asset == address(0) || onBehalfOf == address(0) || sender == address(0)) {
             revert ZeroParams();
         }
-        /*
-        There are three scenarios for deposit asset type,
-         - Underlying asset or SuperAsset
-         - RvaultAsset
-        */
 
         (address rVaultAsset, uint256 token_type) = getTokenType(asset);
-
         DataTypes.ReserveData storage reserve = _reserves[rVaultAsset];
-
         address aToken = reserve.aTokenAddress;
 
         ValidationLogic.validateDeposit(reserve, amount);
@@ -148,9 +140,6 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         unchecked {
             // Safe to use unchecked as amount is validated above
             _updateStates(reserve, asset, amount, 0, bytes2(uint16(3)));
-        }
-
-        unchecked {
             if (token_type == 1) {
                 // tokenType == 1 means it is either SuperAsset or Underlying
                 IRVaultAsset(rVaultAsset).mint(address(aToken), amount);
@@ -162,11 +151,8 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
 
         (bool isFirstDeposit, uint256 mintMode, uint256 amountScaled) =
             IAToken(aToken).mint(onBehalfOf, amount, reserve.liquidityIndex);
-
-        // Handle first deposit
         if (isFirstDeposit) {
             unchecked {
-                // Safe as reserve.id is bounded
                 _usersConfig[onBehalfOf].setUsingAsCollateral(reserve.id, true);
             }
             emit ReserveUsedAsCollateralEnabled(asset, onBehalfOf);
