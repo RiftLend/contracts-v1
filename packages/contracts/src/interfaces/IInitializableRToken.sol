@@ -46,7 +46,7 @@ interface IInitializableRToken {
      * @param rTokenName The name of the aToken
      * @param rTokenSymbol The symbol of the aToken
      * @param params A set of encoded parameters for additional initialization
-     * @param crossL2Prover The address of the cross-chain prover
+     * @param eventValidator The address of the event validator
      */
     function initialize(
         ILendingPool pool,
@@ -58,6 +58,6 @@ interface IInitializableRToken {
         string calldata rTokenName,
         string calldata rTokenSymbol,
         bytes calldata params,
-        address crossL2Prover
+        address eventValidator
     ) external;
 }

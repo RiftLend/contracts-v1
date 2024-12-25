@@ -22,6 +22,7 @@ import {ILendingPoolConfigurator} from "../src/interfaces/ILendingPoolConfigurat
 import {ILendingPoolAddressesProvider} from "../src/interfaces/ILendingPoolAddressesProvider.sol";
 
 /// @dev the owner and deployer are currently the same.
+/// @notice for EventValidation library change the prover address to be deployed on each chain. - https://docs.polymerlabs.org/docs/build/start/
 contract LendingPoolDeployer is Script {
     string deployConfig;
 

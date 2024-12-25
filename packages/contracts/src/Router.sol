@@ -5,12 +5,10 @@ import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
 import "./interfaces/ILendingPool.sol";
 import "./interfaces/ILendingPoolCollateralManager.sol";
 
-import "./interfaces/ICrossL2Inbox.sol";
 import {ISuperAsset} from "./interfaces/ISuperAsset.sol";
 import {IRToken} from "./interfaces/IRToken.sol";
 import {IStableDebtToken} from "./interfaces/IStableDebtToken.sol";
 import {IVariableDebtToken} from "./interfaces/IVariableDebtToken.sol";
-import {ICrossL2Prover} from "./interfaces/ICrossL2Prover.sol";
 import {ISuperchainTokenBridge} from "./interfaces/ISuperchainTokenBridge.sol";
 
 import {Initializable} from "@solady/utils/Initializable.sol";
@@ -19,6 +17,7 @@ import {ReserveLogic} from "./libraries/logic/ReserveLogic.sol";
 import {Errors} from "./libraries/helpers/Errors.sol";
 import {SuperPausable} from "./interop-std/src/utils/SuperPausable.sol";
 import {Predeploys} from "./libraries/Predeploys.sol";
+import {EventValidator, ValidationMode, Identifier} from "./libraries/EventValidation.sol";
 
 contract Router is Initializable, SuperPausable {
     using SafeERC20 for IERC20;
@@ -26,18 +25,11 @@ contract Router is Initializable, SuperPausable {
 
     bytes2 public constant UPDATE_RATES_AND_STATES_MASK = bytes2(uint16(3));
 
-    enum ValidationMode {
-        CUSTOM,
-        CROSS_L2_INBOX,
-        CROSS_L2_PROVER_EVENT,
-        CROSS_L2_PROVER_RECEIPT
-    }
-
     uint256 public constant ROUTER_REVISION = 0x1;
     ILendingPool public lendingPool;
     ILendingPoolAddressesProvider public addressesProvider;
     address public relayer;
-    ICrossL2Prover public crossL2Prover;
+    EventValidator public eventValidator;
 
     modifier onlyRelayer() {
         _onlyRelayer();
@@ -64,10 +56,10 @@ contract Router is Initializable, SuperPausable {
      * @param _lendingPool The address of the LendingPool contract
      * @param _addressesProvider The address of the LendingPoolAddressesProvider contract
      */
-    function initialize(address _lendingPool, address _addressesProvider, address _crossL2Prover) public initializer {
+    function initialize(address _lendingPool, address _addressesProvider, address _eventValidator) public initializer {
         lendingPool = ILendingPool(_lendingPool);
         addressesProvider = ILendingPoolAddressesProvider(_addressesProvider);
-        crossL2Prover = ICrossL2Prover(_crossL2Prover);
+        eventValidator = EventValidator(_eventValidator);
     }
 
     function dispatch(
@@ -78,54 +70,13 @@ contract Router is Initializable, SuperPausable {
         uint256[] calldata _logIndex
     ) external onlyRelayer whenNotPaused {
         if (_mode == ValidationMode.CROSS_L2_PROVER_RECEIPT) {
-            _validate(_mode, _identifier[0], _data, _logIndex, _proof);
+            eventValidator.validate(_mode, _identifier[0], _data, _logIndex, _proof);
         }
         for (uint256 i = 0; i < _identifier.length; i++) {
             if (_mode != ValidationMode.CUSTOM && _mode != ValidationMode.CROSS_L2_PROVER_RECEIPT) {
-                _validate(_mode, _identifier[i], _data, _logIndex, _proof);
+                eventValidator.validate(_mode, _identifier[i], _data, _logIndex, _proof);
             }
             _dispatch(_identifier[i], _data[i]);
-        }
-    }
-
-    function _validate(
-        ValidationMode _mode,
-        Identifier calldata _identifier,
-        bytes[] calldata _data,
-        uint256[] calldata _logIndex,
-        bytes calldata _proof
-    ) internal {
-        /// @dev use ICrossL2Inbox to validate message
-        if (_mode == ValidationMode.CROSS_L2_INBOX) {
-            if (_identifier.origin != address(this)) {
-                revert("!origin");
-            }
-            ICrossL2Inbox(Predeploys.CROSS_L2_INBOX).validateMessage(_identifier, keccak256(_data[0]));
-        }
-        if (_mode == ValidationMode.CROSS_L2_PROVER_EVENT) {
-            /// @dev use ICrossL2Prover to validate message
-            (, address emittingContract, bytes[] memory topics, bytes memory unindexedData) =
-                crossL2Prover.validateEvent(_logIndex[0], _proof);
-            if (emittingContract != address(this)) {
-                revert("!origin");
-            }
-            if (keccak256(abi.encode(topics[0], unindexedData)) != keccak256(_data[0])) {
-                revert("!data");
-            }
-        }
-        if (_mode == ValidationMode.CROSS_L2_PROVER_RECEIPT) {
-            /// @dev use ICrossL2Prover to validate receipt
-            (, bytes memory rlpEncodedBytes) = crossL2Prover.validateReceipt(_proof);
-            for (uint256 i = 0; i < _logIndex.length; i++) {
-                (address emittingContract, bytes[] memory topics, bytes memory unindexedData) =
-                    crossL2Prover.parseLog(_logIndex[i], rlpEncodedBytes);
-                if (emittingContract != address(this)) {
-                    revert("!origin");
-                }
-                if (keccak256(abi.encode(topics[0], unindexedData)) != keccak256(_data[i])) {
-                    revert("!data");
-                }
-            }
         }
     }
 
