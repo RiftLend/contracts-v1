@@ -12,7 +12,6 @@ import {ERC20} from "@openzeppelin/contracts-v5/token/ERC20/ERC20.sol";
  * @dev Extends the `SuperchainERC20` contract and incorporates ownership controls via `Ownable`.
  *      This contract allows the owner to mint tokens and customize metadata.
  */
- 
 contract L2NativeSuperchainERC20 is SuperchainERC20, Ownable {
     string private _name;
     string private _symbol;

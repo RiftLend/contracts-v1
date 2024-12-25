@@ -132,14 +132,13 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         }
         /*
         There are three scenarios for deposit asset type,
-         - Underlying asset
-         - SuperAsset
-         - Rvault
+         - Underlying asset or SuperAsset
+         - RvaultAsset
         */
 
-        (, address superAsset, address rVaultAsset, uint256 token_type) = getTokenType(asset);
+        (address rVaultAsset, uint256 token_type) = getTokenType(asset);
 
-        DataTypes.ReserveData storage reserve = _reserves[superAsset];
+        DataTypes.ReserveData storage reserve = _reserves[rVaultAsset];
 
         address aToken = reserve.aTokenAddress;
 
@@ -244,7 +243,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         address sender,
         address asset,
         uint256 amount,
-        uint256 interestRateMode,
+        uint256 , //interestRateMode
         address onBehalfOf,
         uint256 sendToChainId,
         uint16 referralCode
@@ -270,16 +269,6 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         external
         onlyRouter
     {
-        (, address superAsset,, uint256 token_type) = getTokenType(asset);
-        IERC20(asset).safeTransferFrom(sender, address(this), amount);
-
-        if (token_type == 0) {
-            // Handle underlying asset
-            IERC20(asset).safeIncreaseAllowance(superAsset, amount);
-            ISuperAsset(superAsset).deposit(address(this), amount);
-            asset = superAsset; // Update asset to superAsset for further processing
-        }
-
         DataTypes.ReserveData storage reserve = _reserves[asset];
 
         // DataTypes.ReserveData storage reserve = _reserves[asset];
@@ -314,12 +303,23 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         if (stableDebt + variableDebt - paybackAmount == 0) {
             _usersConfig[onBehalfOf].setBorrowing(reserve.id, false);
         }
-
-        IERC20(superAsset).safeTransfer(aToken, paybackAmount);
-
-        if (amount - paybackAmount > 0) {
-            IERC20(superAsset).safeTransfer(sender, amount - paybackAmount);
+        // Getting repay amount in rVaultAsset for universality
+        (address rVaultAsset, uint256 token_type) = getTokenType(asset);
+        unchecked {
+            if (token_type == 1) {
+                // tokenType == 1 means it is either SuperAsset or Underlying
+                IRVaultAsset(rVaultAsset).mint(address(aToken), paybackAmount);
+            } else {
+                // Transfer the asset of worth `amount` to the LendingPool contract
+                IERC20(asset).safeTransferFrom(sender, address(aToken), paybackAmount);
+            }
         }
+
+        // No need to repay
+
+        // if (amount - paybackAmount > 0) {
+        //     IERC20(asset).safeTransfer(sender, amount - paybackAmount);
+        // }
 
         IAToken(aToken).handleRepayment(sender, paybackAmount);
 
@@ -428,15 +428,21 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         uint256 sendToChainId
     ) external onlyRouter {
         address collateralManager = _addressesProvider.getLendingPoolCollateralManager();
-        (, address superAsset,, uint256 token_type) = getTokenType(debtAsset);
 
-        IERC20(debtAsset).safeTransferFrom(sender, address(this), debtToCover);
+        // Getting liquidation debt amount in rVaultAsset for universality
+        (address rVaultAsset, uint256 token_type) = getTokenType(debtAsset);
 
-        if (token_type == 0) {
-            // Handle underlying asset
-            IERC20(debtAsset).safeIncreaseAllowance(superAsset, debtToCover);
-            ISuperAsset(superAsset).deposit(address(this), debtToCover);
-            debtAsset = superAsset; // Update asset to superAsset for further processing
+        DataTypes.ReserveData storage reserve = _reserves[rVaultAsset];
+        address aToken = reserve.aTokenAddress;
+
+        unchecked {
+            if (token_type == 1) {
+                // tokenType == 1 means it is either SuperAsset or Underlying
+                IRVaultAsset(rVaultAsset).mint(address(aToken), debtToCover);
+            } else {
+                // Transfer the asset of worth `amount` to the LendingPool contract
+                IERC20(debtAsset).safeTransferFrom(sender, address(aToken), debtToCover);
+            }
         }
 
         //solium-disable-next-line
@@ -920,11 +926,11 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         }
     }
 
-    function getTokenType(address asset) internal view returns (address, address, address, uint256) {
+    function getTokenType(address asset) internal view returns ( address, uint256) {
         address underlying = _addressesProvider.getUnderlying();
         address rVaultAsset = _addressesProvider.getRVaultAsset();
         address superAsset = _addressesProvider.getSuperAsset();
-        
+
         /*
          Token Type can be 
         - 1 underlying or superAsset
@@ -936,7 +942,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         } else {
             token_type = 2;
         }
-        return (underlying, superAsset, rVaultAsset, token_type);
+        return ( rVaultAsset, token_type);
     }
 
     /**
