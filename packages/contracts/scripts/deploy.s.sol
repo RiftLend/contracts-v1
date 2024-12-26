@@ -285,8 +285,10 @@ contract LendingPoolDeployer is Script {
             addr_ = preComputedAddress;
         } else {
             // ToDo: Add lending pool deployment here
-            bytes32 lendingPool=bytes32(uint(0));
-            addr_ = address(new LendingPoolAddressesProvider{salt: _implSalt(salt)}(marketId_, ownerAddr_, _proxyAdmin,lendingPool));
+            bytes32 lendingPool = bytes32(uint256(0));
+            addr_ = address(
+                new LendingPoolAddressesProvider{salt: _implSalt(salt)}(marketId_, ownerAddr_, _proxyAdmin, lendingPool)
+            );
             console.log("Deployed LendingPoolAddressesProvider at address: ", addr_, "on chain id: ", block.chainid);
         }
     }

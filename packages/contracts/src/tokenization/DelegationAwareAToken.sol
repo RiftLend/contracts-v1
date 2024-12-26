@@ -25,5 +25,4 @@ contract DelegationAwareRToken is RToken {
     function delegateUnderlyingTo(address delegatee) external onlyPoolAdmin {
         IDelegationToken(_underlyingAsset).delegate(delegatee);
     }
-    
 }

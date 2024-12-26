@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.8.25;
 
-
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
 import "./interfaces/ILendingPool.sol";
 import "./interfaces/ILendingPoolCollateralManager.sol";
@@ -24,6 +23,7 @@ import {Predeploys} from "./libraries/Predeploys.sol";
 contract Router is Initializable, SuperPausable {
     using SafeERC20 for IERC20;
     using ReserveLogic for DataTypes.ReserveData;
+
     bytes2 public constant UPDATE_RATES_AND_STATES_MASK = bytes2(uint16(3));
 
     enum ValidationMode {
@@ -155,8 +155,8 @@ contract Router is Initializable, SuperPausable {
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
         // emit Withdraw(sender, asset, to, amountToWithdraw, mode, amountScaled);
         if (selector == Withdraw.selector && _identifier.chainId != block.chainid) {
-            (,address asset,address to, uint256 amount, uint256 mintMode, uint256 amountScaled) =
-                abi.decode(_data[64:], (address, address,address, uint256, uint256, uint256));
+            (, address asset, address to, uint256 amount, uint256 mintMode, uint256 amountScaled) =
+                abi.decode(_data[64:], (address, address, address, uint256, uint256, uint256));
             DataTypes.ReserveData memory reserve = lendingPool.getReserveData(asset);
             IRToken(reserve.rTokenAddress).updateCrossChainBalance(to, amountScaled, mintMode);
             lendingPool.updateStates(asset, 0, amount, UPDATE_RATES_AND_STATES_MASK);
@@ -172,12 +172,24 @@ contract Router is Initializable, SuperPausable {
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
         // event Borrow(address reserve,uint256 amount,address user,address onBehalfOf,uint256 borrowRateMode,uint256 sendToChainId,uint256 borrowRate,uint256 mintMode,uint256 amountScaled,uint16 referral);
         if (selector == Borrow.selector && _identifier.chainId != block.chainid) {
-            (address asset, uint256 amount,,address onBehalfOf, uint256 interestRateMode,,,uint256 mintMode, uint256 amountScaled,) = abi.decode(
+            (
+                address asset,
+                uint256 amount,
+                ,
+                address onBehalfOf,
+                uint256 interestRateMode,
+                ,
+                ,
+                uint256 mintMode,
+                uint256 amountScaled,
+            ) = abi.decode(
                 _data[32:], (address, uint256, address, address, uint256, uint256, uint256, uint256, uint256, uint16)
             );
             DataTypes.ReserveData memory reserve = lendingPool.getReserveData(asset);
             if (interestRateMode == 2) {
-                IVariableDebtToken(reserve.variableDebtTokenAddress).updateCrossChainBalance(onBehalfOf, amountScaled, mintMode);
+                IVariableDebtToken(reserve.variableDebtTokenAddress).updateCrossChainBalance(
+                    onBehalfOf, amountScaled, mintMode
+                );
             }
             lendingPool.updateStates(asset, 0, amount, UPDATE_RATES_AND_STATES_MASK);
         }
@@ -200,11 +212,13 @@ contract Router is Initializable, SuperPausable {
         // event Repay(address reserve, uint256 amount, address user, address repayer, uint256 rateMode, uint256 mode, uint256 amountBurned);
 
         if (selector == Repay.selector && _identifier.chainId != block.chainid) {
-            (address asset, uint256 amount,,address repayer, uint256 rateMode, uint256 mintMode, uint256 amountBurned) =
-                abi.decode(_data[32:], (address, uint256, address, address, uint256, uint256, uint256));
+            (address asset, uint256 amount,, address repayer, uint256 rateMode, uint256 mintMode, uint256 amountBurned)
+            = abi.decode(_data[32:], (address, uint256, address, address, uint256, uint256, uint256));
             DataTypes.ReserveData memory reserve = lendingPool.getReserveData(asset);
-             if (rateMode == 2) {                
-                IVariableDebtToken(reserve.variableDebtTokenAddress).updateCrossChainBalance(repayer, amountBurned, mintMode);
+            if (rateMode == 2) {
+                IVariableDebtToken(reserve.variableDebtTokenAddress).updateCrossChainBalance(
+                    repayer, amountBurned, mintMode
+                );
             }
             lendingPool.updateStates(asset, amount, 0, UPDATE_RATES_AND_STATES_MASK);
         }
@@ -217,8 +231,9 @@ contract Router is Initializable, SuperPausable {
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*                    LIQUIDATION CALL DISPATCH               */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-  // event LiquidationCall(address indexed collateralAsset,address indexed debtAsset,address indexed user,uint256 debtToCover,uint256 liquidatedCollateralAmount,address liquidator,bool receiveRToken,uint256 stableDebtBurned,uint256 variableDebtBurned,uint256 collateralRTokenBurned);
-        if (selector == ILendingPoolCollateralManager.LiquidationCall.selector && _identifier.chainId != block.chainid) {
+        // event LiquidationCall(address indexed collateralAsset,address indexed debtAsset,address indexed user,uint256 debtToCover,uint256 liquidatedCollateralAmount,address liquidator,bool receiveRToken,uint256 stableDebtBurned,uint256 variableDebtBurned,uint256 collateralRTokenBurned);
+        if (selector == ILendingPoolCollateralManager.LiquidationCall.selector && _identifier.chainId != block.chainid)
+        {
             (
                 address collateralAsset,
                 address debtAsset,
@@ -236,11 +251,13 @@ contract Router is Initializable, SuperPausable {
             // ToDo: Ensure the crosschain balances update correct , currently only burning variabledebt and rTokens
             // should we be like increase liquidator's crosschain balance ?
             DataTypes.ReserveData memory debtReserve = lendingPool.getReserveData(debtAsset);
-            IVariableDebtToken(debtReserve.variableDebtTokenAddress).updateCrossChainBalance(user,variableDebtBurned, 2);
+            IVariableDebtToken(debtReserve.variableDebtTokenAddress).updateCrossChainBalance(
+                user, variableDebtBurned, 2
+            );
             lendingPool.updateStates(debtAsset, 0, actualDebtToLiquidate, UPDATE_RATES_AND_STATES_MASK);
             if (!receiveRToken) {
                 DataTypes.ReserveData memory collateralReserve = lendingPool.getReserveData(collateralAsset);
-                IRToken(collateralReserve.rTokenAddress).updateCrossChainBalance(user,collateralRTokenBurned, 2);
+                IRToken(collateralReserve.rTokenAddress).updateCrossChainBalance(user, collateralRTokenBurned, 2);
                 lendingPool.updateStates(collateralAsset, 0, maxCollateralToLiquidate, UPDATE_RATES_AND_STATES_MASK);
             }
         }
@@ -319,17 +336,20 @@ contract Router is Initializable, SuperPausable {
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*               SWAP DISPATCH                                */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-// event Swap(address reserve, address user, uint256 rateMode, uint256 variableDebtAmount, uint256 stableDebtAmount);
-
+        // event Swap(address reserve, address user, uint256 rateMode, uint256 variableDebtAmount, uint256 stableDebtAmount);
 
         if (selector == Swap.selector && _identifier.chainId != block.chainid) {
-            (address asset,address user, uint256 rateMode, uint256 variableDebtAmount,) =
+            (address asset, address user, uint256 rateMode, uint256 variableDebtAmount,) =
                 abi.decode(_data[32:], (address, address, uint256, uint256, uint256));
             DataTypes.ReserveData memory reserve = lendingPool.getReserveData(asset);
             if (rateMode == 2) {
-                IVariableDebtToken(reserve.variableDebtTokenAddress).updateCrossChainBalance(user,variableDebtAmount, 1);
+                IVariableDebtToken(reserve.variableDebtTokenAddress).updateCrossChainBalance(
+                    user, variableDebtAmount, 1
+                );
             } else if (rateMode == 1) {
-                IVariableDebtToken(reserve.variableDebtTokenAddress).updateCrossChainBalance(user,variableDebtAmount, 2);
+                IVariableDebtToken(reserve.variableDebtTokenAddress).updateCrossChainBalance(
+                    user, variableDebtAmount, 2
+                );
             }
             lendingPool.updateStates(asset, 0, 0, UPDATE_RATES_AND_STATES_MASK);
         }

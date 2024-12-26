@@ -95,8 +95,8 @@ contract LendingPoolTest is Test {
         vm.label(address(implementationLp), "implementationLp");
 
         // lendingPoolAddressProvider
-        bytes32 bytes32_lp=bytes32(uint256(uint160(address(implementationLp))));
-        lpAddressProvider = new LendingPoolAddressesProvider("TUSDC", owner, t.proxyAdmin,bytes32_lp);
+        bytes32 bytes32_lp = bytes32(uint256(uint160(address(implementationLp))));
+        lpAddressProvider = new LendingPoolAddressesProvider("TUSDC", owner, t.proxyAdmin, bytes32_lp);
         vm.label(address(lpAddressProvider), "lpAddressProvider");
 
         address lzEndpoint = makeAddr("lzEndpoint");
@@ -105,7 +105,6 @@ contract LendingPoolTest is Test {
         // SuperAsset for opMainnet
         superAsset = ISuperAsset(address(new SuperAsset(address(underlyingAsset), lzEndpoint)));
         vm.label(address(superAsset), "SuperAsset");
-
 
         // proxy LendingPool
         vm.prank(owner);

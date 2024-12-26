@@ -55,7 +55,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     IAaveIncentivesController internal _incentivesController;
     ILendingPoolAddressesProvider internal _addressesProvider;
     ICrossL2Prover internal _crossL2Prover;
-    // Syncing the cross chain balancs of users.    
+    // Syncing the cross chain balancs of users.
     mapping(address => uint256) public crossChainUserBalance;
 
     event CrossChainMint(address user, uint256 amount, uint256 index);
@@ -218,14 +218,17 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
      * @param amountScaled The amount scaled
      * @param mode The mode
      */
-    function updateCrossChainBalance(address user,uint256 amountScaled, uint256 mode) external override onlyLendingPool {
+    function updateCrossChainBalance(address user, uint256 amountScaled, uint256 mode)
+        external
+        override
+        onlyLendingPool
+    {
         if (mode == 1) {
             crossChainUserBalance[user] += amountScaled;
             _totalCrossChainSupply += amountScaled;
         } else if (mode == 2) {
             _totalCrossChainSupply -= amountScaled;
             crossChainUserBalance[user] -= amountScaled;
-
         }
     }
 

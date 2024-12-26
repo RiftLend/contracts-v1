@@ -105,14 +105,14 @@ library ValidationLogic {
      * @param oracle The price oracle
      */
     function validateBorrow(
-        address , //_asset
-        address , //superAddress
+        address, //_asset
+        address, //superAddress
         DataTypes.ReserveData storage reserve,
         address userAddress,
         uint256 amount,
         uint256 amountInETH,
-        uint256 , //interestRateMode
-        uint256 , //maxStableLoanPercent
+        uint256, //interestRateMode
+        uint256, //maxStableLoanPercent
         mapping(address => DataTypes.ReserveData) storage reservesData,
         DataTypes.UserConfigurationMap storage userConfig,
         mapping(uint256 => address) storage reserves,
@@ -129,8 +129,6 @@ library ValidationLogic {
         require(amount != 0, Errors.VL_INVALID_AMOUNT);
 
         require(vars.borrowingEnabled, Errors.VL_BORROWING_NOT_ENABLED);
-
-       
 
         (
             vars.userCollateralBalanceETH,
@@ -156,8 +154,6 @@ library ValidationLogic {
             vars.amountOfCollateralNeededETH <= vars.userCollateralBalanceETH,
             Errors.VL_COLLATERAL_CANNOT_COVER_NEW_BORROW
         );
-
-    
     }
 
     /**
@@ -172,7 +168,7 @@ library ValidationLogic {
         uint256 amountSent,
         DataTypes.InterestRateMode rateMode,
         address onBehalfOf,
-        uint256 , //stableDebt
+        uint256, //stableDebt
         uint256 variableDebt
     ) external view {
         bool isActive = reserve.configuration.getActive();
