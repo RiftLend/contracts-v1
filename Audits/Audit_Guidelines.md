@@ -53,43 +53,39 @@ packages
 ## nSLOC
 
 ```fs
-File                                                                   Lines of Code
+
+File                                                                        Lines of Code  
+===================================================================================== 
+packages/contracts/src/interfaces/ILendingPool.sol                              325
+packages/contracts/src/interfaces/ILendingPoolAddressesProvider.sol             90
+packages/contracts/src/interfaces/ILendingPoolAddressesProviderRegistry.sol     24
+packages/contracts/src/interfaces/ILendingPoolCollateralManager.sol             78
+packages/contracts/src/interfaces/ILendingPoolConfigurator.sol                  181
+packages/contracts/src/interfaces/IRToken.sol                                   120
+packages/contracts/src/interfaces/IRVaultAsset.sol                              20
+packages/contracts/src/interfaces/ISuperAsset.sol                               54
+packages/contracts/src/interfaces/ISuperchainAsset.sol                          58
+packages/contracts/src/interfaces/IVariableDebtToken.sol                        78
+packages/contracts/src/interfaces/ILendingRateOracle.sol                        21
+packages/contracts/src/interfaces/IInitializableRToken.sol                      63
+packages/contracts/src/libraries/configuration/ReserveConfiguration.sol         311
+packages/contracts/src/libraries/configuration/UserConfiguration.sol            111
+packages/contracts/src/libraries/logic/GenericLogic.sol                         240
+packages/contracts/src/libraries/logic/ReserveLogic.sol                         339
+packages/contracts/src/libraries/logic/ValidationLogic.sol                      383
+packages/contracts/src/libraries/types/DataTypes.sol                            32
+packages/contracts/src/tokenization/RToken.sol                                  551
+packages/contracts/src/tokenization/VariableDebtToken.sol                       244
+packages/contracts/src/LendingPool.sol                                          915
+packages/contracts/src/LendingPoolCollateralManager.sol                         282
+packages/contracts/src/LendingPoolConfigurator.sol                              490
+packages/contracts/src/LendingPoolStorage.sol                                   64
+packages/contracts/src/LendingRateOracle.sol                                    30
+packages/contracts/src/Router.sol                                               584
+packages/contracts/src/RVaultAsset.sol                                          239
+packages/contracts/src/SuperAsset.sol                                           51
 =====================================================================================
-src/interfaces/ILendingPool.sol                          327
-src/interfaces/ILendingPoolAddressesProvider.sol         90
-src/interfaces/ILendingPoolAddressesProviderRegistry.sol 24
-src/interfaces/ILendingPoolCollateralManager.sol         78
-src/interfaces/ILendingPoolConfigurator.sol              181
-src/interfaces/IRToken.sol                               121
-src/interfaces/IRVaultAsset.sol                          20
-src/interfaces/ISuperAsset.sol                           54
-src/interfaces/ISuperchainAsset.sol                      58
-src/interfaces/ISuperchainTokenBridge.sol                27
-src/interfaces/IVariableDebtToken.sol                    78
-src/interfaces/ILendingRateOracle.sol                    21
-src/interfaces/IInitializableRToken.sol                  63
-src/interfaces/ICrossL2Prover.sol                        16
-src/interfaces/ICrossL2Inbox.sol                         76
-src/libraries/configuration/ReserveConfiguration.sol      311
-src/libraries/configuration/UserConfiguration.sol        111
-src/libraries/logic/GenericLogic.sol                     239
-src/libraries/logic/ReserveLogic.sol                     339
-src/libraries/logic/ValidationLogic.sol                  387
-src/libraries/types/DataTypes.sol                        32
-src/tokenization/RToken.sol                              548
-src/tokenization/VariableDebtToken.sol                   267
-src/L2NativeSuperchainERC20.sol                          72
-src/LendingPool.sol                                      1117
-src/LendingPoolCollateralManager.sol                     282
-src/LendingPoolConfigurator.sol                          490
-src/LendingPoolStorage.sol                               64
-src/LendingRateOracle.sol                                30
-src/Router.sol                                           564
-src/RVaultAsset.sol                                      239
-src/SuperAsset.sol                                       51
-src/SuperchainERC20.sol                                  51
-=====================================================================================
-Total lines of code                                                         6428
+Total lines of code                                                             5978
 
 ```
 
@@ -97,9 +93,9 @@ Total lines of code                                                         6428
 
 1. [OpenZeppelin v5 contracts](https://github.com/OpenZeppelin/openzeppelin-contracts) - (Math Utils, ERC20 tokens, SafeTransfers)
 2. [LayerZero Labs OFT](https://github.com/LayerZero-Labs/oft-evm) - (OFT)
-3. Polymer Prover - https://docs.polymerlabs.org/docs/build/prove-api/prover-contract
-4. Socket Bridge API - https://docs.bungee.exchange/socket-api/guides/bungee-smart-contract-integration
-5. [Aave V2 WadRayMath](https://github.com/aave/protocol-v2/blob/master/contracts/protocol/libraries/math/WadRayMath.sol) - (WadRayMath)
+3. [Polymer Prover](https://docs.polymerlabs.org/docs/build/prove-api/prover-contract)
+4. [Socket Bridge API](https://docs.bungee.exchange/socket-api/guides/bungee-smart-contract-integration)
+5. [Aave V2 WadRayMath](https://github.com/aave/protocol-v2/blob/master/contracts/protocol/libraries/math/WadRayMath.sol)
 
 ## External calls:
 

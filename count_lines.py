@@ -10,12 +10,9 @@ files = [
     "packages/contracts/src/interfaces/IRVaultAsset.sol",
     "packages/contracts/src/interfaces/ISuperAsset.sol",
     "packages/contracts/src/interfaces/ISuperchainAsset.sol",
-    "packages/contracts/src/interfaces/ISuperchainTokenBridge.sol",
     "packages/contracts/src/interfaces/IVariableDebtToken.sol",
     "packages/contracts/src/interfaces/ILendingRateOracle.sol",
     "packages/contracts/src/interfaces/IInitializableRToken.sol",
-    "packages/contracts/src/interfaces/ICrossL2Prover.sol",
-    "packages/contracts/src/interfaces/ICrossL2Inbox.sol",
     "packages/contracts/src/libraries/configuration/ReserveConfiguration.sol",
     "packages/contracts/src/libraries/configuration/UserConfiguration.sol",
     "packages/contracts/src/libraries/logic/GenericLogic.sol",
@@ -24,7 +21,6 @@ files = [
     "packages/contracts/src/libraries/types/DataTypes.sol",
     "packages/contracts/src/tokenization/RToken.sol",
     "packages/contracts/src/tokenization/VariableDebtToken.sol",
-    "packages/contracts/src/L2NativeSuperchainERC20.sol",
     "packages/contracts/src/LendingPool.sol",
     "packages/contracts/src/LendingPoolCollateralManager.sol",
     "packages/contracts/src/LendingPoolConfigurator.sol",
@@ -33,7 +29,7 @@ files = [
     "packages/contracts/src/Router.sol",
     "packages/contracts/src/RVaultAsset.sol",
     "packages/contracts/src/SuperAsset.sol",
-    "packages/contracts/src/SuperchainERC20.sol"
+        
 ]
 
 def count_lines_of_code(file_path):
