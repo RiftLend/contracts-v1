@@ -1,7 +1,8 @@
 # RiftLend Audit Guidelines
 
 ## About
-RiftLend is a next-generation decentralized lending and borrowing protocol built natively for the OP super-chain ecosystem. Leveraging Aave V2's battle-tested architecture, RiftLend revolutionizes cross-chain DeFi operations by offering a unified, chain-agnostic lending experience with seamless cross-chain functionality.
+
+RiftLend is a multichain lending platform. Leveraging Aave V2's battle-tested architecture, RiftLend revolutionizes cross-chain DeFi operations by offering a unified, chain-agnostic lending experience with seamless cross-chain functionality.
 
 This audit will be focused on core contracts of Riftlend being developed.
 
@@ -14,8 +15,6 @@ packages
 └── contracts
     └── src
         ├── interfaces
-        │   ├── ICrossL2Inbox.sol
-        │   ├── ICrossL2Prover.sol
         │   ├── IInitializableRToken.sol
         │   ├── ILendingPool.sol
         │   ├── ILendingPoolAddressesProvider.sol
@@ -27,7 +26,6 @@ packages
         │   ├── IRVaultAsset.sol
         │   ├── ISuperAsset.sol
         │   ├── ISuperchainAsset.sol
-        │   ├── ISuperchainTokenBridge.sol
         │   └── IVariableDebtToken.sol
         ├── libraries
         │   ├── configuration
@@ -42,7 +40,6 @@ packages
         ├── tokenization
         │   ├── RToken.sol
         │   └── VariableDebtToken.sol
-        ├── L2NativeSuperchainERC20.sol
         ├── LendingPool.sol
         ├── LendingPoolCollateralManager.sol
         ├── LendingPoolConfigurator.sol
@@ -50,15 +47,14 @@ packages
         ├── LendingRateOracle.sol
         ├── Router.sol
         ├── RVaultAsset.sol
-        ├── SuperAsset.sol
-        └── SuperchainERC20.sol
+        └── SuperAsset.sol
 ```
 
 ## nSLOC
 
 ```fs
-File                                                                   Lines of Code  
-===================================================================================== 
+File                                                                   Lines of Code
+=====================================================================================
 src/interfaces/ILendingPool.sol                          327
 src/interfaces/ILendingPoolAddressesProvider.sol         90
 src/interfaces/ILendingPoolAddressesProviderRegistry.sol 24
@@ -97,34 +93,32 @@ Total lines of code                                                         6428
 
 ```
 
-
 ## Library dependencies:
+
 1. [OpenZeppelin v5 contracts](https://github.com/OpenZeppelin/openzeppelin-contracts) - (Math Utils, ERC20 tokens, SafeTransfers)
 2. [LayerZero Labs OFT](https://github.com/LayerZero-Labs/oft-evm) - (OFT)
-3. [Aave V2 WadRayMath](https://github.com/aave/protocol-v2/blob/master/contracts/protocol/libraries/math/WadRayMath.sol) - (WadRayMath)
+3. Polymer Prover - https://docs.polymerlabs.org/docs/build/prove-api/prover-contract
+4. Socket Bridge API - https://docs.bungee.exchange/socket-api/guides/bungee-smart-contract-integration
+5. [Aave V2 WadRayMath](https://github.com/aave/protocol-v2/blob/master/contracts/protocol/libraries/math/WadRayMath.sol) - (WadRayMath)
 
 ## External calls:
+
 The contracts will interact with various external protocols and contracts, including but not limited to:
 
-    - Lending protocols
+    - DeFi protocols
     - Token bridges
     - Oracle services
 
 ## Tokens used:
-Assets deposited in the vault will be standard ERC20 tokens, including but not limited to:
-    - WETH
-    - ETH
-    - USDC
-    - Other ERC20 tokens
+
+Assets deposited in the vault will be standard ERC20 tokens, including but not limited to: - WETH - ETH - USDC - Other ERC20 tokens
 
 ## Deployments:
-The contracts will be deployed on multiple EVM and non-EVM chains, including but not limited to:
-    - OP Superchains
-    - Ethereum
-    - Arbitrum
+
+The contracts will be deployed on multiple EVM and non-EVM chains, including but not limited to: - OP Superchains - Ethereum - Arbitrum
 
 more will be added later
 
 1. Audit Documentation:
-    1. [Draft Documentation](https://github.com/RiftLend/contracts-v1/blob/main/README.md)
-    2. [Official Docs (beta)](https://docs.riftlend.com/)
+   1. [Stale Documentation](https://github.com/RiftLend/contracts-v1/tree/tabish/nits?tab=readme-ov-file#riftlend)
+   2. [Official Docs (beta)](https://docs.riftlend.com/)
