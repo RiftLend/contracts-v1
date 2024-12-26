@@ -1,4 +1,4 @@
-# RiftLend Audit 1 Scope:
+# RiftLend Audit Guidelines
 
 ## About
 RiftLend is a next-generation decentralized lending and borrowing protocol built natively for the OP super-chain ecosystem. Leveraging Aave V2's battle-tested architecture, RiftLend revolutionizes cross-chain DeFi operations by offering a unified, chain-agnostic lending experience with seamless cross-chain functionality.
