@@ -4,7 +4,7 @@ pragma solidity 0.8.25;
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
 
-import {IAToken} from "./interfaces/IAToken.sol";
+import {IRToken} from "./interfaces/IRToken.sol";
 import {IStableDebtToken} from "./interfaces/IStableDebtToken.sol";
 import {IVariableDebtToken} from "./interfaces/IVariableDebtToken.sol";
 import {IPriceOracleGetter} from "./interfaces/IPriceOracleGetter.sol";
@@ -55,8 +55,8 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
         uint256 maxCollateralToLiquidate;
         uint256 debtAmountNeeded;
         uint256 healthFactor;
-        uint256 liquidatorPreviousATokenBalance;
-        IAToken collateralAtoken;
+        uint256 liquidatorPreviousRTokenBalance;
+        IRToken collateralRToken;
         bool isCollateralEnabled;
         DataTypes.InterestRateMode borrowRateMode;
         uint256 errorCode;
@@ -81,9 +81,9 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
      * @param debtAsset The address of the underlying borrowed asset to be repaid with the liquidation
      * @param user The address of the borrower getting liquidated
      * @param debtToCover The debt amount of borrowed `asset` the liquidator wants to cover
-     * @param receiveAToken `true` if the liquidators wants to receive the collateral aTokens, `false` if he wants
+     * @param receiveRToken `true` if the liquidators wants to receive the collateral RTokens, `false` if he wants
      * to receive the underlying collateral asset directly
-     * @param sendToChainId the chain id to send the collateral to if receiveAToken is `false`
+     * @param sendToChainId the chain id to send the collateral to if receiveRToken is `false`
      */
     function liquidationCall(
         address sender,
@@ -91,7 +91,7 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
         address debtAsset,
         address user,
         uint256 debtToCover,
-        bool receiveAToken,
+        bool receiveRToken,
         uint256 sendToChainId
     ) external override returns (uint256, string memory) {
         DataTypes.ReserveData storage collateralReserve = _reserves[collateralAsset];
@@ -104,7 +104,7 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
             user, _reserves, userConfig, _reservesList, _reservesCount, _addressesProvider.getPriceOracle()
         );
 
-        (vars.userStableDebt, vars.userVariableDebt) = Helpers.getUserCurrentDebt(user, debtReserve);
+        (, vars.userVariableDebt) = Helpers.getUserCurrentDebt(user, debtReserve);
 
         (vars.errorCode, vars.errorMsg) = ValidationLogic.validateLiquidationCall(
             collateralReserve, debtReserve, userConfig, vars.healthFactor, vars.userStableDebt, vars.userVariableDebt
@@ -114,9 +114,12 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
             return (vars.errorCode, vars.errorMsg);
         }
 
-        vars.collateralAtoken = IAToken(collateralReserve.aTokenAddress);
+        vars.collateralRToken = IRToken(collateralReserve.rTokenAddress);
+        // ToDO : should we pass crosschain balance here or simple one ?
+        // liquidation of other chain's debt should be allowed or not ?
+        // if allowed, then how to handle the cross chain balance ?
 
-        vars.userCollateralBalance = vars.collateralAtoken.balanceOf(user);
+        vars.userCollateralBalance = vars.collateralRToken.crossChainUserBalance(user);
 
         vars.maxLiquidatableDebt =
             (vars.userStableDebt + vars.userVariableDebt).percentMul(LIQUIDATION_CLOSE_FACTOR_PERCENT);
@@ -162,15 +165,15 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
         }
 
         ReserveLogic.updateInterestRates(
-            debtReserve, debtAsset, debtReserve.aTokenAddress, vars.actualDebtToLiquidate, 0
+            debtReserve, debtAsset, debtReserve.rTokenAddress, vars.actualDebtToLiquidate, 0
         );
 
-        uint256 collateralATokenBurned = 0;
-        if (receiveAToken) {
-            vars.liquidatorPreviousATokenBalance = IERC20(vars.collateralAtoken).balanceOf(sender);
-            vars.collateralAtoken.transferOnLiquidation(user, sender, vars.maxCollateralToLiquidate);
+        uint256 collateralRTokenBurned = 0;
+        if (receiveRToken) {
+            vars.liquidatorPreviousRTokenBalance = IERC20(vars.collateralRToken).balanceOf(sender);
+            vars.collateralRToken.transferOnLiquidation(user, sender, vars.maxCollateralToLiquidate);
 
-            if (vars.liquidatorPreviousATokenBalance == 0) {
+            if (vars.liquidatorPreviousRTokenBalance == 0) {
                 DataTypes.UserConfigurationMap storage liquidatorConfig = _usersConfig[sender];
                 liquidatorConfig.setUsingAsCollateral(collateralReserve.id, true);
                 emit ReserveUsedAsCollateralEnabled(collateralAsset, sender);
@@ -178,10 +181,10 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
         } else {
             collateralReserve.updateState();
             collateralReserve.updateInterestRates(
-                collateralAsset, address(vars.collateralAtoken), 0, vars.maxCollateralToLiquidate
+                collateralAsset, address(vars.collateralRToken), 0, vars.maxCollateralToLiquidate
             );
 
-            (, collateralATokenBurned) = vars.collateralAtoken.burn(
+            (, collateralRTokenBurned) = vars.collateralRToken.burn(
                 user, sender, sendToChainId, vars.maxCollateralToLiquidate, collateralReserve.liquidityIndex
             );
         }
@@ -194,7 +197,7 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
         }
         address superAsset = _addressesProvider.getSuperAsset();
 
-        ISuperAsset(superAsset).transfer(debtReserve.aTokenAddress, vars.actualDebtToLiquidate);
+        ISuperAsset(superAsset).transfer(debtReserve.rTokenAddress, vars.actualDebtToLiquidate);
         if (debtToCover > vars.actualDebtToLiquidate) {
             ISuperAsset(superAsset).transfer(sender, debtToCover - vars.actualDebtToLiquidate);
         }
@@ -206,10 +209,10 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
             vars.actualDebtToLiquidate,
             vars.maxCollateralToLiquidate,
             sender,
-            receiveAToken,
+            receiveRToken,
             stableDebtBurned,
             variableDebtBurned,
-            collateralATokenBurned
+            collateralRTokenBurned
         );
 
         return (uint256(Errors.CollateralManagerErrors.NO_ERROR), Errors.LPCM_NO_ERRORS);

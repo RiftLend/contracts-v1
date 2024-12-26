@@ -6,7 +6,7 @@ import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
 import {ILendingPoolAddressesProvider} from "./interfaces/ILendingPoolAddressesProvider.sol";
 import {ILendingPool} from "./interfaces/ILendingPool.sol";
 import {IInitializableDebtToken} from "./interfaces/IInitializableDebtToken.sol";
-import {IInitializableAToken} from "./interfaces/IInitializableAToken.sol";
+import {IInitializableRToken} from "./interfaces/IInitializableRToken.sol";
 import {IAaveIncentivesController} from "./interfaces/IAaveIncentivesController.sol";
 import {ILendingPoolConfigurator} from "./interfaces/ILendingPoolConfigurator.sol";
 import {ISuperAsset} from "./interfaces/ISuperAsset.sol";
@@ -76,18 +76,18 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
     }
 
     function _initReserve(ILendingPool _pool, InitReserveInput calldata input) internal {
-        address aTokenProxyAddress = _initTokenWithProxy(
-            input.aTokenImpl,
+        address RTokenProxyAddress = _initTokenWithProxy(
+            input.rTokenImpl,
             abi.encodeWithSelector(
-                IInitializableAToken.initialize.selector,
+                IInitializableRToken.initialize.selector,
                 _pool,
                 input.treasury,
                 input.underlyingAsset,
                 IAaveIncentivesController(input.incentivesController),
                 addressesProvider,
                 input.underlyingAssetDecimals,
-                input.aTokenName,
-                input.aTokenSymbol,
+                input.rTokenName,
+                input.rTokenSymbol,
                 input.params
             ),
             input.salt
@@ -126,7 +126,7 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
         _pool.initReserve(
             input.underlyingAsset,
             input.superAsset,
-            aTokenProxyAddress,
+            RTokenProxyAddress,
             stableDebtTokenProxyAddress,
             variableDebtTokenProxyAddress,
             input.interestRateStrategyAddress
@@ -143,7 +143,7 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
 
         emit ReserveInitialized(
             input.underlyingAsset,
-            aTokenProxyAddress,
+            RTokenProxyAddress,
             stableDebtTokenProxyAddress,
             variableDebtTokenProxyAddress,
             input.interestRateStrategyAddress
@@ -154,11 +154,11 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
         ISuperAsset(asset).withdrawTokens(asset, recepient);
     }
     /**
-     * @dev Updates the aToken implementation for the reserve
+     * @dev Updates the RToken implementation for the reserve
      *
      */
 
-    function updateAToken(UpdateATokenInput calldata input) external onlyProxyAdminOwner {
+    function updateRToken(UpdateRTokenInput calldata input) external onlyProxyAdminOwner {
         ILendingPool cachedPool = pool;
 
         DataTypes.ReserveData memory reserveData = cachedPool.getReserveData(input.asset);
@@ -166,7 +166,7 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
         (,,, uint256 decimals,) = cachedPool.getConfiguration(input.asset).getParamsMemory();
 
         bytes memory encodedCall = abi.encodeWithSelector(
-            IInitializableAToken.initialize.selector,
+            IInitializableRToken.initialize.selector,
             cachedPool,
             input.treasury,
             input.asset,
@@ -177,9 +177,9 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
             input.params
         );
 
-        _upgradeTokenImplementation(reserveData.aTokenAddress, input.implementation, encodedCall);
+        _upgradeTokenImplementation(reserveData.rTokenAddress, input.implementation, encodedCall);
 
-        emit ATokenUpgraded(input.asset, reserveData.aTokenAddress, input.implementation);
+        emit RTokenUpgraded(input.asset, reserveData.rTokenAddress, input.implementation);
     }
 
     /**
@@ -483,7 +483,7 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
     function _checkNoLiquidity(address asset) internal view {
         DataTypes.ReserveData memory reserveData = pool.getReserveData(asset);
 
-        uint256 availableLiquidity = IERC20(asset).balanceOf(reserveData.aTokenAddress);
+        uint256 availableLiquidity = IERC20(asset).balanceOf(reserveData.rTokenAddress);
 
         require(availableLiquidity == 0 && reserveData.currentLiquidityRate == 0, Errors.LPC_RESERVE_LIQUIDITY_NOT_0);
     }

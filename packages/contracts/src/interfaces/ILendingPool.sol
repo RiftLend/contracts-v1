@@ -141,34 +141,7 @@ event FlashLoan(
     uint16 referralCode
 );
 
-/**
- * @dev Emitted when a borrower is liquidated. This event is emitted by the LendingPool via
- * LendingPoolCollateral manager using a DELEGATECALL
- * This allows to have the events in the generated ABI for LendingPool.
- * @param collateralAsset The address of the underlying asset used as collateral, to receive as result of the liquidation
- * @param debtAsset The address of the underlying borrowed asset to be repaid with the liquidation
- * @param user The address of the borrower getting liquidated
- * @param debtToCover The debt amount of borrowed `asset` the liquidator wants to cover
- * @param liquidatedCollateralAmount The amount of collateral received by the liiquidator
- * @param liquidator The address of the liquidator
- * @param receiveAToken `true` if the liquidators wants to receive the collateral aTokens, `false` if he wants
- * to receive the underlying collateral asset directly
- * @param stableDebtBurned The amount of stable debt burned
- * @param variableDebtBurned The amount of variable debt burned
- * @param collateralATokenBurned The amount of collateral aTokens burned
- */
-event LiquidationCall(
-    address collateralAsset,
-    address debtAsset,
-    address user,
-    uint256 debtToCover,
-    uint256 liquidatedCollateralAmount,
-    address liquidator,
-    bool receiveAToken,
-    uint256 stableDebtBurned,
-    uint256 variableDebtBurned,
-    uint256 collateralATokenBurned
-);
+
 
 error OriginNotLendingPoolConfigurator();
 error InvalidChainId(uint256 chainId);
@@ -199,7 +172,7 @@ event CrossChainLiquidationCall(
     address debtAsset,
     address user,
     uint256 debtToCover,
-    bool receiveAToken,
+    bool receiveRToken,
     uint256 sendToChainId
 );
 
@@ -274,7 +247,7 @@ interface ILendingPool {
         address debtAsset,
         address user,
         uint256 debtToCover,
-        bool receiveAToken,
+        bool receiveRToken,
         uint256 sendToChainId
     ) external;
 
@@ -283,7 +256,7 @@ interface ILendingPool {
     function initReserve(
         address asset,
         address superchainAsset,
-        address aTokenAddress,
+        address rTokenAddress,
         address stableDebtAddress,
         address variableDebtAddress,
         address interestRateStrategyAddress

@@ -11,7 +11,8 @@ import {PercentageMath} from "../math/PercentageMath.sol";
 import {DataTypes} from "../types/DataTypes.sol";
 
 import {IPriceOracleGetter} from "../../interfaces/IPriceOracleGetter.sol";
-
+import {IRToken} from "../../interfaces/IRToken.sol";
+import {IVariableDebtToken} from "../../interfaces/IVariableDebtToken.sol";
 /**
  * @title GenericLogic library
  * @author Aave
@@ -162,7 +163,7 @@ library GenericLogic {
             vars.reserveUnitPrice = IPriceOracleGetter(oracle).getAssetPrice(vars.currentReserveAddress);
 
             if (vars.liquidationThreshold != 0 && userConfig.isUsingAsCollateral(vars.i)) {
-                vars.compoundedLiquidityBalance = IERC20(currentReserve.aTokenAddress).balanceOf(user);
+                vars.compoundedLiquidityBalance = IRToken(currentReserve.rTokenAddress).crossChainUserBalance(user);
 
                 uint256 liquidityBalanceETH = (vars.reserveUnitPrice * vars.compoundedLiquidityBalance) / vars.tokenUnit;
 
@@ -174,9 +175,8 @@ library GenericLogic {
             }
 
             if (userConfig.isBorrowing(vars.i)) {
-                vars.compoundedBorrowBalance = IERC20(currentReserve.stableDebtTokenAddress).balanceOf(user);
                 vars.compoundedBorrowBalance =
-                    vars.compoundedBorrowBalance + IERC20(currentReserve.variableDebtTokenAddress).balanceOf(user);
+                    vars.compoundedBorrowBalance + IVariableDebtToken(currentReserve.variableDebtTokenAddress).crossChainUserBalance(user);
 
                 vars.totalDebtInETH =
                     vars.totalDebtInETH + ((vars.reserveUnitPrice * vars.compoundedBorrowBalance) / vars.tokenUnit);

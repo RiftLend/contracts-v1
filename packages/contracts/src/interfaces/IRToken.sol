@@ -3,10 +3,10 @@ pragma solidity 0.8.25;
 
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
 import {IScaledBalanceToken} from "./IScaledBalanceToken.sol";
-import {IInitializableAToken} from "./IInitializableAToken.sol";
+import {IInitializableRToken} from "./IInitializableRToken.sol";
 import {IAaveIncentivesController} from "./IAaveIncentivesController.sol";
 
-interface IAToken is IERC20, IScaledBalanceToken, IInitializableAToken {
+interface IRToken is IERC20, IScaledBalanceToken, IInitializableRToken {
     /**
      * @dev Emitted after the mint action
      * @param from The address performing the mint
@@ -110,5 +110,12 @@ interface IAToken is IERC20, IScaledBalanceToken, IInitializableAToken {
      * @param amountScaled The amount scaled
      * @param mode 1 if minting, 2 if burning
      */
-    function updateCrossChainBalance(uint256 amountScaled, uint256 mode) external;
+    function updateCrossChainBalance(address user,uint256 amountScaled, uint256 mode) external;
+    /**
+     * @dev Updates the cross chain balance of user
+     * @param user The user address
+     * @return The user balance
+     */
+    function crossChainUserBalance(address user)external view returns(uint256); 
+
 }

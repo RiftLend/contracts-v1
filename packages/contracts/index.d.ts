@@ -3,7 +3,7 @@ import { Address } from 'viem'
 export const deployment: {
   deployedAddress: Address // address of test token contract (TUSDC)
   ownerAddress: Address // address of owner of deployed test token contract
-  aTokenAddress: Address // address of deployed aToken contract implementation
+  rTokenAddress: Address // address of deployed aToken contract implementation
   stableDebtTokenAddress: Address // address of deployed stable debt token contract implementation
   variableDebtTokenAddress: Address // address of deployed variable debt token contract implementation
   lendingPoolAddressesProviderAddress: Address // address of deployed lending pool addresses provider contract

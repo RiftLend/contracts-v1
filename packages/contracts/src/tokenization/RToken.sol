@@ -9,7 +9,7 @@ import {Initializable} from "@solady/utils/Initializable.sol";
 import {SuperPausable} from "../interop-std/src/utils/SuperPausable.sol";
 
 import {ILendingPool} from "../interfaces/ILendingPool.sol";
-import {IAToken} from "../interfaces/IAToken.sol";
+import {IRToken} from "../interfaces/IRToken.sol";
 import {IncentivizedERC20} from "./IncentivizedERC20.sol";
 import {IAaveIncentivesController} from "../interfaces/IAaveIncentivesController.sol";
 import {ILendingPoolAddressesProvider} from "../interfaces/ILendingPoolAddressesProvider.sol";
@@ -21,11 +21,11 @@ import {ISuperchainTokenBridge} from "../interfaces/ISuperchainTokenBridge.sol";
 import {ICrossL2Prover} from "../interfaces/ICrossL2Prover.sol";
 
 /**
- * @title Aave ERC20 AToken
+ * @title Aave ERC20 RToken
  * @dev Implementation of the interest bearing token for the Aave protocol
  * @author Aave
  */
-contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL", 0), IAToken, SuperPausable {
+contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL", 0), IRToken, SuperPausable {
     using WadRayMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -55,7 +55,8 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
     IAaveIncentivesController internal _incentivesController;
     ILendingPoolAddressesProvider internal _addressesProvider;
     ICrossL2Prover internal _crossL2Prover;
-    mapping(address => uint256) public _crossChainUserBalance;
+    // Syncing the cross chain balancs of users.    
+    mapping(address => uint256) public crossChainUserBalance;
 
     event CrossChainMint(address user, uint256 amount, uint256 index);
 
@@ -96,8 +97,8 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
      * @param underlyingAsset The address of the underlying asset of this aToken (E.g. WETH for aWETH)
      * @param incentivesController The smart contract managing potential incentives distribution
      * @param aTokenDecimals The decimals of the aToken, same as the underlying asset's
-     * @param aTokenName The name of the aToken
-     * @param aTokenSymbol The symbol of the aToken
+     * @param rTokenName The name of the aToken
+     * @param rTokenSymbol The symbol of the aToken
      */
     function initialize(
         ILendingPool pool,
@@ -106,8 +107,8 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
         IAaveIncentivesController incentivesController,
         ILendingPoolAddressesProvider addressesProvider,
         uint8 aTokenDecimals,
-        string calldata aTokenName,
-        string calldata aTokenSymbol,
+        string calldata rTokenName,
+        string calldata rTokenSymbol,
         bytes calldata params,
         address crossL2Prover
     ) external override initializer {
@@ -119,11 +120,11 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
         }
 
         DOMAIN_SEPARATOR = keccak256(
-            abi.encode(EIP712_DOMAIN, keccak256(bytes(aTokenName)), keccak256(EIP712_REVISION), chainId, address(this))
+            abi.encode(EIP712_DOMAIN, keccak256(bytes(rTokenName)), keccak256(EIP712_REVISION), chainId, address(this))
         );
 
-        _setName(aTokenName);
-        _setSymbol(aTokenSymbol);
+        _setName(rTokenName);
+        _setSymbol(rTokenSymbol);
         _setDecimals(aTokenDecimals);
 
         _pool = pool;
@@ -138,8 +139,8 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
             treasury,
             address(incentivesController),
             aTokenDecimals,
-            aTokenName,
-            aTokenSymbol,
+            rTokenName,
+            rTokenSymbol,
             params
         );
     }
@@ -208,7 +209,7 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
         }
         if (selector == Mint.selector) {
             (address user, uint256 amount) = abi.decode(_data[32:], (address, uint256));
-            _crossChainUserBalance[user] += amount;
+            crossChainUserBalance[user] += amount;
         }
     }
 
@@ -217,11 +218,14 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
      * @param amountScaled The amount scaled
      * @param mode The mode
      */
-    function updateCrossChainBalance(uint256 amountScaled, uint256 mode) external override onlyLendingPool {
+    function updateCrossChainBalance(address user,uint256 amountScaled, uint256 mode) external override onlyLendingPool {
         if (mode == 1) {
+            crossChainUserBalance[user] += amountScaled;
             _totalCrossChainSupply += amountScaled;
         } else if (mode == 2) {
             _totalCrossChainSupply -= amountScaled;
+            crossChainUserBalance[user] -= amountScaled;
+
         }
     }
 

@@ -8,7 +8,7 @@ import {ILendingPoolConfigurator} from "../../src/interfaces/ILendingPoolConfigu
 
 import {TestERC20} from "../utils/TestERC20.sol";
 import {SuperAsset} from "../../src/SuperAsset.sol";
-import {AToken} from "../../src/tokenization/AToken.sol";
+import {RToken} from "../../src/tokenization/RToken.sol";
 import {StableDebtToken} from "../../src/tokenization/StableDebtToken.sol";
 import {VariableDebtToken} from "../../src/tokenization/VariableDebtToken.sol";
 import {LendingPool} from "../../src/LendingPool.sol";
@@ -33,7 +33,7 @@ contract LendingPoolTest is Test {
     struct Market {
         uint256 marketId;
         address underlyingAsset;
-        address aTokenImpl;
+        address rTokenImpl;
         address stableDebtTokenImpl;
         address variableDebtTokenImpl;
         address SuperAsset;
@@ -87,12 +87,16 @@ contract LendingPoolTest is Test {
         t.proxyAdmin = superProxyAdmin;
 
         // deploy implementations
-        address aTokenImpl = address(new AToken{salt: "aTokenImpl"}());
+        address rTokenImpl = address(new RToken{salt: "rTokenImpl"}());
         address stableDebtTokenImpl = address(new StableDebtToken{salt: "stableDebtTokenImpl"}());
         address variableDebtTokenImpl = address(new VariableDebtToken{salt: "variableDebtTokenImpl"}());
+        // implementation LendingPool
+        implementationLp = new LendingPool();
+        vm.label(address(implementationLp), "implementationLp");
 
         // lendingPoolAddressProvider
-        lpAddressProvider = new LendingPoolAddressesProvider("TUSDC", owner, t.proxyAdmin);
+        bytes32 bytes32_lp=bytes32(uint256(uint160(address(implementationLp))));
+        lpAddressProvider = new LendingPoolAddressesProvider("TUSDC", owner, t.proxyAdmin,bytes32_lp);
         vm.label(address(lpAddressProvider), "lpAddressProvider");
 
         address lzEndpoint = makeAddr("lzEndpoint");
@@ -102,9 +106,6 @@ contract LendingPoolTest is Test {
         superAsset = ISuperAsset(address(new SuperAsset(address(underlyingAsset), lzEndpoint)));
         vm.label(address(superAsset), "SuperAsset");
 
-        // implementation LendingPool
-        implementationLp = new LendingPool();
-        vm.label(address(implementationLp), "implementationLp");
 
         // proxy LendingPool
         vm.prank(owner);
@@ -134,7 +135,7 @@ contract LendingPoolTest is Test {
         // vm.selectFork(opMainnet);
 
         ILendingPoolConfigurator.InitReserveInput[] memory input = new ILendingPoolConfigurator.InitReserveInput[](1);
-        input[0].aTokenImpl = address(aTokenImpl);
+        input[0].rTokenImpl = address(rTokenImpl);
         input[0].stableDebtTokenImpl = address(stableDebtTokenImpl);
         input[0].variableDebtTokenImpl = address(variableDebtTokenImpl);
         input[0].underlyingAssetDecimals = 6;
@@ -143,8 +144,8 @@ contract LendingPoolTest is Test {
         input[0].treasury = vm.addr(35);
         input[0].incentivesController = vm.addr(17);
         input[0].underlyingAssetName = "Mock USDC";
-        input[0].aTokenName = "aToken-TUSDC";
-        input[0].aTokenSymbol = "aTUSDC";
+        input[0].rTokenName = "aToken-TUSDC";
+        input[0].rTokenSymbol = "aTUSDC";
         input[0].variableDebtTokenName = "vDebt";
         input[0].variableDebtTokenSymbol = "vDBT";
         input[0].stableDebtTokenName = "vStable";
@@ -170,7 +171,7 @@ contract LendingPoolTest is Test {
 
         // assert
         // 1. superchainAsset
-        address aToken_ = proxyLp.getReserveData(asset).aTokenAddress;
+        address aToken_ = proxyLp.getReserveData(asset).rTokenAddress;
         superAsset = ISuperAsset(lpAddressProvider.getSuperAsset());
 
         assertEq(superAsset.balanceOf(aToken_), 1000);

@@ -14,7 +14,7 @@
 
 // import {MockERC20} from "../../src/tokenization/MockERC20.sol";
 // import {SuperchainAsset} from "../../src/SuperchainAsset.sol";
-// import {AToken} from "../../src/tokenization/AToken.sol";
+// import {RToken} from "../../src/tokenization/RToken.sol";
 // import {StableDebtToken} from "../../src/tokenization/StableDebtToken.sol";
 // import {VariableDebtToken} from "../../src/tokenization/VariableDebtToken.sol";
 // import {LendingPool} from "../../src/LendingPool.sol";
@@ -30,7 +30,7 @@
 //     // assets
 //     MockERC20 public Underlying;
 //     SuperchainAsset public superchainAsset;
-//     AToken public aTokenImpl;
+//     RToken public rTokenImpl;
 //     StableDebtToken public stabledebtTokenImpl;
 //     VariableDebtToken public variabledebtTokenImpl;
 
@@ -62,7 +62,7 @@
 //     struct Market {
 //         uint256 marketId;
 //         address underlyingAsset;
-//         address aTokenImpl;
+//         address rTokenImpl;
 //         address stableDebtTokenImpl;
 //         address variableDebtTokenImpl;
 //         address superchainAsset;
@@ -107,7 +107,7 @@
 //         Underlying.mint(t.alice, 1000_000);
 
 //         // implementation aToken
-//         aTokenImpl = new AToken();
+//         rTokenImpl = new RToken();
 
 //         // implementation stabledebtToken
 //         stabledebtTokenImpl = new StableDebtToken();
@@ -171,11 +171,11 @@
 //         t.markets[address(Underlying)] = Market({
 //             marketId: 1,
 //             underlyingAsset: address(Underlying),
-//             aTokenImpl: address(aTokenImpl),
+//             rTokenImpl: address(rTokenImpl),
 //             stableDebtTokenImpl: address(stabledebtTokenImpl),
 //             variableDebtTokenImpl: address(variabledebtTokenImpl),
 //             superchainAsset: address(superchainAsset),
-//             aToken: address(aTokenImpl),
+//             aToken: address(rTokenImpl),
 //             variableDebtToken: address(variabledebtTokenImpl),
 //             stableDebtToken: address(stabledebtTokenImpl),
 //             interestRateStrategy: address(strategy),
@@ -203,7 +203,7 @@
 //         temps storage t = config[chainId];
 
 //         ILendingPoolConfigurator.InitReserveInput[] memory input = new ILendingPoolConfigurator.InitReserveInput[](1);
-//         input[0].aTokenImpl = address(aTokenImpl);
+//         input[0].rTokenImpl = address(rTokenImpl);
 //         input[0].stableDebtTokenImpl = address(stabledebtTokenImpl);
 //         input[0].variableDebtTokenImpl = address(variabledebtTokenImpl);
 //         input[0].underlyingAssetDecimals = 18;
@@ -213,8 +213,8 @@
 //         input[0].incentivesController = vm.addr(17);
 //         input[0].superchainAsset = address(superchainAsset);
 //         input[0].underlyingAssetName = "Mock Underlying";
-//         input[0].aTokenName = "aToken-Underlying";
-//         input[0].aTokenSymbol = "aUnderlying";
+//         input[0].rTokenName = "aToken-Underlying";
+//         input[0].rTokenSymbol = "aUnderlying";
 //         input[0].variableDebtTokenName = "vDebtToken";
 //         input[0].variableDebtTokenSymbol = "vDT";
 //         input[0].stableDebtTokenName = "sDebtToken";

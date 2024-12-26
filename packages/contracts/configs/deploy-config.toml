@@ -9,8 +9,8 @@ name = "TestSuperchainERC20"
 symbol = "TSU"
 decimals = 18
 
-[aTokenImpl]
-salt = "ethers phoenix aTokenImpl"
+[rTokenImpl]
+salt = "ethers phoenix rTokenImpl"
 
 [stableDebtTokenImpl]
 salt = "ethers phoenix stableDebtTokenImpl"

@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 interface ILendingPoolConfigurator {
     struct InitReserveInput {
-        address aTokenImpl;
+        address rTokenImpl;
         address stableDebtTokenImpl;
         address variableDebtTokenImpl;
         uint8 underlyingAssetDecimals;
@@ -13,8 +13,8 @@ interface ILendingPoolConfigurator {
         address incentivesController;
         address superAsset;
         string underlyingAssetName;
-        string aTokenName;
-        string aTokenSymbol;
+        string rTokenName;
+        string rTokenSymbol;
         string variableDebtTokenName;
         string variableDebtTokenSymbol;
         string stableDebtTokenName;
@@ -23,7 +23,7 @@ interface ILendingPoolConfigurator {
         bytes32 salt;
     }
 
-    struct UpdateATokenInput {
+    struct UpdateRTokenInput {
         address asset;
         address treasury;
         address incentivesController;
@@ -159,7 +159,7 @@ interface ILendingPoolConfigurator {
      * @param implementation The new aToken implementation
      *
      */
-    event ATokenUpgraded(address indexed asset, address indexed proxy, address indexed implementation);
+    event RTokenUpgraded(address indexed asset, address indexed proxy, address indexed implementation);
 
     /**
      * @dev Emitted when the implementation of a stable debt token is upgraded

@@ -11,7 +11,7 @@ import {LendingPool} from "../src/LendingPool.sol";
 import {DefaultReserveInterestRateStrategy} from "../src/DefaultReserveInterestRateStrategy.sol";
 import {LendingRateOracle} from "../src/LendingRateOracle.sol";
 import {SuperAsset} from "../src/SuperAsset.sol";
-import {AToken} from "../src/tokenization/AToken.sol";
+import {RToken} from "../src/tokenization/RToken.sol";
 import {StableDebtToken} from "../src/tokenization/StableDebtToken.sol";
 import {VariableDebtToken} from "../src/tokenization/VariableDebtToken.sol";
 import {L2NativeSuperchainERC20} from "../src/L2NativeSuperchainERC20.sol";
@@ -31,7 +31,7 @@ contract LendingPoolDeployer is Script {
     struct DeployedContracts {
         address underlying;
         address lendingPoolImpl;
-        address aTokenImpl;
+        address rTokenImpl;
         address stableDebtTokenImpl;
         address variableDebtTokenImpl;
         address proxyAdmin;
@@ -71,7 +71,7 @@ contract LendingPoolDeployer is Script {
     function deployFullLendingPool() public broadcast {
         // Deploy contracts using CREATE2
         (address underlying) = deployL2NativeSuperchainERC20();
-        (address aTokenImpl) = deployATokenImpl();
+        (address rTokenImpl) = deployRTokenImpl();
         (address stableDebtTokenImpl) = deployStableDebtTokenImpl();
         (address variableDebtTokenImpl) = deployVariableDebtTokenImpl();
         (address proxyAdmin) = deployProxyAdmin();
@@ -95,7 +95,7 @@ contract LendingPoolDeployer is Script {
 
         ILendingPoolConfigurator.InitReserveInput[] memory input = new ILendingPoolConfigurator.InitReserveInput[](1);
         input[0] = ILendingPoolConfigurator.InitReserveInput({
-            aTokenImpl: address(aTokenImpl),
+            rTokenImpl: address(rTokenImpl),
             stableDebtTokenImpl: address(stableDebtTokenImpl),
             variableDebtTokenImpl: address(variableDebtTokenImpl),
             underlyingAssetDecimals: uint8(vm.parseTomlUint(deployConfig, ".token.decimals")),
@@ -105,8 +105,8 @@ contract LendingPoolDeployer is Script {
             incentivesController: incentivesController,
             superAsset: address(superAsset),
             underlyingAssetName: vm.parseTomlString(deployConfig, ".token.name"),
-            aTokenName: vm.parseTomlString(deployConfig, ".aToken1.name"),
-            aTokenSymbol: vm.parseTomlString(deployConfig, ".aToken1.symbol"),
+            rTokenName: vm.parseTomlString(deployConfig, ".RToken1.name"),
+            rTokenSymbol: vm.parseTomlString(deployConfig, ".RToken1.symbol"),
             variableDebtTokenName: vm.parseTomlString(deployConfig, ".variableDebtToken1.name"),
             variableDebtTokenSymbol: vm.parseTomlString(deployConfig, ".variableDebtToken1.symbol"),
             stableDebtTokenName: vm.parseTomlString(deployConfig, ".stableDebtToken1.name"),
@@ -119,7 +119,7 @@ contract LendingPoolDeployer is Script {
         deployedContracts = DeployedContracts({
             underlying: underlying,
             lendingPoolImpl: implementationLp,
-            aTokenImpl: aTokenImpl,
+            rTokenImpl: rTokenImpl,
             stableDebtTokenImpl: stableDebtTokenImpl,
             variableDebtTokenImpl: variableDebtTokenImpl,
             proxyAdmin: proxyAdmin,
@@ -145,7 +145,7 @@ contract LendingPoolDeployer is Script {
         vm.serializeAddress(obj, "deployedAddress", deployedContracts.underlying);
         vm.serializeAddress(obj, "ownerAddress", vm.parseTomlAddress(deployConfig, ".token.owner_address"));
 
-        vm.serializeAddress(obj, "aTokenAddress", deployedContracts.aTokenImpl);
+        vm.serializeAddress(obj, "RTokenAddress", deployedContracts.rTokenImpl);
         vm.serializeAddress(obj, "stableDebtTokenAddress", deployedContracts.stableDebtTokenImpl);
         vm.serializeAddress(obj, "variableDebtTokenAddress", deployedContracts.variableDebtTokenImpl);
         vm.serializeAddress(obj, "proxyAdminAddress", deployedContracts.proxyAdmin);
@@ -186,16 +186,16 @@ contract LendingPoolDeployer is Script {
         }
     }
 
-    function deployATokenImpl() public returns (address addr_) {
-        string memory salt = vm.parseTomlString(deployConfig, ".aTokenImpl.salt");
-        bytes memory initCode = type(AToken).creationCode;
+    function deployRTokenImpl() public returns (address addr_) {
+        string memory salt = vm.parseTomlString(deployConfig, ".RTokenImpl.salt");
+        bytes memory initCode = type(RToken).creationCode;
         address preComputedAddress = vm.computeCreate2Address(_implSalt(salt), keccak256(initCode));
         if (preComputedAddress.code.length > 0) {
-            console.log("AToken already deployed at %s", preComputedAddress, "on chain id: ", block.chainid);
+            console.log("RToken already deployed at %s", preComputedAddress, "on chain id: ", block.chainid);
             addr_ = preComputedAddress;
         } else {
-            addr_ = address(new AToken{salt: _implSalt(salt)}());
-            console.log("Deployed AToken Impl at address: ", addr_, "on chain id: ", block.chainid);
+            addr_ = address(new RToken{salt: _implSalt(salt)}());
+            console.log("Deployed RToken Impl at address: ", addr_, "on chain id: ", block.chainid);
         }
     }
 
@@ -284,7 +284,9 @@ contract LendingPoolDeployer is Script {
             );
             addr_ = preComputedAddress;
         } else {
-            addr_ = address(new LendingPoolAddressesProvider{salt: _implSalt(salt)}(marketId_, ownerAddr_, _proxyAdmin));
+            // ToDo: Add lending pool deployment here
+            bytes32 lendingPool=bytes32(uint(0));
+            addr_ = address(new LendingPoolAddressesProvider{salt: _implSalt(salt)}(marketId_, ownerAddr_, _proxyAdmin,lendingPool));
             console.log("Deployed LendingPoolAddressesProvider at address: ", addr_, "on chain id: ", block.chainid);
         }
     }

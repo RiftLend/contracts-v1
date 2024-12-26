@@ -181,7 +181,7 @@ contract RVaultAsset is OFT, IERC4626 {
         shares = assets; // 1:1 peg
         _spendAllowance(owner, msg.sender, shares);
         _burn(owner, shares);
-        IERC20(asset()).transfer(receiver, assets);
+        IERC20(asset()).safeTransfer(receiver, assets);
         return shares;
     }
 
@@ -190,7 +190,7 @@ contract RVaultAsset is OFT, IERC4626 {
         assets = shares; // 1:1 peg
         _spendAllowance(owner, msg.sender, shares);
         _burn(owner, shares);
-        IERC20(asset()).transfer(receiver, assets);
+        IERC20(asset()).safeTransfer(receiver, assets);
         return assets;
     }
 
