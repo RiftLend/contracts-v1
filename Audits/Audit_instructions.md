@@ -1,8 +1,15 @@
 # RiftLend Audit 1 Scope:
 
+## About
+RiftLend is a next-generation decentralized lending and borrowing protocol built natively for the OP super-chain ecosystem. Leveraging Aave V2's battle-tested architecture, RiftLend revolutionizes cross-chain DeFi operations by offering a unified, chain-agnostic lending experience with seamless cross-chain functionality.
+
+This audit will be focused on core contracts of Riftlend being developed.
+
+The current branch for the latest changes is [tabish/nits](https://github.com/RiftLend/contracts-v1/tree/tabish/nits).
+
 ## Scope
 
-```
+```fs
 packages
 └── contracts
     └── src
@@ -49,7 +56,7 @@ packages
 
 ## nSLOC
 
-```
+```fs
 File                                                                   Lines of Code  
 ===================================================================================== 
 src/interfaces/ILendingPool.sol                          327
@@ -92,29 +99,31 @@ Total lines of code                                                         6428
 
 
 ## Library dependencies:
-    1. [OpenZeppelin v5 contracts](https://github.com/OpenZeppelin/openzeppelin-contracts) - (Math Utils, ERC20 tokens, SafeTransfers)
-    2. [LayerZero Labs OFT](https://github.com/LayerZero-Labs/oft-evm) - (OFT)
-    3. [Aave V2 WadRayMath](https://github.com/aave/protocol-v2/blob/master/contracts/protocol/libraries/math/WadRayMath.sol) - (WadRayMath)
+1. [OpenZeppelin v5 contracts](https://github.com/OpenZeppelin/openzeppelin-contracts) - (Math Utils, ERC20 tokens, SafeTransfers)
+2. [LayerZero Labs OFT](https://github.com/LayerZero-Labs/oft-evm) - (OFT)
+3. [Aave V2 WadRayMath](https://github.com/aave/protocol-v2/blob/master/contracts/protocol/libraries/math/WadRayMath.sol) - (WadRayMath)
 
 ## External calls:
-    4. The contracts will interact with various external protocols and contracts, including but not limited to:
-        - Lending protocols
-        - Token bridges
-        - Oracle services
+The contracts will interact with various external protocols and contracts, including but not limited to:
+
+    - Lending protocols
+    - Token bridges
+    - Oracle services
 
 ## Tokens used:
-    5. Assets deposited in the vault will be standard ERC20 tokens, including but not limited to:
-        - WETH
-        - ETH
-        - USDC
-        - Other ERC20 tokens
+Assets deposited in the vault will be standard ERC20 tokens, including but not limited to:
+    - WETH
+    - ETH
+    - USDC
+    - Other ERC20 tokens
 
 ## Deployments:
-    6. The contracts will be deployed on multiple EVM and non-EVM chains, including but not limited to:
-        - OP Superchains
-        - Ethereum
-        - Arbitrum
-        more will be added later
+The contracts will be deployed on multiple EVM and non-EVM chains, including but not limited to:
+    - OP Superchains
+    - Ethereum
+    - Arbitrum
+
+more will be added later
 
 1. Audit Documentation:
     1. [Draft Documentation](https://github.com/RiftLend/contracts-v1/blob/main/README.md)
