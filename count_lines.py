@@ -32,10 +32,25 @@ files = [
         
 ]
 
+
 def count_lines_of_code(file_path):
     with open(file_path, 'r') as file:
         lines = file.readlines()
-        return len(lines)
+        code_lines = 0
+        in_block_comment = False
+        for line in lines:
+            stripped_line = line.strip()
+            if in_block_comment:
+                if '*/' in stripped_line:
+                    in_block_comment = False
+                continue
+            if stripped_line.startswith('/*'):
+                in_block_comment = True
+                continue
+            if stripped_line.startswith('//') or stripped_line == '':
+                continue
+            code_lines += 1
+        return code_lines
 
 total_lines = 0
 table_data = []
@@ -51,4 +66,6 @@ print("="*85)
 for file, lines in table_data:
     print(f"{file:<70} {lines:<15}")
 print("="*85)
+
+
 print(f"{'Total lines of code':<70} {total_lines:<15}")

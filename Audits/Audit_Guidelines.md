@@ -56,37 +56,38 @@ packages
 
 File                                                                        Lines of Code  
 ===================================================================================== 
-packages/contracts/src/interfaces/ILendingPool.sol                              325
-packages/contracts/src/interfaces/ILendingPoolAddressesProvider.sol             90
-packages/contracts/src/interfaces/ILendingPoolAddressesProviderRegistry.sol     24
-packages/contracts/src/interfaces/ILendingPoolCollateralManager.sol             78
-packages/contracts/src/interfaces/ILendingPoolConfigurator.sol                  181
-packages/contracts/src/interfaces/IRToken.sol                                   120
-packages/contracts/src/interfaces/IRVaultAsset.sol                              20
-packages/contracts/src/interfaces/ISuperAsset.sol                               54
-packages/contracts/src/interfaces/ISuperchainAsset.sol                          58
-packages/contracts/src/interfaces/IVariableDebtToken.sol                        78
-packages/contracts/src/interfaces/ILendingRateOracle.sol                        21
-packages/contracts/src/interfaces/IInitializableRToken.sol                      63
-packages/contracts/src/libraries/configuration/ReserveConfiguration.sol         311
-packages/contracts/src/libraries/configuration/UserConfiguration.sol            111
-packages/contracts/src/libraries/logic/GenericLogic.sol                         240
-packages/contracts/src/libraries/logic/ReserveLogic.sol                         339
-packages/contracts/src/libraries/logic/ValidationLogic.sol                      383
-packages/contracts/src/libraries/types/DataTypes.sol                            32
-packages/contracts/src/tokenization/RToken.sol                                  551
-packages/contracts/src/tokenization/VariableDebtToken.sol                       244
-packages/contracts/src/LendingPool.sol                                          915
-packages/contracts/src/LendingPoolCollateralManager.sol                         282
-packages/contracts/src/LendingPoolConfigurator.sol                              490
-packages/contracts/src/LendingPoolStorage.sol                                   64
-packages/contracts/src/LendingRateOracle.sol                                    30
-packages/contracts/src/Router.sol                                               584
-packages/contracts/src/RVaultAsset.sol                                          239
-packages/contracts/src/SuperAsset.sol                                           51
+File                                                                   Lines of Code  
 =====================================================================================
-Total lines of code                                                             5978
-
+packages/contracts/src/interfaces/ILendingPool.sol                     174
+packages/contracts/src/interfaces/ILendingPoolAddressesProvider.sol    42
+packages/contracts/src/interfaces/ILendingPoolAddressesProviderRegistry.sol 9
+packages/contracts/src/interfaces/ILendingPoolCollateralManager.sol    26
+packages/contracts/src/interfaces/ILendingPoolConfigurator.sol         64
+packages/contracts/src/interfaces/IRToken.sol                          22
+packages/contracts/src/interfaces/IRVaultAsset.sol                     18
+packages/contracts/src/interfaces/ISuperAsset.sol                      14
+packages/contracts/src/interfaces/ISuperchainAsset.sol                 16
+packages/contracts/src/interfaces/IVariableDebtToken.sol               15
+packages/contracts/src/interfaces/ILendingRateOracle.sol               5
+packages/contracts/src/interfaces/IInitializableRToken.sol             28
+packages/contracts/src/libraries/configuration/ReserveConfiguration.sol 139
+packages/contracts/src/libraries/configuration/UserConfiguration.sol   49
+packages/contracts/src/libraries/logic/GenericLogic.sol                154
+packages/contracts/src/libraries/logic/ReserveLogic.sol                200
+packages/contracts/src/libraries/logic/ValidationLogic.sol             235
+packages/contracts/src/libraries/types/DataTypes.sol                   27
+packages/contracts/src/tokenization/RToken.sol                         330
+packages/contracts/src/tokenization/VariableDebtToken.sol              126
+packages/contracts/src/LendingPool.sol                                 572
+packages/contracts/src/LendingPoolCollateralManager.sol                189
+packages/contracts/src/LendingPoolConfigurator.sol                     284
+packages/contracts/src/LendingPoolStorage.sol                          14
+packages/contracts/src/LendingRateOracle.sol                           22
+packages/contracts/src/Router.sol                                      298
+packages/contracts/src/RVaultAsset.sol                                 167
+packages/contracts/src/SuperAsset.sol                                  36
+=====================================================================================
+Total lines of code                                                    3275
 ```
 
 ## Library dependencies:

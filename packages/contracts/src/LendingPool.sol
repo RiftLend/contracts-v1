@@ -186,7 +186,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         // Check the cooldown period
         require(
             block.timestamp >= _lastWithdrawalTime[sender] + WITHDRAW_COOL_DOWN_PERIOD,
-            "Withdrawal cooldown period not met"
+            "Withdrawal cooldown period not Passed"
         );
 
         DataTypes.ReserveData storage reserve = _reserves[asset];
