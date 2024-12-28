@@ -263,31 +263,6 @@ contract Router is Initializable, SuperPausable {
             (address sender, address asset, bool useAsCollateral) = abi.decode(_data[64:], (address, address, bool));
             lendingPool.setUserUseReserveAsCollateral(sender, asset, useAsCollateral);
         }
-
-        /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-        /*               SWAP DISPATCH                                */
-        /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-        // event Swap(address reserve, address user, uint256 rateMode, uint256 variableDebtAmount, uint256 stableDebtAmount);
-
-        if (selector == Swap.selector && _identifier.chainId != block.chainid) {
-            (address asset, address user, uint256 rateMode, uint256 variableDebtAmount,) =
-                abi.decode(_data[32:], (address, address, uint256, uint256, uint256));
-            DataTypes.ReserveData memory reserve = lendingPool.getReserveData(asset);
-            if (rateMode == 2) {
-                IVariableDebtToken(reserve.variableDebtTokenAddress).updateCrossChainBalance(
-                    user, variableDebtAmount, 1
-                );
-            } else if (rateMode == 1) {
-                IVariableDebtToken(reserve.variableDebtTokenAddress).updateCrossChainBalance(
-                    user, variableDebtAmount, 2
-                );
-            }
-            lendingPool.updateStates(asset, 0, 0, UPDATE_RATES_AND_STATES_MASK);
-        }
-        if (selector == CrossChainSwapBorrowRateMode.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
-            (address sender, address asset, uint256 rateMode) = abi.decode(_data[64:], (address, address, uint256));
-            lendingPool.swapBorrowRateMode(sender, asset, rateMode);
-        }
     }
 
     /**

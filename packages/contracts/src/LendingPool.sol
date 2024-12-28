@@ -584,6 +584,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
      * @dev Returns the normalized variable debt per unit of asset
      * @return The reserve normalized variable debt
      */
+    // TODO rVaultAsset
     function getReserveNormalizedVariableDebt() external view returns (uint256) {
         address superAsset = _addressesProvider.getSuperAsset();
 
