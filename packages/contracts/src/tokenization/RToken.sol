@@ -1,24 +1,22 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.8.25;
 
-import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
 import {WadRayMath} from "../libraries/math/WadRayMath.sol";
 import {Errors} from "../libraries/helpers/Errors.sol";
 import {Initializable} from "@solady/utils/Initializable.sol";
 import {SuperPausable} from "../interop-std/src/utils/SuperPausable.sol";
+import {EventValidator, ValidationMode, Identifier} from "../libraries/EventValidation.sol";
+import {Predeploys} from "../libraries/Predeploys.sol";
 
+import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
 import {ILendingPool} from "../interfaces/ILendingPool.sol";
 import {IRToken} from "../interfaces/IRToken.sol";
 import {IncentivizedERC20} from "./IncentivizedERC20.sol";
 import {IAaveIncentivesController} from "../interfaces/IAaveIncentivesController.sol";
 import {ILendingPoolAddressesProvider} from "../interfaces/ILendingPoolAddressesProvider.sol";
-
-import {Predeploys} from "../libraries/Predeploys.sol";
-import "../interfaces/ICrossL2Inbox.sol";
 import {ISuperAsset} from "../interfaces/ISuperAsset.sol";
 import {ISuperchainTokenBridge} from "../interfaces/ISuperchainTokenBridge.sol";
-import {ICrossL2Prover} from "../interfaces/ICrossL2Prover.sol";
 
 /**
  * @title Aave ERC20 RToken
@@ -28,13 +26,6 @@ import {ICrossL2Prover} from "../interfaces/ICrossL2Prover.sol";
 contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL", 0), IRToken, SuperPausable {
     using WadRayMath for uint256;
     using SafeERC20 for IERC20;
-
-    enum ValidationMode {
-        CUSTOM,
-        CROSS_L2_INBOX,
-        CROSS_L2_PROVER_EVENT,
-        CROSS_L2_PROVER_RECEIPT
-    }
 
     bytes public constant EIP712_REVISION = bytes("1");
     bytes32 internal constant EIP712_DOMAIN =
@@ -54,7 +45,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     address internal _underlyingAsset;
     IAaveIncentivesController internal _incentivesController;
     ILendingPoolAddressesProvider internal _addressesProvider;
-    ICrossL2Prover internal _crossL2Prover;
+    EventValidator internal _eventValidator;
     // Syncing the cross chain balancs of users.
     mapping(address => uint256) public crossChainUserBalance;
 
@@ -90,16 +81,6 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         return ATOKEN_REVISION;
     }
 
-    /**
-     * @dev Initializes the aToken
-     * @param pool The address of the lending pool where this aToken will be used
-     * @param treasury The address of the Aave treasury, receiving the fees on this aToken
-     * @param underlyingAsset The address of the underlying asset of this aToken (E.g. WETH for aWETH)
-     * @param incentivesController The smart contract managing potential incentives distribution
-     * @param aTokenDecimals The decimals of the aToken, same as the underlying asset's
-     * @param rTokenName The name of the aToken
-     * @param rTokenSymbol The symbol of the aToken
-     */
     function initialize(
         ILendingPool pool,
         address treasury,
@@ -110,7 +91,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         string calldata rTokenName,
         string calldata rTokenSymbol,
         bytes calldata params,
-        address crossL2Prover
+        address eventValidator
     ) external override initializer {
         uint256 chainId;
 
@@ -132,7 +113,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         _underlyingAsset = underlyingAsset;
         _incentivesController = incentivesController;
         _addressesProvider = addressesProvider;
-        _crossL2Prover = ICrossL2Prover(crossL2Prover);
+        _eventValidator = EventValidator(eventValidator);
         emit Initialized(
             underlyingAsset,
             address(pool),
@@ -154,50 +135,9 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     ) external onlyRelayer whenNotPaused {
         for (uint256 i = 0; i < _identifier.length; i++) {
             if (_mode != ValidationMode.CUSTOM) {
-                _validate(_mode, _identifier[i], _data[i], _logIndex, _proof);
+                _eventValidator.validate(_mode, _identifier[i], _data, _logIndex, _proof);
             }
             _dispatch(_identifier[i], _data[i]);
-        }
-    }
-
-    function _validate(
-        ValidationMode _mode,
-        Identifier calldata _identifier,
-        bytes calldata _data,
-        uint256[] calldata _logIndex,
-        bytes calldata _proof
-    ) internal {
-        /// @dev use ICrossL2Inbox to validate message
-        if (_mode == ValidationMode.CROSS_L2_INBOX) {
-            if (_identifier.origin != address(this)) {
-                revert("!origin");
-            }
-            ICrossL2Inbox(Predeploys.CROSS_L2_INBOX).validateMessage(_identifier, keccak256(_data));
-        }
-        if (_mode == ValidationMode.CROSS_L2_PROVER_EVENT) {
-            /// @dev use ICrossL2Prover to validate message
-            (, address emittingContract, bytes[] memory topics, bytes memory unindexedData) =
-                _crossL2Prover.validateEvent(_logIndex[0], _proof);
-            if (emittingContract != address(this)) {
-                revert("!origin");
-            }
-            if (keccak256(abi.encode(topics[0], unindexedData)) != keccak256(_data)) {
-                revert("!data");
-            }
-        }
-        if (_mode == ValidationMode.CROSS_L2_PROVER_RECEIPT) {
-            /// @dev use ICrossL2Prover to validate receipt
-            (, bytes memory rlpEncodedBytes) = _crossL2Prover.validateReceipt(_proof);
-            for (uint256 i = 0; i < _logIndex.length; i++) {
-                (address emittingContract, bytes[] memory topics, bytes memory unindexedData) =
-                    _crossL2Prover.parseLog(_logIndex[i], rlpEncodedBytes);
-                if (emittingContract != address(this)) {
-                    revert("!origin");
-                }
-                if (keccak256(abi.encode(topics[0], unindexedData)) != keccak256(_data)) {
-                    revert("!data");
-                }
-            }
         }
     }
 
