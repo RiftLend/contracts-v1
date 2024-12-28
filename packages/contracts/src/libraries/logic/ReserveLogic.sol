@@ -240,7 +240,7 @@ library ReserveLogic {
         uint256 previousVariableBorrowIndex,
         uint256 newLiquidityIndex,
         uint256 newVariableBorrowIndex,
-        uint40  // timestamp 
+        uint40 // timestamp
     ) internal {
         MintToTreasuryLocalVars memory vars;
 
@@ -250,18 +250,14 @@ library ReserveLogic {
             return;
         }
 
-
         //calculate the last principal variable debt
         vars.previousVariableDebt = scaledVariableDebt.rayMul(previousVariableBorrowIndex);
 
         //calculate the new total supply after accumulation of the index
         vars.currentVariableDebt = scaledVariableDebt.rayMul(newVariableBorrowIndex);
 
-
-
         //debt accrued is the sum of the current debt minus the sum of the debt at the last update
-        vars.totalDebtAccrued =
-            vars.currentVariableDebt  - vars.previousVariableDebt ;
+        vars.totalDebtAccrued = vars.currentVariableDebt - vars.previousVariableDebt;
 
         vars.amountToMint = vars.totalDebtAccrued.percentMul(vars.reserveFactor);
 

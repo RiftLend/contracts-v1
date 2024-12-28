@@ -17,6 +17,5 @@ interface IRVaultAsset {
         external;
     function withdrawTokens(address _token, address _recepient) external;
     function version() external pure returns (string memory);
-        function deposit(uint256 assets, address receiver)  external returns (uint256 shares) ;
-
+    function deposit(uint256 assets, address receiver) external returns (uint256 shares);
 }

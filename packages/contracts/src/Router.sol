@@ -2,7 +2,7 @@
 pragma solidity 0.8.25;
 
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
-import  "./interfaces/ILendingPool.sol";
+import "./interfaces/ILendingPool.sol";
 import {ILendingPoolCollateralManager} from "./interfaces/ILendingPoolCollateralManager.sol";
 import {ISuperAsset} from "./interfaces/ISuperAsset.sol";
 import {IRToken} from "./interfaces/IRToken.sol";
@@ -252,8 +252,6 @@ contract Router is Initializable, SuperPausable {
             lendingPool.flashLoan(sender, receiverAddress, assets, amounts, modes, onBehalfOf, params, referralCode);
         }
 
-
-
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*               UseReserveAsCollateral DISPATCH              */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -396,8 +394,6 @@ contract Router is Initializable, SuperPausable {
             emit CrossChainSwapBorrowRateMode(chainIds[i], msg.sender, asset, rateMode);
         }
     }
-
-  
 
     /**
      * @dev Allows depositors to enable/disable a specific deposited asset as collateral across multiple chains

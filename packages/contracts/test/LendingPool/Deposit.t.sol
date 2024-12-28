@@ -1,347 +1,46 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.8.25;
 
-import {ILendingPoolAddressesProvider} from '../../src/interfaces/ILendingPoolAddressesProvider.sol';
-import {ILendingPoolConfigurator} from '../../src/interfaces/ILendingPoolConfigurator.sol';
-import {ICrossL2Prover} from '../../src/interfaces/ICrossL2Prover.sol';
-import {ISuperAsset} from '../../src/interfaces/ISuperAsset.sol';
-import {IAaveIncentivesController} from '../../src/interfaces/IAaveIncentivesController.sol';
-import {ILendingPool} from '../../src/interfaces/ILendingPool.sol';
-import {IRVaultAsset} from '../../src/interfaces/IRVaultAsset.sol';
-import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import "./Base.t.sol";
 
-import {Test} from '../../lib/forge-std/src/Test.sol';
-import {console} from '../../lib/forge-std/src/console.sol';
-import {TestERC20} from '../utils/TestERC20.sol';
-import {SuperAsset} from '../../src/SuperAsset.sol';
-import {RToken} from '../../src/tokenization/RToken.sol';
-import {RVaultAsset} from '../../src/RVaultAsset.sol';
-import {VariableDebtToken} from '../../src/tokenization/VariableDebtToken.sol';
-import {LendingPool} from '../../src/LendingPool.sol';
-import {LendingPoolAddressesProvider} from '../../src/configuration/LendingPoolAddressesProvider.sol';
-import {LendingPoolConfigurator} from '../../src/LendingPoolConfigurator.sol';
-import {DefaultReserveInterestRateStrategy} from '../../src/DefaultReserveInterestRateStrategy.sol';
-import {ProxyAdmin} from 'src/interop-std/src/utils/SuperProxyAdmin.sol';
-import {OFT} from '@layerzerolabs/oft-evm/contracts/OFT.sol';
-import {MockLayerZeroEndpointV2} from '../utils/MockLayerZeroEndpointV2.sol';
-import {Router} from '../../src/Router.sol';
-import {EventValidator} from '../../src/libraries/EventValidator.sol';
-import {IncentivesController} from '../utils/IncentivesController.sol';
+contract LendingPoolTest is Base {
+    // Test deposit of underlying tokens on superchain
+    //  the Lending pool will take the underlying , wrap into rVaultAsset and then deposit into rToken
+    function testDeposit() public {
+        // ########### Prepare deposit params
+        address asset = address(underlyingAsset);
+        uint256[1] memory amounts;
+        amounts[0] = 10 ether;
+        address onBehalfOf = user1;
+        uint16 referralCode = 0;
+        uint256[1] memory chainIds;
+        chainIds[0] = 1;
 
-contract LendingPoolTest is Test {
-  struct temps {
-    address owner;
-    address emergencyAdmin;
-    address proxyAdmin;
-    address poolAdmin;
-    address lendingPoolConfigurator;
-    address lendingPoolAddressesProvider;
-    mapping(address underlyingAsset => Market) markets;
-  }
+        (, address rVaultAsset) = lpAddressProvider.getRVaultAsset();
 
-  struct Market {
-    uint256 marketId;
-    address underlyingAsset;
-    address rTokenImpl;
-    address variableDebtTokenImpl;
-    address SuperAsset;
-    address aToken;
-    address variableDebtToken;
-    address interestRateStrategy;
-    address treasury;
-    address incentivesController;
-  }
+        // ########### Approve rVault's underlying deposit params
+        vm.prank(onBehalfOf);
+        IERC20(underlyingAsset).approve(address(proxyLp), amounts[0]);
+        // check allowance given
+        IERC20(underlyingAsset).allowance(onBehalfOf, address(proxyLp));
 
-  address testToken;
-  mapping(uint256 chainId => temps) public config;
+        // ########### Deposit through router ###########
+        
+        // vm.prank(onBehalfOf);
+        // router.deposit( asset, amounts, onBehalfOf, referralCode,chainIds);
 
-  // Util addresses
-  address owner = makeAddr('owner');
-  address poolAdmin1 = makeAddr('poolAdmin1');
-  address user1 = makeAddr('user1');
-  address relayer = makeAddr('relayer');
-  address emergencyAdmin = makeAddr('emergencyAdmin');
-  address alice = makeAddr('alice');
-  address _delegate = makeAddr('_delegate');
-  address incentivesController;
+        // ############ get emitted VM logs ####
+        //  getRecordedVmLogs()
+        // ....................
+        // Prepare deposit params extracted from event emission 
 
-  address treasury;
-  LendingPool proxyLp;
-  LendingPool implementationLp;
-  SuperAsset superAsset;
-  address superProxyAdmin;
-  TestERC20 INR;
-  TestERC20 underlyingAsset;
-  LendingPoolConfigurator lpConfigurator;
-  LendingPoolConfigurator proxyConfigurator;
-  LendingPoolAddressesProvider lpAddressProvider;
-  MockLayerZeroEndpointV2 lzEndpoint;
-  Router router;
+        vm.prank(address(router));
+        proxyLp.deposit(onBehalfOf, address(underlyingAsset), amounts[0], onBehalfOf, referralCode);
 
-  function setUp() public {
-    // Read deploy config file
-    string memory deployConfigPath = vm.envOr(
-      'DEPLOY_CONFIG_PATH',
-      string('/configs/deploy-config.toml')
-    );
-    string memory filePath = string.concat(vm.projectRoot(), deployConfigPath);
-    string memory deployConfig = vm.readFile(filePath);
+        address rToken = proxyLp.getReserveData(rVaultAsset).rTokenAddress;
 
-    string memory chain_a_rpc = vm.parseTomlString(
-      deployConfig,
-      '.forks.chain_a_rpc_url'
-    );
-    uint256 chain_a_id = vm.parseTomlUint(
-      deployConfig,
-      '.forks.chain_a_chain_id'
-    );
-    address chain_a_cross_l2_prover_address = vm.parseTomlAddress(
-      deployConfig,
-      '.forks.chain_a_cross_l2_prover_address'
-    );
-
-    treasury = vm.parseTomlAddress(deployConfig, '.treasury.address');
-
-    uint256 _forkId = vm.createSelectFork(chain_a_rpc);
-
-    uint64 _chainId = uint64(chain_a_id);
-
-    temps storage t = config[_chainId];
-
-    t.owner = owner;
-    t.emergencyAdmin = emergencyAdmin;
-
-    // Deploy underlyingAsset
-    string memory underlyingAssetName = 'TUSDC';
-    string memory underlyingAssetSymbol = 'USDC';
-    string memory rTokenName = 'rTUSDC';
-    string memory rTokenSymbol = 'rTUSDC';
-    string memory variableDebtTokenName = 'vDebt-TUSDC';
-    string memory variableDebtTokenSymbol = 'vDBT-rTUSDC';
-    uint8 underlyingAssetDecimals = 6;
-
-    vm.prank(owner);
-    underlyingAsset = new TestERC20(
-      underlyingAssetName,
-      underlyingAssetSymbol,
-      underlyingAssetDecimals
-    );
-    vm.label(address(underlyingAsset), 'underlyingAsset');
-
-    // Mint underlying to user1
-    vm.prank(owner);
-    underlyingAsset.mint(user1, 100 ether);
-
-    // Deploy SuperProxyAdmin
-    vm.prank(owner);
-    superProxyAdmin = address(
-      new ProxyAdmin{salt: 'superProxyAdmin'}(owner, _chainId)
-    );
-    vm.label(superProxyAdmin, 'superProxyAdmin');
-    t.proxyAdmin = superProxyAdmin;
-
-    // Deploy LendingPoolAddressesProvider
-    bytes32 lp_type = keccak256('OpSuperchain_LENDING_POOL');
-    lpAddressProvider = new LendingPoolAddressesProvider(
-      'TUSDC',
-      owner,
-      t.proxyAdmin,
-      lp_type
-    );
-
-    // Deploy LendingPool
-    vm.prank(owner);
-    implementationLp = new LendingPool();
-
-    vm.prank(owner);
-    implementationLp.initialize(
-      ILendingPoolAddressesProvider(address(lpAddressProvider))
-    );
-
-    vm.label(address(implementationLp), 'implementationLp');
-    vm.prank(owner);
-    lpAddressProvider.setLendingPoolImpl(address(implementationLp));
-    proxyLp = LendingPool(lpAddressProvider.getLendingPool());
-    vm.label(address(proxyLp), 'proxyLp');
-
-    // Deploy Event validator
-    EventValidator eventValidator = new EventValidator(
-      (chain_a_cross_l2_prover_address)
-    );
-
-    // Deploy Router
-    router = new Router{salt: 'router'}();
-    router.initialize(
-      address(proxyLp),
-      address(lpAddressProvider),
-      address(eventValidator)
-    );
-
-    // Deploy LayerZeroEndpoint
-    vm.label(address(lpAddressProvider), 'lpAddressProvider');
-    uint32 lzEndpoint_eid = 1;
-    vm.prank(owner);
-    lzEndpoint = new MockLayerZeroEndpointV2(lzEndpoint_eid, owner);
-
-    // Deploy SuperAsset
-    vm.prank(owner);
-    superAsset = new SuperAsset(
-      address(underlyingAsset),
-      address(lzEndpoint),
-      _delegate
-    );
-
-    // Set settings in addressProvider
-    vm.prank(owner);
-    lpAddressProvider.setPoolAdmin(poolAdmin1);
-    vm.prank(owner);
-    lpAddressProvider.setRelayer(relayer);
-    vm.prank(owner);
-    lpAddressProvider.setRouter(address(router));
-
-    vm.prank(owner);
-    address rVaultAsset = address(
-      new RVaultAsset{salt: 'rVaultAssetImpl'}(
-        address(underlyingAsset),
-        ILendingPoolAddressesProvider(address(lpAddressProvider)),
-        poolAdmin1,
-        address(lzEndpoint),
-        _delegate
-      )
-    );
-
-    // Deploy incentives controller
-    vm.prank(owner);
-    incentivesController = address(
-      new IncentivesController{salt: 'incentivesController'}()
-    );
-
-    // Deploy R Token
-    vm.prank(owner);
-    RToken rTokenImpl = new RToken{salt: 'rTokenImpl'}();
-
-    vm.prank(owner);
-    rTokenImpl.initialize(
-      ILendingPool(address(proxyLp)),
-      treasury,
-      address(rVaultAsset),
-      IAaveIncentivesController(incentivesController),
-      ILendingPoolAddressesProvider(address(lpAddressProvider)),
-      underlyingAsset.decimals(),
-      underlyingAsset.name(),
-      underlyingAsset.symbol(),
-      bytes(''),
-      address(eventValidator)
-    );
-
-    // Deploy VariableDebtToken
-    vm.prank(owner);
-    VariableDebtToken variableDebtTokenImpl = new VariableDebtToken{
-      salt: 'variableDebtTokenImpl'
-    }();
-    vm.prank(owner);
-    variableDebtTokenImpl.initialize(
-      ILendingPool(address(implementationLp)),
-      address(underlyingAsset),
-      IAaveIncentivesController(incentivesController),
-      underlyingAssetDecimals,
-      variableDebtTokenName,
-      variableDebtTokenSymbol,
-      'v'
-    );
-
-    vm.prank(owner);
-    lpAddressProvider.setRVaultAsset(rVaultAsset);
-
-    // Deploy LendingPoolConfigurator
-    lpConfigurator = new LendingPoolConfigurator();
-    lpConfigurator.initialize(
-      ILendingPoolAddressesProvider(address(lpAddressProvider)),
-      t.proxyAdmin
-    );
-
-    // Deploy proxy configurator
-    vm.prank(owner);
-    lpAddressProvider.setLendingPoolConfiguratorImpl(address(lpConfigurator));
-    proxyConfigurator = LendingPoolConfigurator(
-      lpAddressProvider.getLendingPoolConfigurator()
-    );
-
-    // Activate Reserves
-    vm.prank(poolAdmin1);
-    proxyConfigurator.activateReserve(address(underlyingAsset));
-    vm.prank(poolAdmin1);
-    proxyConfigurator.activateReserve(address(rVaultAsset));
-
-    // vm.prank(owner);
-    // proxyConfigurator.activateReserve(address(superAsset));
-
-    // Deploy DefaultReserveInterestRateStrategy
-    address strategy = address(
-      new DefaultReserveInterestRateStrategy(
-        ILendingPoolAddressesProvider(address(lpAddressProvider)),
-        0.8 * 1e27, // optimalUtilizationRate
-        0.02 * 1e27, // baseVariableBorrowRate
-        0.04 * 1e27, // variableRateSlope1
-        0.75 * 1e27 // variableRateSlope2
-      )
-    );
-    vm.label(strategy, 'DefaultReserveInterestRateStrategy');
-
-    // Initialize reserve
-    ILendingPoolConfigurator.InitReserveInput[]
-      memory input = new ILendingPoolConfigurator.InitReserveInput[](1);
-    input[0].rTokenImpl = address(rTokenImpl);
-    input[0].rTokenName = rTokenName;
-    input[0].rTokenSymbol = rTokenSymbol;
-
-    input[0].variableDebtTokenImpl = address(variableDebtTokenImpl);
-    input[0].variableDebtTokenName = variableDebtTokenName;
-    input[0].variableDebtTokenSymbol = variableDebtTokenSymbol;
-
-    input[0].interestRateStrategyAddress = strategy;
-    input[0].treasury = treasury;
-    input[0].incentivesController = incentivesController;
-    input[0].superAsset = address(superAsset);
-    input[0].underlyingAsset = address(rVaultAsset);
-    input[0].underlyingAssetDecimals = underlyingAssetDecimals;
-    input[0].underlyingAssetName = underlyingAssetName;
-    input[0].params = 'v';
-    input[0].salt = 'salt';
-    vm.prank(poolAdmin1);
-    proxyConfigurator.batchInitReserve(input);
-  }
-
-  function testDeposit() public {
-    // act
-    address asset = address(underlyingAsset);
-    uint256[1] memory amounts;
-    amounts[0] = 10 ether;
-    address onBehalfOf = user1;
-    uint16 referralCode = 0;
-    uint16[1] memory chainIds;
-    chainIds[0] = 1;
-
-    (, address rVaultAsset) = lpAddressProvider.getRVaultAsset();
-
-    vm.prank(onBehalfOf);
-    IERC20(underlyingAsset).approve(address(proxyLp), amounts[0]);
-
-    IERC20(underlyingAsset).allowance(onBehalfOf, address(proxyLp));
-
-    vm.prank(address(router));
-    proxyLp.deposit(
-      onBehalfOf,
-      address(underlyingAsset),
-      amounts[0],
-      onBehalfOf,
-      referralCode
-    );
-
-    address rToken = proxyLp.getReserveData(rVaultAsset).rTokenAddress;
-
-    console.log(rVaultAsset);
-    assertEq(IERC20(rVaultAsset).balanceOf(rToken), amounts[0]);
-    // assertEq(underlyingAsset.balanceOf(onBehalfOf), 90 ether);
-  }
+        console.log(rVaultAsset);
+        assertEq(IERC20(rVaultAsset).balanceOf(rToken), amounts[0]);
+        // assertEq(underlyingAsset.balanceOf(onBehalfOf), 90 ether);
+    }
 }

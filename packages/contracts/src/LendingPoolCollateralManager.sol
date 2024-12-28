@@ -101,7 +101,7 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
             user, _reserves, userConfig, _reservesList, _reservesCount, _addressesProvider.getPriceOracle()
         );
 
-        vars.userVariableDebt= Helpers.getUserCurrentDebt(user, debtReserve);
+        vars.userVariableDebt = Helpers.getUserCurrentDebt(user, debtReserve);
 
         (vars.errorCode, vars.errorMsg) = ValidationLogic.validateLiquidationCall(
             collateralReserve, debtReserve, userConfig, vars.healthFactor, vars.userVariableDebt
@@ -118,8 +118,7 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
 
         vars.userCollateralBalance = vars.collateralRToken.crossChainUserBalance(user);
 
-        vars.maxLiquidatableDebt =
-            ( vars.userVariableDebt).percentMul(LIQUIDATION_CLOSE_FACTOR_PERCENT);
+        vars.maxLiquidatableDebt = (vars.userVariableDebt).percentMul(LIQUIDATION_CLOSE_FACTOR_PERCENT);
 
         vars.actualDebtToLiquidate = debtToCover > vars.maxLiquidatableDebt ? vars.maxLiquidatableDebt : debtToCover;
 
@@ -156,7 +155,6 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
                     user, vars.userVariableDebt, debtReserve.variableBorrowIndex
                 );
             }
-            
         }
 
         ReserveLogic.updateInterestRates(

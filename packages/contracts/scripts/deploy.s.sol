@@ -234,8 +234,6 @@ contract LendingPoolDeployer is Script {
         }
     }
 
-    
-
     function deployVariableDebtTokenImpl() public returns (address addr_) {
         string memory salt = vm.parseTomlString(deployConfig, ".variableDebtTokenImpl.salt");
         bytes memory initCode = type(VariableDebtToken).creationCode;
@@ -362,7 +360,7 @@ contract LendingPoolDeployer is Script {
                 baseVariableBorrowRate,
                 variableRateSlope1,
                 variableRateSlope2
-        )
+            )
         );
         address preComputedAddress = vm.computeCreate2Address(_implSalt(salt), keccak256(initCode));
         if (preComputedAddress.code.length > 0) {
@@ -380,7 +378,8 @@ contract LendingPoolDeployer is Script {
                     optimalUtilizationRate,
                     baseVariableBorrowRate,
                     variableRateSlope1,
-                    variableRateSlope2                )
+                    variableRateSlope2
+                )
             );
             console.log(
                 "Deployed DefaultReserveInterestRateStrategy at address: ", addr_, "on chain id: ", block.chainid

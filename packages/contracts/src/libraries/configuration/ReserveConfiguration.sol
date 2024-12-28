@@ -184,8 +184,6 @@ library ReserveConfiguration {
         return (self.data & ~BORROWING_MASK) != 0;
     }
 
-
-
     /**
      * @dev Gets the stable rate borrowing state of the reserve
      * @param self The reserve configuration
@@ -231,11 +229,7 @@ library ReserveConfiguration {
     function getFlags(DataTypes.ReserveConfigurationMap storage self) internal view returns (bool, bool, bool) {
         uint256 dataLocal = self.data;
 
-        return (
-            (dataLocal & ~ACTIVE_MASK) != 0,
-            (dataLocal & ~FROZEN_MASK) != 0,
-            (dataLocal & ~BORROWING_MASK) != 0
-        );
+        return ((dataLocal & ~ACTIVE_MASK) != 0, (dataLocal & ~FROZEN_MASK) != 0, (dataLocal & ~BORROWING_MASK) != 0);
     }
 
     /**
@@ -286,15 +280,7 @@ library ReserveConfiguration {
      * @return The state flags representing active, frozen, borrowing enabled
      *
      */
-    function getFlagsMemory(DataTypes.ReserveConfigurationMap memory self)
-        internal
-        pure
-        returns (bool, bool, bool)
-    {
-        return (
-            (self.data & ~ACTIVE_MASK) != 0,
-            (self.data & ~FROZEN_MASK) != 0,
-            (self.data & ~BORROWING_MASK) != 0
-        );
+    function getFlagsMemory(DataTypes.ReserveConfigurationMap memory self) internal pure returns (bool, bool, bool) {
+        return ((self.data & ~ACTIVE_MASK) != 0, (self.data & ~FROZEN_MASK) != 0, (self.data & ~BORROWING_MASK) != 0);
     }
 }

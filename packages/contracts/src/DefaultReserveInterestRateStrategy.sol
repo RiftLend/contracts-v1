@@ -48,7 +48,6 @@ contract DefaultReserveInterestRateStrategy is IReserveInterestRateStrategy {
     // Slope of the variable interest curve when utilization rate > OPTIMAL_UTILIZATION_RATE. Expressed in ray
     uint256 internal immutable _variableRateSlope2;
 
-
     constructor(
         ILendingPoolAddressesProvider __provider,
         uint256 __optimalUtilizationRate,
@@ -71,7 +70,6 @@ contract DefaultReserveInterestRateStrategy is IReserveInterestRateStrategy {
     function variableRateSlope2() external view returns (uint256) {
         return _variableRateSlope2;
     }
-
 
     function baseVariableBorrowRate() external view override returns (uint256) {
         return _baseVariableBorrowRate;
@@ -102,9 +100,7 @@ contract DefaultReserveInterestRateStrategy is IReserveInterestRateStrategy {
         uint256 availableLiquidity = IERC20(reserve).balanceOf(RToken);
         availableLiquidity = availableLiquidity + liquidityAdded - liquidityTaken;
 
-        return calculateInterestRates(
-            reserve, availableLiquidity, totalVariableDebt, reserveFactor
-        );
+        return calculateInterestRates(reserve, availableLiquidity, totalVariableDebt, reserveFactor);
     }
 
     struct CalcInterestRatesLocalVars {
@@ -125,24 +121,22 @@ contract DefaultReserveInterestRateStrategy is IReserveInterestRateStrategy {
      *
      */
     function calculateInterestRates(
-        address , // reserve
+        address, // reserve
         uint256 availableLiquidity,
         uint256 totalVariableDebt,
         uint256 reserveFactor
     ) public view override returns (uint256, uint256) {
         CalcInterestRatesLocalVars memory vars;
 
-        vars.totalDebt =  totalVariableDebt;
+        vars.totalDebt = totalVariableDebt;
         vars.currentVariableBorrowRate = 0;
         vars.currentLiquidityRate = 0;
 
         vars.utilizationRate = vars.totalDebt == 0 ? 0 : vars.totalDebt.rayDiv(availableLiquidity + vars.totalDebt);
 
-
         if (vars.utilizationRate > OPTIMAL_UTILIZATION_RATE) {
             uint256 excessUtilizationRateRatio =
                 (vars.utilizationRate - OPTIMAL_UTILIZATION_RATE).rayDiv(EXCESS_UTILIZATION_RATE);
-
 
             vars.currentVariableBorrowRate =
                 _baseVariableBorrowRate + _variableRateSlope1 + _variableRateSlope2.rayMul(excessUtilizationRateRatio);
@@ -151,9 +145,9 @@ contract DefaultReserveInterestRateStrategy is IReserveInterestRateStrategy {
                 + vars.utilizationRate.rayMul(_variableRateSlope1).rayDiv(OPTIMAL_UTILIZATION_RATE);
         }
 
-        vars.currentLiquidityRate = _getOverallBorrowRate(
-         totalVariableDebt, vars.currentVariableBorrowRate
-        ).rayMul(vars.utilizationRate).percentMul(PercentageMath.PERCENTAGE_FACTOR - reserveFactor);
+        vars.currentLiquidityRate = _getOverallBorrowRate(totalVariableDebt, vars.currentVariableBorrowRate).rayMul(
+            vars.utilizationRate
+        ).percentMul(PercentageMath.PERCENTAGE_FACTOR - reserveFactor);
 
         return (vars.currentLiquidityRate, vars.currentVariableBorrowRate);
     }
@@ -165,17 +159,18 @@ contract DefaultReserveInterestRateStrategy is IReserveInterestRateStrategy {
      * @return The weighted averaged borrow rate
      *
      */
-    function _getOverallBorrowRate(
-        uint256 totalVariableDebt,
-        uint256 currentVariableBorrowRate
-    ) internal pure returns (uint256) {
-        uint256 totalDebt =  totalVariableDebt;
+    function _getOverallBorrowRate(uint256 totalVariableDebt, uint256 currentVariableBorrowRate)
+        internal
+        pure
+        returns (uint256)
+    {
+        uint256 totalDebt = totalVariableDebt;
 
         if (totalDebt == 0) return 0;
 
         uint256 weightedVariableRate = totalVariableDebt.wadToRay().rayMul(currentVariableBorrowRate);
 
-        uint256 overallBorrowRate = (weightedVariableRate ).rayDiv(totalDebt.wadToRay());
+        uint256 overallBorrowRate = (weightedVariableRate).rayDiv(totalDebt.wadToRay());
 
         return overallBorrowRate;
     }

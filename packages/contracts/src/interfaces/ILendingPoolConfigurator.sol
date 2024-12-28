@@ -48,10 +48,7 @@ interface ILendingPoolConfigurator {
      *
      */
     event ReserveInitialized(
-        address indexed asset,
-        address indexed aToken,
-        address variableDebtToken,
-        address interestRateStrategyAddress
+        address indexed asset, address indexed aToken, address variableDebtToken, address interestRateStrategyAddress
     );
 
     /**
@@ -79,8 +76,6 @@ interface ILendingPoolConfigurator {
     event CollateralConfigurationChanged(
         address indexed asset, uint256 ltv, uint256 liquidationThreshold, uint256 liquidationBonus
     );
-
-
 
     /**
      * @dev Emitted when a reserve is activated
@@ -142,7 +137,6 @@ interface ILendingPoolConfigurator {
      *
      */
     event RTokenUpgraded(address indexed asset, address indexed proxy, address indexed implementation);
-
 
     /**
      * @dev Emitted when the implementation of a variable debt token is upgraded

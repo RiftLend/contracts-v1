@@ -93,7 +93,6 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
             input.salt
         );
 
-
         address variableDebtTokenProxyAddress = _initTokenWithProxy(
             input.variableDebtTokenImpl,
             abi.encodeWithSelector(
@@ -127,10 +126,7 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
         _pool.setConfiguration(input.underlyingAsset, currentConfig.data);
 
         emit ReserveInitialized(
-            input.underlyingAsset,
-            RTokenProxyAddress,
-            variableDebtTokenProxyAddress,
-            input.interestRateStrategyAddress
+            input.underlyingAsset, RTokenProxyAddress, variableDebtTokenProxyAddress, input.interestRateStrategyAddress
         );
     }
 
@@ -165,8 +161,6 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
 
         emit RTokenUpgraded(input.asset, reserveData.rTokenAddress, input.implementation);
     }
-
-  
 
     /**
      * @dev Updates the variable debt token implementation for the asset
@@ -274,9 +268,6 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
 
         emit CollateralConfigurationChanged(asset, ltv, liquidationThreshold, liquidationBonus);
     }
-
- 
-
 
     /**
      * @dev Activates a reserve

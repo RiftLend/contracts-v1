@@ -139,11 +139,9 @@ error OriginNotSuperLend();
 
 event FlashLoanInitiated(address receiver, address[] assets, uint256[] amounts);
 
-
 event CrossChainSwapBorrowRateMode(uint256 chainId, address user, address asset, uint256 rateMode);
 
 event ReserveConfigurationChanged(address asset, uint256 configuration);
-
 
 event CrossChainSetUserUseReserveAsCollateral(uint256 chainId, address asset, bool useAsCollateral);
 
@@ -224,7 +222,6 @@ interface ILendingPool {
 
     function swapBorrowRateMode(address sender, address asset, uint256 rateMode) external;
 
-
     function setUserUseReserveAsCollateral(address sender, address asset, bool useAsCollateral) external;
 
     function liquidationCall(
@@ -279,7 +276,6 @@ interface ILendingPool {
     function getReservesList() external view returns (address[] memory);
 
     function getAddressesProvider() external view returns (ILendingPoolAddressesProvider);
-
 
     function FLASHLOAN_PREMIUM_TOTAL() external view returns (uint256);
 

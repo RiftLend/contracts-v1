@@ -27,7 +27,6 @@ import {LendingPoolStorage} from "./LendingPoolStorage.sol";
 import {Predeploys} from "./libraries/Predeploys.sol";
 import {SuperPausable} from "./interop-std/src/utils/SuperPausable.sol";
 
-
 /**
  * @title LendingPool contract
  * @dev Main point of interaction with an Aave protocol's market
@@ -130,9 +129,8 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         address rToken = reserve.rTokenAddress;
 
         ValidationLogic.validateDeposit(reserve, amount);
-        
-        IERC20(asset).safeTransferFrom(onBehalfOf, address(this), amount);
 
+        IERC20(asset).safeTransferFrom(onBehalfOf, address(this), amount);
 
         // Update states with unchecked for gas optimization where safe
         unchecked {
@@ -144,7 +142,6 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
                 IRVaultAsset(rVaultAsset).mint(rToken, amount);
             }
         }
-        
 
         (bool isFirstDeposit, uint256 mintMode, uint256 amountScaled) =
             IRToken(rToken).mint(onBehalfOf, amount, reserve.liquidityIndex);
@@ -258,7 +255,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         // DataTypes.ReserveData storage reserve = _reserves[asset];
 
         /// @dev this will get the debt of the user on the current chain
-         uint256 variableDebt = Helpers.getUserCurrentDebt(onBehalfOf, reserve);
+        uint256 variableDebt = Helpers.getUserCurrentDebt(onBehalfOf, reserve);
 
         DataTypes.InterestRateMode interestRateMode = DataTypes.InterestRateMode(rateMode);
 
@@ -280,7 +277,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
 
         address rToken = reserve.rTokenAddress;
 
-        if ( variableDebt - paybackAmount == 0) {
+        if (variableDebt - paybackAmount == 0) {
             _usersConfig[onBehalfOf].setBorrowing(reserve.id, false);
         }
         IERC20(asset).safeTransferFrom(onBehalfOf, address(this), amount);
@@ -291,8 +288,8 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             if (token_type == 1) {
                 // tokenType == 1 means it is either SuperAsset or Underlying
                 IERC20(asset).approve(rVaultAsset, amount);
-                IRVaultAsset(rVaultAsset).mint(address(rToken), amount);                
-            } 
+                IRVaultAsset(rVaultAsset).mint(address(rToken), amount);
+            }
         }
 
         // ToDO : check this flow
@@ -312,7 +309,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     function swapBorrowRateMode(address sender, address asset, uint256 rateMode) internal {
         DataTypes.ReserveData storage reserve = _reserves[asset];
 
-         uint256 variableDebt = Helpers.getUserCurrentDebt(sender, reserve);
+        uint256 variableDebt = Helpers.getUserCurrentDebt(sender, reserve);
 
         DataTypes.InterestRateMode interestRateMode = DataTypes.InterestRateMode(rateMode);
 
@@ -329,7 +326,6 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
 
         emit Swap(asset, sender, rateMode, variableDebtAmount);
     }
-
 
     function setUserUseReserveAsCollateral(address sender, address asset, bool useAsCollateral) external onlyRouter {
         DataTypes.ReserveData storage reserve = _reserves[asset];
@@ -615,7 +611,6 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         return _addressesProvider;
     }
 
-
     /**
      * @dev Returns the fee on flash loans
      */
@@ -690,9 +685,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         address interestRateStrategyAddress
     ) external onlyLendingPoolConfigurator {
         require(asset.code.length > 0, Errors.LP_NOT_CONTRACT);
-        _reserves[asset].init(
-            rTokenAddress, superchainAsset, variableDebtAddress, interestRateStrategyAddress
-        );
+        _reserves[asset].init(rTokenAddress, superchainAsset, variableDebtAddress, interestRateStrategyAddress);
         _addReserveToList(asset);
     }
 
