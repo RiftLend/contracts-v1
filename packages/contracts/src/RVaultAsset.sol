@@ -26,7 +26,7 @@ contract RVaultAsset is OFT, IERC4626 {
     uint256 public totalBalances; // total balances of underlying
     ILendingPoolAddressesProvider provider;
     address admin;
-    address address_zero;
+    address address_null = 0x000000000000000000000000000000000000dEaD;
 
     modifier onlyLendingPoolConfigurator() {
         require(
@@ -43,8 +43,8 @@ contract RVaultAsset is OFT, IERC4626 {
         address admin_,
         address lzEndpoint_
     )
-        OFT(IERC20Metadata(underlying_).name(), IERC20Metadata(underlying_).symbol(), lzEndpoint_, address_zero)
-        Ownable(address_zero)
+        OFT(IERC20Metadata(underlying_).name(), IERC20Metadata(underlying_).symbol(), lzEndpoint_, address_null)
+        Ownable(address_null)
     {
         underlying = underlying_;
         provider = provider_;

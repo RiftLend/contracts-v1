@@ -315,7 +315,7 @@ contract LendingPoolDeployer is Script {
             console.log("SuperAsset already deployed at %s", preComputedAddress, "on chain id: ", block.chainid);
             addr_ = preComputedAddress;
         } else {
-            addr_ = address(new SuperAsset{salt: _implSalt(salt)}(underlying, lzEndpoint));
+            addr_ = address(new SuperAsset{salt: _implSalt(salt)}(underlying, lzEndpoint, address(0)));
             console.log("Deployed SuperAsset at address: ", addr_, "on chain id: ", block.chainid);
         }
     }

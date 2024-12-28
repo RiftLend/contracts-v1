@@ -25,10 +25,7 @@ contract L2NativeSuperchainERC20 is SuperchainERC20, Ownable {
      * @param symbol_ The symbol of the token (e.g., "SUPER").
      * @param decimals_ The number of decimal places the token uses (e.g., 18).
      */
-    constructor(address owner_, string memory name_, string memory symbol_, uint8 decimals_)
-        SuperchainERC20(name_, symbol_)
-        ERC20(name_, symbol_)
-    {
+    constructor(address owner_, string memory name_, string memory symbol_, uint8 decimals_) ERC20(name_, symbol_) {
         _name = name_;
         _symbol = symbol_;
         _decimals = decimals_;
