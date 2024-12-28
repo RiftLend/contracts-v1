@@ -2,15 +2,13 @@
 pragma solidity 0.8.25;
 
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
-
 import {IRToken} from "./interfaces/IRToken.sol";
-import {IStableDebtToken} from "./interfaces/IStableDebtToken.sol";
 import {IVariableDebtToken} from "./interfaces/IVariableDebtToken.sol";
 import {IPriceOracleGetter} from "./interfaces/IPriceOracleGetter.sol";
 import {ILendingPoolCollateralManager} from "./interfaces/ILendingPoolCollateralManager.sol";
 import {ISuperAsset} from "./interfaces/ISuperAsset.sol";
 
+import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
 import {Initializable} from "@solady/utils/Initializable.sol";
 import {GenericLogic} from "./libraries/logic/GenericLogic.sol";
 import {Helpers} from "./libraries/helpers/Helpers.sol";
@@ -51,7 +49,6 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
         uint256 actualDebtToLiquidate;
         uint256 liquidationRatio;
         uint256 maxAmountCollateralToLiquidate;
-        uint256 userStableRate;
         uint256 maxCollateralToLiquidate;
         uint256 debtAmountNeeded;
         uint256 healthFactor;
@@ -104,10 +101,10 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
             user, _reserves, userConfig, _reservesList, _reservesCount, _addressesProvider.getPriceOracle()
         );
 
-        (, vars.userVariableDebt) = Helpers.getUserCurrentDebt(user, debtReserve);
+        vars.userVariableDebt= Helpers.getUserCurrentDebt(user, debtReserve);
 
         (vars.errorCode, vars.errorMsg) = ValidationLogic.validateLiquidationCall(
-            collateralReserve, debtReserve, userConfig, vars.healthFactor, vars.userStableDebt, vars.userVariableDebt
+            collateralReserve, debtReserve, userConfig, vars.healthFactor, vars.userVariableDebt
         );
 
         if (Errors.CollateralManagerErrors(vars.errorCode) != Errors.CollateralManagerErrors.NO_ERROR) {
@@ -122,7 +119,7 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
         vars.userCollateralBalance = vars.collateralRToken.crossChainUserBalance(user);
 
         vars.maxLiquidatableDebt =
-            (vars.userStableDebt + vars.userVariableDebt).percentMul(LIQUIDATION_CLOSE_FACTOR_PERCENT);
+            ( vars.userVariableDebt).percentMul(LIQUIDATION_CLOSE_FACTOR_PERCENT);
 
         vars.actualDebtToLiquidate = debtToCover > vars.maxLiquidatableDebt ? vars.maxLiquidatableDebt : debtToCover;
 
@@ -159,9 +156,7 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
                     user, vars.userVariableDebt, debtReserve.variableBorrowIndex
                 );
             }
-            (, stableDebtBurned) = IStableDebtToken(debtReserve.stableDebtTokenAddress).burn(
-                user, vars.actualDebtToLiquidate - vars.userVariableDebt
-            );
+            
         }
 
         ReserveLogic.updateInterestRates(
@@ -210,7 +205,6 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
             vars.maxCollateralToLiquidate,
             sender,
             receiveRToken,
-            stableDebtBurned,
             variableDebtBurned,
             collateralRTokenBurned
         );

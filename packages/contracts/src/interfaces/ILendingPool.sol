@@ -2,6 +2,8 @@
 pragma solidity 0.8.25;
 
 import {ILendingPoolAddressesProvider} from "./ILendingPoolAddressesProvider.sol";
+import {ILendingPool} from "./ILendingPool.sol";
+
 import {DataTypes} from "../libraries/types/DataTypes.sol";
 import "../interfaces/ICrossL2Inbox.sol";
 
@@ -87,10 +89,9 @@ event Repay(
  * @param user The address of the user swapping his rate mode
  * @param rateMode The rate mode that the user wants to swap to
  * @param variableDebtAmount The amount of variable debt being minted
- * @param stableDebtAmount The amount of stable debt being minted
  *
  */
-event Swap(address reserve, address user, uint256 rateMode, uint256 variableDebtAmount, uint256 stableDebtAmount);
+event Swap(address reserve, address user, uint256 rateMode, uint256 variableDebtAmount);
 
 /**
  * @dev Emitted on setUserUseReserveAsCollateral()
@@ -107,16 +108,6 @@ event ReserveUsedAsCollateralEnabled(address reserve, address user);
  *
  */
 event ReserveUsedAsCollateralDisabled(address reserve, address user);
-
-/**
- * @dev Emitted on rebalanceStableBorrowRate()
- * @param reserve The address of the underlying asset of the reserve
- * @param user The address of the user for which the rebalance has been executed
- * @param amountBurned The amount of stable debt burned
- * @param amountMinted The amount of stable debt minted
- *
- */
-event RebalanceStableBorrowRate(address reserve, address user, uint256 amountBurned, uint256 amountMinted);
 
 /**
  * @dev Emitted on flashLoan()
@@ -148,13 +139,11 @@ error OriginNotSuperLend();
 
 event FlashLoanInitiated(address receiver, address[] assets, uint256[] amounts);
 
-event RebalanceStableBorrowRateCrossChain(uint256 chainId, address asset, address user);
 
 event CrossChainSwapBorrowRateMode(uint256 chainId, address user, address asset, uint256 rateMode);
 
 event ReserveConfigurationChanged(address asset, uint256 configuration);
 
-event CrossChainRebalanceStableBorrowRate(uint256 chainId, address asset, address user);
 
 event CrossChainSetUserUseReserveAsCollateral(uint256 chainId, address asset, bool useAsCollateral);
 
@@ -235,7 +224,6 @@ interface ILendingPool {
 
     function swapBorrowRateMode(address sender, address asset, uint256 rateMode) external;
 
-    function rebalanceStableBorrowRate(address asset, address user) external;
 
     function setUserUseReserveAsCollateral(address sender, address asset, bool useAsCollateral) external;
 
@@ -255,7 +243,6 @@ interface ILendingPool {
         address asset,
         address superchainAsset,
         address rTokenAddress,
-        address stableDebtAddress,
         address variableDebtAddress,
         address interestRateStrategyAddress
     ) external;
@@ -293,7 +280,6 @@ interface ILendingPool {
 
     function getAddressesProvider() external view returns (ILendingPoolAddressesProvider);
 
-    function MAX_STABLE_RATE_BORROW_SIZE_PERCENT() external view returns (uint256);
 
     function FLASHLOAN_PREMIUM_TOTAL() external view returns (uint256);
 

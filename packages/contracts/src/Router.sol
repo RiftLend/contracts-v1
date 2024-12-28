@@ -2,14 +2,13 @@
 pragma solidity 0.8.25;
 
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
-import "./interfaces/ILendingPool.sol";
-import "./interfaces/ILendingPoolCollateralManager.sol";
-
+import  "./interfaces/ILendingPool.sol";
+import {ILendingPoolCollateralManager} from "./interfaces/ILendingPoolCollateralManager.sol";
 import {ISuperAsset} from "./interfaces/ISuperAsset.sol";
 import {IRToken} from "./interfaces/IRToken.sol";
-import {IStableDebtToken} from "./interfaces/IStableDebtToken.sol";
 import {IVariableDebtToken} from "./interfaces/IVariableDebtToken.sol";
 import {ISuperchainTokenBridge} from "./interfaces/ISuperchainTokenBridge.sol";
+import {ILendingPoolAddressesProvider} from "./interfaces/ILendingPoolAddressesProvider.sol";
 
 import {Initializable} from "@solady/utils/Initializable.sol";
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
@@ -17,7 +16,8 @@ import {ReserveLogic} from "./libraries/logic/ReserveLogic.sol";
 import {Errors} from "./libraries/helpers/Errors.sol";
 import {SuperPausable} from "./interop-std/src/utils/SuperPausable.sol";
 import {Predeploys} from "./libraries/Predeploys.sol";
-import {EventValidator, ValidationMode, Identifier} from "./libraries/EventValidation.sol";
+import {EventValidator, ValidationMode, Identifier} from "./libraries/EventValidator.sol";
+import {DataTypes} from "./libraries/types/DataTypes.sol";
 
 contract Router is Initializable, SuperPausable {
     using SafeERC20 for IERC20;
@@ -252,25 +252,7 @@ contract Router is Initializable, SuperPausable {
             lendingPool.flashLoan(sender, receiverAddress, assets, amounts, modes, onBehalfOf, params, referralCode);
         }
 
-        /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-        /*                    REBALANCE DISPATCH                      */
-        /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-        if (selector == RebalanceStableBorrowRate.selector && _identifier.chainId != block.chainid) {
-            (address asset,, uint256 amountBurned, uint256 amountMinted) =
-                abi.decode(_data[32:], (address, address, uint256, uint256));
-            DataTypes.ReserveData memory reserve = lendingPool.getReserveData(asset);
-            IStableDebtToken(reserve.stableDebtTokenAddress).updateCrossChainBalance(amountBurned, 2);
-            IStableDebtToken(reserve.stableDebtTokenAddress).updateCrossChainBalance(amountMinted, 1);
-            lendingPool.updateStates(asset, 0, 0, UPDATE_RATES_AND_STATES_MASK);
-        }
-        if (
-            selector == CrossChainRebalanceStableBorrowRate.selector
-                && abi.decode(_data[32:64], (uint256)) == block.chainid
-        ) {
-            (address asset, address user) = abi.decode(_data[64:], (address, address));
-            lendingPool.rebalanceStableBorrowRate(asset, user);
-        }
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*               UseReserveAsCollateral DISPATCH              */
@@ -415,21 +397,7 @@ contract Router is Initializable, SuperPausable {
         }
     }
 
-    /**
-     * @dev Rebalances the stable interest rate of a user to the current stable rate defined on the reserve.
-     * - Users can be rebalanced if the following conditions are satisfied:
-     *     1. Usage ratio is above 95%
-     *     2. the current deposit APY is below REBALANCE_UP_THRESHOLD * maxVariableBorrowRate, which means that too much has been
-     *        borrowed at a stable rate and depositors are not earning enough
-     * @param asset The address of the underlying asset borrowed
-     * @param chainIds Array of chain IDs where the rebalance should be executed
-     *
-     */
-    function rebalanceStableBorrowRate(address asset, uint256[] calldata chainIds) external whenNotPaused {
-        for (uint256 i = 0; i < chainIds.length; i++) {
-            emit RebalanceStableBorrowRateCrossChain(chainIds[i], asset, msg.sender);
-        }
-    }
+  
 
     /**
      * @dev Allows depositors to enable/disable a specific deposited asset as collateral across multiple chains

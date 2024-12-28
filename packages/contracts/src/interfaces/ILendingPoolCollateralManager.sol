@@ -20,7 +20,6 @@ interface ILendingPoolCollateralManager {
      * @param liquidator The address of the liquidator
      * @param receiveRToken `true` if the liquidators wants to receive the collateral aTokens, `false` if he wants
      * to receive the underlying collateral asset directly
-     * @param stableDebtBurned The amount of stable debt burned
      * @param variableDebtBurned The amount of variable debt burned
      * @param collateralRTokenBurned The amount of collateral aTokens burned
      *
@@ -33,7 +32,6 @@ interface ILendingPoolCollateralManager {
         uint256 liquidatedCollateralAmount,
         address liquidator,
         bool receiveRToken,
-        uint256 stableDebtBurned,
         uint256 variableDebtBurned,
         uint256 collateralRTokenBurned
     );

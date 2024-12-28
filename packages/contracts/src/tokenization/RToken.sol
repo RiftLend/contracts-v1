@@ -6,7 +6,7 @@ import {WadRayMath} from "../libraries/math/WadRayMath.sol";
 import {Errors} from "../libraries/helpers/Errors.sol";
 import {Initializable} from "@solady/utils/Initializable.sol";
 import {SuperPausable} from "../interop-std/src/utils/SuperPausable.sol";
-import {EventValidator, ValidationMode, Identifier} from "../libraries/EventValidation.sol";
+import {EventValidator, ValidationMode, Identifier} from "../libraries/EventValidator.sol";
 import {Predeploys} from "../libraries/Predeploys.sol";
 
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";

@@ -79,3 +79,10 @@ symbol = "SDTUSDC"
 [router]
 salt = "ethers phoenix router"
 
+[forks]
+chain_a_rpc_url = "https://opt-mainnet.g.alchemy.com/v2/jqIGxmWLI8n0ZxqcXmOxubAMpP-_YlhK"
+chain_a_chain_id = 10
+chain_a_cross_l2_prover_address="0x1CCb363c18484A568DCB0Ec37fE5ad716C1D6e77"
+
+
+

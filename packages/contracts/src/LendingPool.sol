@@ -2,17 +2,16 @@
 pragma solidity 0.8.25;
 
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
-
 import {ILendingPoolAddressesProvider} from "./interfaces/ILendingPoolAddressesProvider.sol";
 import {IRToken} from "./interfaces/IRToken.sol";
 import {IVariableDebtToken} from "./interfaces/IVariableDebtToken.sol";
 import {IFlashLoanReceiver} from "./interfaces/IFlashLoanReceiver.sol";
 import {IPriceOracleGetter} from "./interfaces/IPriceOracleGetter.sol";
-import {IStableDebtToken} from "./interfaces/IStableDebtToken.sol";
 import "./interfaces/ILendingPool.sol";
 import {ISuperAsset} from "./interfaces/ISuperAsset.sol";
-
+import {IRVaultAsset} from "./interfaces/IRVaultAsset.sol";
+import {Identifier} from "./interfaces/ICrossL2Inbox.sol";
+import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
 import {Initializable} from "@solady/utils/Initializable.sol";
 import {Helpers} from "./libraries/helpers/Helpers.sol";
 import {Errors} from "./libraries/helpers/Errors.sol";
@@ -27,7 +26,7 @@ import {DataTypes} from "./libraries/types/DataTypes.sol";
 import {LendingPoolStorage} from "./LendingPoolStorage.sol";
 import {Predeploys} from "./libraries/Predeploys.sol";
 import {SuperPausable} from "./interop-std/src/utils/SuperPausable.sol";
-import {IRVaultAsset} from "./interfaces/IRVaultAsset.sol";
+
 
 /**
  * @title LendingPool contract
@@ -131,6 +130,9 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         address rToken = reserve.rTokenAddress;
 
         ValidationLogic.validateDeposit(reserve, amount);
+        
+        IERC20(asset).safeTransferFrom(onBehalfOf, address(this), amount);
+
 
         // Update states with unchecked for gas optimization where safe
         unchecked {
@@ -138,12 +140,11 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             _updateStates(reserve, asset, amount, 0, UPDATE_RATES_AND_STATES_MASK);
             if (token_type == 1) {
                 // tokenType == 1 means it is either SuperAsset or Underlying
-                IRVaultAsset(rVaultAsset).mint(rVaultAsset, amount);
-            } else {
-                // Transfer the asset of worth `amount` to the LendingPool contract
-                IERC20(asset).safeTransferFrom(sender, rVaultAsset, amount);
+                IERC20(asset).approve(rVaultAsset, amount);
+                IRVaultAsset(rVaultAsset).mint(rToken, amount);
             }
         }
+        
 
         (bool isFirstDeposit, uint256 mintMode, uint256 amountScaled) =
             IRToken(rToken).mint(onBehalfOf, amount, reserve.liquidityIndex);
@@ -257,11 +258,11 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         // DataTypes.ReserveData storage reserve = _reserves[asset];
 
         /// @dev this will get the debt of the user on the current chain
-        (uint256 stableDebt, uint256 variableDebt) = Helpers.getUserCurrentDebt(onBehalfOf, reserve);
+         uint256 variableDebt = Helpers.getUserCurrentDebt(onBehalfOf, reserve);
 
         DataTypes.InterestRateMode interestRateMode = DataTypes.InterestRateMode(rateMode);
 
-        ValidationLogic.validateRepay(reserve, amount, interestRateMode, onBehalfOf, stableDebt, variableDebt);
+        ValidationLogic.validateRepay(reserve, amount, interestRateMode, onBehalfOf, variableDebt);
 
         uint256 paybackAmount = variableDebt;
 
@@ -279,28 +280,24 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
 
         address rToken = reserve.rTokenAddress;
 
-        if (stableDebt + variableDebt - paybackAmount == 0) {
+        if ( variableDebt - paybackAmount == 0) {
             _usersConfig[onBehalfOf].setBorrowing(reserve.id, false);
         }
+        IERC20(asset).safeTransferFrom(onBehalfOf, address(this), amount);
+
         // Getting repay amount in rVaultAsset for universality
         (address rVaultAsset, uint256 token_type) = getTokenType();
         unchecked {
             if (token_type == 1) {
                 // tokenType == 1 means it is either SuperAsset or Underlying
-                IRVaultAsset(rVaultAsset).mint(address(rToken), paybackAmount);
-            } else {
-                // Transfer the asset of worth `amount` to the LendingPool contract
-                IERC20(asset).safeTransferFrom(sender, address(rToken), paybackAmount);
-            }
+                IERC20(asset).approve(rVaultAsset, amount);
+                IRVaultAsset(rVaultAsset).mint(address(rToken), amount);                
+            } 
         }
 
-        // No need to repay
+        // ToDO : check this flow
 
-        // if (amount - paybackAmount > 0) {
-        //     IERC20(asset).safeTransfer(sender, amount - paybackAmount);
-        // }
-
-        IRToken(rToken).handleRepayment(sender, paybackAmount);
+        IRToken(rToken).handleRepayment(onBehalfOf, paybackAmount);
 
         emit Repay(asset, paybackAmount, onBehalfOf, sender, rateMode, mode, amountBurned);
     }
@@ -315,61 +312,24 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     function swapBorrowRateMode(address sender, address asset, uint256 rateMode) internal {
         DataTypes.ReserveData storage reserve = _reserves[asset];
 
-        (uint256 stableDebt, uint256 variableDebt) = Helpers.getUserCurrentDebt(sender, reserve);
+         uint256 variableDebt = Helpers.getUserCurrentDebt(sender, reserve);
 
         DataTypes.InterestRateMode interestRateMode = DataTypes.InterestRateMode(rateMode);
 
-        ValidationLogic.validateSwapRateMode(reserve, _usersConfig[sender], stableDebt, variableDebt, interestRateMode);
+        ValidationLogic.validateSwapRateMode(reserve, _usersConfig[sender], variableDebt, interestRateMode);
 
         reserve.updateState();
 
         uint256 variableDebtAmount;
-        uint256 stableDebtAmount;
 
         (, variableDebtAmount) =
             IVariableDebtToken(reserve.variableDebtTokenAddress).burn(sender, variableDebt, reserve.variableBorrowIndex);
-        (,, stableDebtAmount) = IStableDebtToken(reserve.stableDebtTokenAddress).mint(
-            sender, sender, variableDebt, reserve.currentStableBorrowRate
-        );
 
         reserve.updateInterestRates(asset, reserve.rTokenAddress, 0, 0);
 
-        emit Swap(asset, sender, rateMode, variableDebtAmount, stableDebtAmount);
+        emit Swap(asset, sender, rateMode, variableDebtAmount);
     }
 
-    /**
-     * @dev Rebalances the stable interest rate of a user to the current stable rate defined on the reserve.
-     * - Users can be rebalanced if the following conditions are satisfied:
-     *     1. Usage ratio is above 95%
-     *     2. the current deposit APY is below REBALANCE_UP_THRESHOLD * maxVariableBorrowRate, which means that too much has been
-     *        borrowed at a stable rate and depositors are not earning enough
-     * @param asset The address of the underlying asset borrowed
-     * @param user The address of the user to be rebalanced
-     *
-     */
-    function rebalanceStableBorrowRate(address asset, address user) external onlyRouter {
-        DataTypes.ReserveData storage reserve = _reserves[asset];
-
-        IERC20 stableDebtToken = IERC20(reserve.stableDebtTokenAddress);
-        IERC20 variableDebtToken = IERC20(reserve.variableDebtTokenAddress);
-        address rTokenAddress = reserve.rTokenAddress;
-
-        uint256 stableDebt = IERC20(stableDebtToken).balanceOf(user);
-
-        ValidationLogic.validateRebalanceStableBorrowRate(
-            reserve, asset, stableDebtToken, variableDebtToken, rTokenAddress
-        );
-
-        _updateStates(reserve, asset, 0, 0, UPDATE_STATE_MASK);
-
-        (, uint256 amountBurned) = IStableDebtToken(address(stableDebtToken)).burn(user, stableDebt);
-        (,, uint256 amountMinted) =
-            IStableDebtToken(address(stableDebtToken)).mint(user, user, stableDebt, reserve.currentStableBorrowRate);
-
-        _updateStates(reserve, asset, 0, 0, UPDATE_RATES_MASK);
-
-        emit RebalanceStableBorrowRate(asset, user, amountBurned, amountMinted);
-    }
 
     function setUserUseReserveAsCollateral(address sender, address asset, bool useAsCollateral) external onlyRouter {
         DataTypes.ReserveData storage reserve = _reserves[asset];
@@ -655,12 +615,6 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         return _addressesProvider;
     }
 
-    /**
-     * @dev Returns the percentage of available liquidity that can be borrowed at once at stable rate
-     */
-    function MAX_STABLE_RATE_BORROW_SIZE_PERCENT() public view returns (uint256) {
-        return _maxStableRateBorrowSizePercent;
-    }
 
     /**
      * @dev Returns the fee on flash loans
@@ -724,7 +678,6 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
      * @param asset The address of the underlying asset of the reserve
      * @param rTokenAddress The address of the rToken that will be assigned to the reserve
      * @param superchainAsset The address of the SuperchainAsset that will be assigned to the reserve
-     * @param stableDebtAddress The address of the StableDebtToken that will be assigned to the reserve
      * @param rTokenAddress The address of the VariableDebtToken that will be assigned to the reserve
      * @param interestRateStrategyAddress The address of the interest rate strategy contract
      *
@@ -733,13 +686,12 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         address asset,
         address superchainAsset,
         address rTokenAddress,
-        address stableDebtAddress,
         address variableDebtAddress,
         address interestRateStrategyAddress
     ) external onlyLendingPoolConfigurator {
         require(asset.code.length > 0, Errors.LP_NOT_CONTRACT);
         _reserves[asset].init(
-            rTokenAddress, superchainAsset, stableDebtAddress, variableDebtAddress, interestRateStrategyAddress
+            rTokenAddress, superchainAsset, variableDebtAddress, interestRateStrategyAddress
         );
         _addReserveToList(asset);
     }
@@ -830,7 +782,6 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             vars.amount,
             amountInETH,
             vars.interestRateMode,
-            _maxStableRateBorrowSizePercent,
             _reserves,
             userConfig,
             _reservesList,

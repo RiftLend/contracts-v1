@@ -12,7 +12,6 @@ import {DefaultReserveInterestRateStrategy} from "../src/DefaultReserveInterestR
 import {LendingRateOracle} from "../src/LendingRateOracle.sol";
 import {SuperAsset} from "../src/SuperAsset.sol";
 import {RToken} from "../src/tokenization/RToken.sol";
-import {StableDebtToken} from "../src/tokenization/StableDebtToken.sol";
 import {VariableDebtToken} from "../src/tokenization/VariableDebtToken.sol";
 import {L2NativeSuperchainERC20} from "../src/L2NativeSuperchainERC20.sol";
 import {Router} from "../src/Router.sol";
@@ -33,7 +32,6 @@ contract LendingPoolDeployer is Script {
         address underlying;
         address lendingPoolImpl;
         address rTokenImpl;
-        address stableDebtTokenImpl;
         address variableDebtTokenImpl;
         address proxyAdmin;
         address lendingPoolAddressesProvider;
@@ -73,7 +71,6 @@ contract LendingPoolDeployer is Script {
         // Deploy contracts using CREATE2
         (address underlying) = deployL2NativeSuperchainERC20();
         (address rTokenImpl) = deployRTokenImpl();
-        (address stableDebtTokenImpl) = deployStableDebtTokenImpl();
         (address variableDebtTokenImpl) = deployVariableDebtTokenImpl();
         (address proxyAdmin) = deployProxyAdmin();
         (address lpAddressProvider) = deployLendingPoolAddressesProvider(proxyAdmin);
@@ -97,7 +94,6 @@ contract LendingPoolDeployer is Script {
         ILendingPoolConfigurator.InitReserveInput[] memory input = new ILendingPoolConfigurator.InitReserveInput[](1);
         input[0] = ILendingPoolConfigurator.InitReserveInput({
             rTokenImpl: address(rTokenImpl),
-            stableDebtTokenImpl: address(stableDebtTokenImpl),
             variableDebtTokenImpl: address(variableDebtTokenImpl),
             underlyingAssetDecimals: uint8(vm.parseTomlUint(deployConfig, ".token.decimals")),
             interestRateStrategyAddress: address(strategy),
@@ -110,8 +106,6 @@ contract LendingPoolDeployer is Script {
             rTokenSymbol: vm.parseTomlString(deployConfig, ".RToken1.symbol"),
             variableDebtTokenName: vm.parseTomlString(deployConfig, ".variableDebtToken1.name"),
             variableDebtTokenSymbol: vm.parseTomlString(deployConfig, ".variableDebtToken1.symbol"),
-            stableDebtTokenName: vm.parseTomlString(deployConfig, ".stableDebtToken1.name"),
-            stableDebtTokenSymbol: vm.parseTomlString(deployConfig, ".stableDebtToken1.symbol"),
             params: "0x10",
             salt: _implSalt(vm.parseTomlString(deployConfig, ".deploy_config.salt"))
         });
@@ -121,7 +115,6 @@ contract LendingPoolDeployer is Script {
             underlying: underlying,
             lendingPoolImpl: implementationLp,
             rTokenImpl: rTokenImpl,
-            stableDebtTokenImpl: stableDebtTokenImpl,
             variableDebtTokenImpl: variableDebtTokenImpl,
             proxyAdmin: proxyAdmin,
             lendingPoolAddressesProvider: lpAddressProvider,
@@ -147,7 +140,6 @@ contract LendingPoolDeployer is Script {
         vm.serializeAddress(obj, "ownerAddress", vm.parseTomlAddress(deployConfig, ".token.owner_address"));
 
         vm.serializeAddress(obj, "RTokenAddress", deployedContracts.rTokenImpl);
-        vm.serializeAddress(obj, "stableDebtTokenAddress", deployedContracts.stableDebtTokenImpl);
         vm.serializeAddress(obj, "variableDebtTokenAddress", deployedContracts.variableDebtTokenImpl);
         vm.serializeAddress(obj, "proxyAdminAddress", deployedContracts.proxyAdmin);
         vm.serializeAddress(obj, "lendingPoolAddressesProviderAddress", deployedContracts.lendingPoolAddressesProvider);
@@ -242,18 +234,7 @@ contract LendingPoolDeployer is Script {
         }
     }
 
-    function deployStableDebtTokenImpl() public returns (address addr_) {
-        string memory salt = vm.parseTomlString(deployConfig, ".stableDebtTokenImpl.salt");
-        bytes memory initCode = type(StableDebtToken).creationCode;
-        address preComputedAddress = vm.computeCreate2Address(_implSalt(salt), keccak256(initCode));
-        if (preComputedAddress.code.length > 0) {
-            console.log("StableDebtToken already deployed at %s", preComputedAddress, "on chain id: ", block.chainid);
-            addr_ = preComputedAddress;
-        } else {
-            addr_ = address(new StableDebtToken{salt: _implSalt(salt)}());
-            console.log("Deployed StableDebtToken at address: ", addr_, "on chain id: ", block.chainid);
-        }
-    }
+    
 
     function deployVariableDebtTokenImpl() public returns (address addr_) {
         string memory salt = vm.parseTomlString(deployConfig, ".variableDebtTokenImpl.salt");
@@ -373,10 +354,6 @@ contract LendingPoolDeployer is Script {
             vm.parseTomlUint(deployConfig, ".default_reserve_interest_rate_strategy.variableRateSlope1");
         uint256 variableRateSlope2 =
             vm.parseTomlUint(deployConfig, ".default_reserve_interest_rate_strategy.variableRateSlope2");
-        uint256 stableRateSlope1 =
-            vm.parseTomlUint(deployConfig, ".default_reserve_interest_rate_strategy.stableRateSlope1");
-        uint256 stableRateSlope2 =
-            vm.parseTomlUint(deployConfig, ".default_reserve_interest_rate_strategy.stableRateSlope2");
         bytes memory initCode = abi.encodePacked(
             type(DefaultReserveInterestRateStrategy).creationCode,
             abi.encode(
@@ -384,10 +361,8 @@ contract LendingPoolDeployer is Script {
                 optimalUtilizationRate,
                 baseVariableBorrowRate,
                 variableRateSlope1,
-                variableRateSlope2,
-                stableRateSlope1,
-                stableRateSlope2
-            )
+                variableRateSlope2
+        )
         );
         address preComputedAddress = vm.computeCreate2Address(_implSalt(salt), keccak256(initCode));
         if (preComputedAddress.code.length > 0) {
@@ -405,10 +380,7 @@ contract LendingPoolDeployer is Script {
                     optimalUtilizationRate,
                     baseVariableBorrowRate,
                     variableRateSlope1,
-                    variableRateSlope2,
-                    stableRateSlope1,
-                    stableRateSlope2
-                )
+                    variableRateSlope2                )
             );
             console.log(
                 "Deployed DefaultReserveInterestRateStrategy at address: ", addr_, "on chain id: ", block.chainid

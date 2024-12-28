@@ -4,7 +4,6 @@ pragma solidity 0.8.25;
 interface ILendingPoolConfigurator {
     struct InitReserveInput {
         address rTokenImpl;
-        address stableDebtTokenImpl;
         address variableDebtTokenImpl;
         uint8 underlyingAssetDecimals;
         address interestRateStrategyAddress;
@@ -17,8 +16,6 @@ interface ILendingPoolConfigurator {
         string rTokenSymbol;
         string variableDebtTokenName;
         string variableDebtTokenSymbol;
-        string stableDebtTokenName;
-        string stableDebtTokenSymbol;
         bytes params;
         bytes32 salt;
     }
@@ -46,7 +43,6 @@ interface ILendingPoolConfigurator {
      * @dev Emitted when a reserve is initialized.
      * @param asset The address of the underlying asset of the reserve
      * @param aToken The address of the associated aToken contract
-     * @param stableDebtToken The address of the associated stable rate debt token
      * @param variableDebtToken The address of the associated variable rate debt token
      * @param interestRateStrategyAddress The address of the interest rate strategy for the reserve
      *
@@ -54,7 +50,6 @@ interface ILendingPoolConfigurator {
     event ReserveInitialized(
         address indexed asset,
         address indexed aToken,
-        address stableDebtToken,
         address variableDebtToken,
         address interestRateStrategyAddress
     );
@@ -62,10 +57,9 @@ interface ILendingPoolConfigurator {
     /**
      * @dev Emitted when borrowing is enabled on a reserve
      * @param asset The address of the underlying asset of the reserve
-     * @param stableRateEnabled True if stable rate borrowing is enabled, false otherwise
      *
      */
-    event BorrowingEnabledOnReserve(address indexed asset, bool stableRateEnabled);
+    event BorrowingEnabledOnReserve(address indexed asset);
 
     /**
      * @dev Emitted when borrowing is disabled on a reserve
@@ -86,19 +80,7 @@ interface ILendingPoolConfigurator {
         address indexed asset, uint256 ltv, uint256 liquidationThreshold, uint256 liquidationBonus
     );
 
-    /**
-     * @dev Emitted when stable rate borrowing is enabled on a reserve
-     * @param asset The address of the underlying asset of the reserve
-     *
-     */
-    event StableRateEnabledOnReserve(address indexed asset);
 
-    /**
-     * @dev Emitted when stable rate borrowing is disabled on a reserve
-     * @param asset The address of the underlying asset of the reserve
-     *
-     */
-    event StableRateDisabledOnReserve(address indexed asset);
 
     /**
      * @dev Emitted when a reserve is activated
@@ -161,14 +143,6 @@ interface ILendingPoolConfigurator {
      */
     event RTokenUpgraded(address indexed asset, address indexed proxy, address indexed implementation);
 
-    /**
-     * @dev Emitted when the implementation of a stable debt token is upgraded
-     * @param asset The address of the underlying asset of the reserve
-     * @param proxy The stable debt token proxy address
-     * @param implementation The new aToken implementation
-     *
-     */
-    event StableDebtTokenUpgraded(address indexed asset, address indexed proxy, address indexed implementation);
 
     /**
      * @dev Emitted when the implementation of a variable debt token is upgraded

@@ -1,18 +1,6 @@
 import os
 
 files = [
-    "packages/contracts/src/interfaces/ILendingPool.sol",
-    "packages/contracts/src/interfaces/ILendingPoolAddressesProvider.sol",
-    "packages/contracts/src/interfaces/ILendingPoolAddressesProviderRegistry.sol",
-    "packages/contracts/src/interfaces/ILendingPoolCollateralManager.sol",
-    "packages/contracts/src/interfaces/ILendingPoolConfigurator.sol",
-    "packages/contracts/src/interfaces/IRToken.sol",
-    "packages/contracts/src/interfaces/IRVaultAsset.sol",
-    "packages/contracts/src/interfaces/ISuperAsset.sol",
-    "packages/contracts/src/interfaces/ISuperchainAsset.sol",
-    "packages/contracts/src/interfaces/IVariableDebtToken.sol",
-    "packages/contracts/src/interfaces/ILendingRateOracle.sol",
-    "packages/contracts/src/interfaces/IInitializableRToken.sol",
     "packages/contracts/src/libraries/configuration/ReserveConfiguration.sol",
     "packages/contracts/src/libraries/configuration/UserConfiguration.sol",
     "packages/contracts/src/libraries/logic/GenericLogic.sol",
