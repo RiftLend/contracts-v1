@@ -98,7 +98,13 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
         LiquidationCallLocalVars memory vars;
 
         (,,,, vars.healthFactor) = GenericLogic.calculateUserAccountData(
-            user, _reserves, userConfig, _reservesList, _reservesCount, _addressesProvider.getPriceOracle()
+            user,
+            _reserves,
+            userConfig,
+            _reservesList,
+            _reservesCount,
+            _addressesProvider.getPriceOracle(),
+            DataTypes.Action_type.LIQUIDATION
         );
 
         vars.userVariableDebt = Helpers.getUserCurrentDebt(user, debtReserve);
@@ -115,8 +121,10 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
         // ToDO : should we pass crosschain balance here or simple one ?
         // liquidation of other chain's debt should be allowed or not ?
         // if allowed, then how to handle the cross chain balance ?
-
-        vars.userCollateralBalance = vars.collateralRToken.crossChainUserBalance(user);
+        // Resolved: let getActionBasedUserBalance decide the balance based on the action type
+        vars.userCollateralBalance = GenericLogic.getActionBasedUserBalance(
+            user, address(vars.collateralRToken), DataTypes.Action_type.LIQUIDATION
+        );
 
         vars.maxLiquidatableDebt = (vars.userVariableDebt).percentMul(LIQUIDATION_CLOSE_FACTOR_PERCENT);
 

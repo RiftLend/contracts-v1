@@ -8,7 +8,6 @@ contract LendingPoolTest is Base {
     //  the Lending pool will take the underlying , wrap into rVaultAsset and then deposit into rToken
     function testDeposit() public {
         // ########### Prepare deposit params
-        address asset = address(underlyingAsset);
         uint256[1] memory amounts;
         amounts[0] = 10 ether;
         address onBehalfOf = user1;

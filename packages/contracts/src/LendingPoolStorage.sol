@@ -10,6 +10,7 @@ import {DataTypes} from "./libraries/types/DataTypes.sol";
  * @dev This contract is used internally by the Lending Pool to manage reserves, users, and other protocol data.
  */
 contract LendingPoolStorage {
+
     /**
      * @notice Provides access to addresses within the protocol, such as oracles or lending pools.
      * @dev This is an internal reference to the addresses provider contract.
@@ -27,6 +28,12 @@ contract LendingPoolStorage {
      * @dev Stores the collateral and borrowing configuration for each user.
      */
     mapping(address => DataTypes.UserConfigurationMap) internal _usersConfig;
+
+
+    // chainId => bytes32 (is underlying native, is there Super Asset, locator, ... )
+    // locator => bool (is intracluster or intercluster)
+
+    mapping(uint256 => DataTypes.Chain_Cluster_Types )public chainId_cluster_type; // is chainId intra cluter or inter-cluster
 
     /**
      * @notice List of reserves indexed by reserve ID.

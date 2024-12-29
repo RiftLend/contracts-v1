@@ -107,7 +107,8 @@ contract Base is Test {
         treasury = vm.parseTomlAddress(deployConfig, ".treasury.address");
 
         // ############## Create Fork to test ##############
-        uint256 _forkId = vm.createSelectFork(chain_a_rpc);
+        // uint256 _forkId = vm.createSelectFork(chain_a_rpc);
+        vm.createSelectFork(chain_a_rpc);
         uint64 _chainId = uint64(chain_a_id);
 
         // ################ Deploy Event validator #################

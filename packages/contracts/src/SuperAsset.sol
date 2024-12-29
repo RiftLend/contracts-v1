@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
+import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts-v5/token/ERC20/extensions/IERC20Metadata.sol";
+
 import {Predeploys} from "./libraries/Predeploys.sol";
 import {SuperchainERC20} from "./SuperchainERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
@@ -8,8 +11,6 @@ import {OFT} from "@layerzerolabs/oft-evm/contracts/OFT.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ERC20} from "@openzeppelin/contracts-v5/token/ERC20/ERC20.sol";
 
-import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
-import {IERC20Metadata} from "@openzeppelin/contracts-v5/token/ERC20/extensions/IERC20Metadata.sol";
 
 contract SuperAsset is OFT, SuperchainERC20 {
     using SafeERC20 for IERC20;

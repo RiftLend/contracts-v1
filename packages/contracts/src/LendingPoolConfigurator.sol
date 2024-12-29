@@ -76,8 +76,7 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
     }
 
     function _initReserve(ILendingPool _pool, InitReserveInput calldata input) internal {
-
-        // TODO: deploy rvaultAsset ... 
+        // TODO: deploy rvaultAsset ...
 
         address RTokenProxyAddress = _initTokenWithProxy(
             input.rTokenImpl,

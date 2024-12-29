@@ -15,6 +15,16 @@ library DataTypes {
         uint8 id;
     }
 
+    enum Action_type {
+        DEPOSIT,
+        WITHDRAW,
+        BORROW,
+        TRANSFER,
+        REPAY,
+        LIQUIDATION,
+        SET_USER_RESERVE_AS_COLLATERAL
+    }
+
     struct ReserveConfigurationMap {
         uint256 data;
     }
@@ -27,4 +37,11 @@ library DataTypes {
         NONE,
         VARIABLE
     }
+
+    enum Chain_Cluster_Types{
+        NONE,
+        INTER,
+        INTRA
+    }
+
 }

@@ -2,17 +2,19 @@
 pragma solidity 0.8.25;
 
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
+import {IReserveInterestRateStrategy} from "../../interfaces/IReserveInterestRateStrategy.sol";
+
+import {Errors} from "../helpers/Errors.sol";
+import {Helpers} from "../helpers/Helpers.sol";
+import {DataTypes} from "../types/DataTypes.sol";
+
 import {ReserveLogic} from "./ReserveLogic.sol";
+import {PercentageMath} from "../math/PercentageMath.sol";
 import {GenericLogic} from "./GenericLogic.sol";
 import {WadRayMath} from "../math/WadRayMath.sol";
-import {PercentageMath} from "../math/PercentageMath.sol";
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
 import {ReserveConfiguration} from "../configuration/ReserveConfiguration.sol";
 import {UserConfiguration} from "../configuration/UserConfiguration.sol";
-import {Errors} from "../helpers/Errors.sol";
-import {Helpers} from "../helpers/Helpers.sol";
-import {IReserveInterestRateStrategy} from "../../interfaces/IReserveInterestRateStrategy.sol";
-import {DataTypes} from "../types/DataTypes.sol";
 
 /**
  * @title ReserveLogic library
@@ -72,7 +74,15 @@ library ValidationLogic {
 
         require(
             GenericLogic.balanceDecreaseAllowed(
-                reserveAddress, msg.sender, amount, reservesData, userConfig, reserves, reservesCount, oracle
+                reserveAddress,
+                msg.sender,
+                amount,
+                reservesData,
+                userConfig,
+                reserves,
+                reservesCount,
+                oracle,
+                DataTypes.Action_type.WITHDRAW
             ),
             Errors.VL_TRANSFER_NOT_ALLOWED
         );
@@ -134,7 +144,7 @@ library ValidationLogic {
             vars.currentLiquidationThreshold,
             vars.healthFactor
         ) = GenericLogic.calculateUserAccountData(
-            userAddress, reservesData, userConfig, reserves, reservesCount, oracle
+            userAddress, reservesData, userConfig, reserves, reservesCount, oracle, DataTypes.Action_type.BORROW
         );
 
         require(vars.userCollateralBalanceETH > 0, Errors.VL_COLLATERAL_BALANCE_IS_0);
@@ -240,7 +250,15 @@ library ValidationLogic {
         require(
             useAsCollateral
                 || GenericLogic.balanceDecreaseAllowed(
-                    reserveAddress, msg.sender, underlyingBalance, reservesData, userConfig, reserves, reservesCount, oracle
+                    reserveAddress,
+                    msg.sender,
+                    underlyingBalance,
+                    reservesData,
+                    userConfig,
+                    reserves,
+                    reservesCount,
+                    oracle,
+                    DataTypes.Action_type.SET_USER_RESERVE_AS_COLLATERAL
                 ),
             Errors.VL_DEPOSIT_ALREADY_IN_USE
         );
@@ -320,8 +338,9 @@ library ValidationLogic {
         uint256 reservesCount,
         address oracle
     ) internal view {
-        (,,,, uint256 healthFactor) =
-            GenericLogic.calculateUserAccountData(from, reservesData, userConfig, reserves, reservesCount, oracle);
+        (,,,, uint256 healthFactor) = GenericLogic.calculateUserAccountData(
+            from, reservesData, userConfig, reserves, reservesCount, oracle, DataTypes.Action_type.TRANSFER
+        );
 
         require(healthFactor >= GenericLogic.HEALTH_FACTOR_LIQUIDATION_THRESHOLD, Errors.VL_TRANSFER_NOT_ALLOWED);
     }

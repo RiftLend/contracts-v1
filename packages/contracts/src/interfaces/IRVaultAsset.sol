@@ -1,21 +1,58 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-interface IRVaultAsset {
-    function name() external view returns (string memory);
-    function symbol() external view returns (string memory);
-    function decimals() external view returns (uint8);
+import {MessagingFee, MessagingParams, MessagingReceipt, Origin} from '@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol';
+
+interface IRVaultAsset  {
+    // State variables
     function underlying() external view returns (address);
-    function balances(address user) external view returns (uint256);
     function totalBalances() external view returns (uint256);
-    function provider() external view returns (address);
-    function mint(address to_, uint256 amount_) external;
-    function burn(address to_, uint256 amount_) external;
-    function transfer(address recipient, uint256 amount) external returns (bool);
-    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
-    function bridgeUnderlying(address payable _to, bytes memory txData, address _allowanceTarget, uint256 _amount)
-        external;
-    function withdrawTokens(address _token, address _recepient) external;
-    function version() external pure returns (string memory);
+
+    // Functions
     function deposit(uint256 assets, address receiver) external returns (uint256 shares);
+    function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares);
+    function mint(uint256 shares, address receiver) external returns (uint256 assets);
+    function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets);
+
+    function bridgeUnderlying(
+        address payable _to,
+        bytes memory txData,
+        address _allowanceTarget,
+        uint256 _amount
+    ) external;
+
+    function lzReceive(
+        Origin calldata _origin,
+        bytes32 _guid,
+        bytes calldata _message,
+        address _executor,
+        bytes calldata _extraData
+    ) external payable;
+
+    function bridge(
+        uint256 amount,
+        address receiverOfUnderlying,
+        address _underlyingAsset,
+        uint256 toChainId
+    ) external;
+
+    // ERC4626 Vault compliant functions
+    function asset() external view returns (address);
+    function totalAssets() external view returns (uint256);
+    function previewMint(uint256 shares) external view returns (uint256 assets);
+    function previewDeposit(uint256 assets) external view returns (uint256 shares);
+    function previewWithdraw(uint256 assets) external view returns (uint256 shares);
+    function previewRedeem(uint256 shares) external view returns (uint256 assets);
+    function convertToAssets(uint256 shares) external view returns (uint256 assets);
+    function convertToShares(uint256 assets) external view returns (uint256 shares);
+    function maxDeposit(address) external view returns (uint256);
+    function maxMint(address) external view returns (uint256);
+    function maxWithdraw(address owner) external view returns (uint256);
+    function maxRedeem(address owner) external view returns (uint256);
+
+    // Events
+    event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
+    event Withdraw(address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares);
+    event Mint(address indexed caller, address indexed receiver, uint256 shares, uint256 assets);
+    event Redeem(address indexed caller, address indexed receiver, address indexed owner, uint256 shares, uint256 assets);
 }

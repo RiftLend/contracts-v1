@@ -27,6 +27,8 @@ contract LendingPoolAddressesProvider is SuperOwnable {
     bytes32 private constant RVAULT_ASSET = "RVAULT_ASSET";
     bytes32 private constant UNDERLYING = "UNDERLYING";
     bytes32 private constant SUPER_ASSET = "SUPER_ASSET";
+    bytes32 private constant SUPER_ASSET_ADAPTER = "SUPER_ASSET_ADAPTER";
+    
 
     bytes32 private constant LENDING_POOL_CONFIGURATOR = "LENDING_POOL_CONFIGURATOR";
     bytes32 private constant POOL_ADMIN = "POOL_ADMIN";
@@ -37,7 +39,9 @@ contract LendingPoolAddressesProvider is SuperOwnable {
     bytes32 private constant RELAYER = "RELAYER";
     bytes32 private constant ROUTER = "ROUTER";
 
-    event SuperAssetUpdated(address indexed superchainAsset);
+    event SuperAssetUpdated(address indexed superchainAsset);    
+    event SuperAssetAdapterUpdated(address indexed superchainAssetAdapter);
+    
     event RelayerUpdated(address indexed relayer);
     event RouterUpdated(address indexed router);
     event RVaultAssetUpdated(address indexed RVaultAsset);
@@ -136,6 +140,14 @@ contract LendingPoolAddressesProvider is SuperOwnable {
 
     function getSuperAsset() external view returns (address) {
         return getAddress(SUPER_ASSET);
+    }
+
+    function setSuperAssetAdapter(address _superAssetAdapter) {
+        _addresses[SUPER_ASSET_ADAPTER] = _superAssetAdapter;
+        emit SuperAssetAdapterUpdated(_superAssetAdapter);        
+    }
+    function getSuperAssetAdapter() external view returns (address) {
+        return getAddress(SUPER_ASSET_ADAPTER);
     }
 
     /**

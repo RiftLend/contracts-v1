@@ -2,6 +2,9 @@
 pragma solidity 0.8.25;
 
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
+import {IPriceOracleGetter} from "../../interfaces/IPriceOracleGetter.sol";
+import {IRToken} from "../../interfaces/IRToken.sol";
+import {IVariableDebtToken} from "../../interfaces/IVariableDebtToken.sol";
 
 import {ReserveLogic} from "./ReserveLogic.sol";
 import {ReserveConfiguration} from "../configuration/ReserveConfiguration.sol";
@@ -10,9 +13,7 @@ import {WadRayMath} from "../math/WadRayMath.sol";
 import {PercentageMath} from "../math/PercentageMath.sol";
 import {DataTypes} from "../types/DataTypes.sol";
 
-import {IPriceOracleGetter} from "../../interfaces/IPriceOracleGetter.sol";
-import {IRToken} from "../../interfaces/IRToken.sol";
-import {IVariableDebtToken} from "../../interfaces/IVariableDebtToken.sol";
+
 /**
  * @title GenericLogic library
  * @author Aave
@@ -62,7 +63,8 @@ library GenericLogic {
         DataTypes.UserConfigurationMap calldata userConfig,
         mapping(uint256 => address) storage reserves,
         uint256 reservesCount,
-        address oracle
+        address oracle,
+        DataTypes.Action_type action_type
     ) external view returns (bool) {
         if (!userConfig.isBorrowingAny() || !userConfig.isUsingAsCollateral(reservesData[asset].id)) {
             return true;
@@ -77,7 +79,7 @@ library GenericLogic {
         }
 
         (vars.totalCollateralInETH, vars.totalDebtInETH,, vars.avgLiquidationThreshold,) =
-            calculateUserAccountData(user, reservesData, userConfig, reserves, reservesCount, oracle);
+            calculateUserAccountData(user, reservesData, userConfig, reserves, reservesCount, oracle, action_type);
 
         if (vars.totalDebtInETH == 0) {
             return true;
@@ -125,9 +127,6 @@ library GenericLogic {
         bool userUsesReserveAsCollateral;
     }
 
-
-    // TODO: @umar so in withdraw and repay and borrow we have to send and check local stuff like balance and healthfactor
-    // for liquidations we have to check crosschain stuff for healthfactor ...
     /**
      * @dev Calculates the user data across the reserves.
      * this includes the total liquidity/collateral/borrow balances in ETH,
@@ -147,7 +146,7 @@ library GenericLogic {
         mapping(uint256 => address) storage reserves,
         uint256 reservesCount,
         address oracle,
-        Enum.Action_type action_type
+        DataTypes.Action_type action_type
     ) internal view returns (uint256, uint256, uint256, uint256, uint256) {
         CalculateUserAccountDataVars memory vars;
 
@@ -168,7 +167,9 @@ library GenericLogic {
             vars.reserveUnitPrice = IPriceOracleGetter(oracle).getAssetPrice(vars.currentReserveAddress);
 
             if (vars.liquidationThreshold != 0 && userConfig.isUsingAsCollateral(vars.i)) {
-                vars.compoundedLiquidityBalance = IRToken(currentReserve.rTokenAddress).crossChainUserBalance(user);
+                uint256 user_rToken_balance = getActionBasedUserBalance(user, currentReserve.rTokenAddress, action_type);
+
+                vars.compoundedLiquidityBalance = user_rToken_balance;
 
                 uint256 liquidityBalanceETH = (vars.reserveUnitPrice * vars.compoundedLiquidityBalance) / vars.tokenUnit;
 
@@ -180,8 +181,9 @@ library GenericLogic {
             }
 
             if (userConfig.isBorrowing(vars.i)) {
-                vars.compoundedBorrowBalance = vars.compoundedBorrowBalance
-                    + IVariableDebtToken(currentReserve.variableDebtTokenAddress).crossChainUserBalance(user);
+                uint256 user_vdebt_balance = getActionBasedUserBalance(user, currentReserve.rTokenAddress, action_type);
+
+                vars.compoundedBorrowBalance = vars.compoundedBorrowBalance + user_vdebt_balance;
 
                 vars.totalDebtInETH =
                     vars.totalDebtInETH + ((vars.reserveUnitPrice * vars.compoundedBorrowBalance) / vars.tokenUnit);
@@ -240,5 +242,19 @@ library GenericLogic {
 
         availableBorrowsETH = availableBorrowsETH - totalDebtInETH;
         return availableBorrowsETH;
+    }
+    // TODO: @umar so in withdraw and repay and borrow we have to send and check local stuff like balance and healthfactor
+    // for liquidations we have to check crosschain stuff for healthfactor ...
+
+    function getActionBasedUserBalance(address user, address rTokenAddress, DataTypes.Action_type action_type)
+        public
+        view
+        returns (uint256)
+    {
+        if (action_type == DataTypes.Action_type.LIQUIDATION) {
+            return IRToken(rTokenAddress).crossChainUserBalance(user);
+        } else {
+            return IRToken(rTokenAddress).balanceOf(user);
+        }
     }
 }
