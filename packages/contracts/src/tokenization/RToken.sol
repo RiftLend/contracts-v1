@@ -144,8 +144,9 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     function _dispatch(Identifier calldata _identifier, bytes calldata _data) internal {
         bytes32 selector = abi.decode(_data[:32], (bytes32));
         if (selector == CrossChainMint.selector && _identifier.chainId != block.chainid) {
-            (, uint256 amount,) = abi.decode(_data[32:], (address, uint256, uint256));
+            (address user, uint256 amount,) = abi.decode(_data[32:], (address, uint256, uint256));
             _totalCrossChainSupply += amount;
+            crossChainUserBalance[user] += amount;
         }
         if (selector == Mint.selector) {
             (address user, uint256 amount) = abi.decode(_data[32:], (address, uint256));
@@ -191,6 +192,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         require(amountScaled != 0, Errors.CT_INVALID_BURN_AMOUNT);
         _burn(user, amountScaled);
 
+        // TODO: umar change this acc. so that the rvaultasset handles this
         if (toChainId != block.chainid) {
             ISuperchainTokenBridge(Predeploys.SUPERCHAIN_TOKEN_BRIDGE).sendERC20(
                 _underlyingAsset, receiverOfUnderlying, amount, toChainId

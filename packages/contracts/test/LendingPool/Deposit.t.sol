@@ -17,7 +17,6 @@ contract LendingPoolTest is Base {
         chainIds[0] = 1;
 
         (, address rVaultAsset) = lpAddressProvider.getRVaultAsset();
-
         // ########### Approve rVault's underlying deposit params
         vm.prank(onBehalfOf);
         IERC20(underlyingAsset).approve(address(proxyLp), amounts[0]);
@@ -41,6 +40,9 @@ contract LendingPoolTest is Base {
 
         console.log(rVaultAsset);
         assertEq(IERC20(rVaultAsset).balanceOf(rToken), amounts[0]);
+        // TODO: is the userconfig for the rVaultAsset correct?
+        // TODO: does the rVaultAsset have the correct underlying?
+        // TODO: does the rVaultAsset correctly mint and burn ... with the token type like superasset / underlying?
         // assertEq(underlyingAsset.balanceOf(onBehalfOf), 90 ether);
     }
 }

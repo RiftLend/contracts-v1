@@ -52,7 +52,7 @@ contract RVaultAsset is OFT, IERC4626 {
     // delegate for layerzero OFT is zero address
 
     constructor(
-        address underlying_, // SuperAsset
+        address underlying_, // SuperAsset or underlying
         ILendingPoolAddressesProvider provider_,
         address admin_,
         address lzEndpoint_,
@@ -83,6 +83,7 @@ contract RVaultAsset is OFT, IERC4626 {
         }
     }
 
+    // TODO: fix this handle the case where the underlying is superasset
     function mint(address to_, uint256 amount_) external {
         balances[to_] += amount_;
         totalBalances += amount_;
@@ -95,6 +96,7 @@ contract RVaultAsset is OFT, IERC4626 {
         super._burn(from_, amount_);
     }
 
+    // TODO: fix this handle the case where the underlying is superasset
     function burn(address to_, uint256 amount_) external {
         totalBalances -= amount_;
         _burn(msg.sender, amount_);
