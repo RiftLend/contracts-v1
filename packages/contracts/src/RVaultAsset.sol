@@ -8,22 +8,21 @@ import {ILendingPoolAddressesProvider} from './interfaces/ILendingPoolAddressesP
 import {ISuperAsset} from './interfaces/ISuperAsset.sol';
 
 import {Predeploys} from './libraries/Predeploys.sol';
-import {SuperchainERC20} from './SuperchainERC20.sol';
 import {SafeERC20} from '@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol';
-import {SuperOwnable} from './interop-std/src/auth/SuperOwnable.sol';
-import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
-import {OFT} from '@layerzerolabs/oft-evm/contracts/OFT.sol';
+import {OFT} from './libraries/helpers/layerzero/OFT.sol';
 import {ERC20} from '@openzeppelin/contracts-v5/token/ERC20/ERC20.sol';
-import {SendParam, OFTReceipt} from '@layerzerolabs/oft-evm/contracts/interfaces/IOFT.sol';
+import {SendParam, OFTReceipt} from './libraries/helpers/layerzero/IOFT.sol';
 import {OptionsBuilder} from '@layerzerolabs/oapp-evm/libs/OptionsBuilder.sol';
-import {MessagingFee, MessagingReceipt} from '@layerzerolabs/oft-evm/contracts/OFTCore.sol';
+import {MessagingFee, MessagingReceipt} from './libraries/helpers/layerzero/OFTCore.sol';
 import {TokensLogic} from "./libraries/logic/TokensLogic.sol";
+import {SuperOwnable} from "./interop-std/src/auth/SuperOwnable.sol";
+import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 
 /// @dev whenever user uses this with SuperchainTokenBridge,
 // the destination chain will mint aToken (if underlying < totalBalances)
 // and transfer underlying remaining
 
-contract RVaultAsset is OFT, IERC4626 {
+contract RVaultAsset is SuperOwnable, OFT, IERC4626 {
   using SafeERC20 for IERC20;
 
   ///////////////////////////////////
@@ -71,21 +70,19 @@ contract RVaultAsset is OFT, IERC4626 {
     address admin_,
     address lzEndpoint_,
     address delegate_
-  )
-    OFT(
+  ) OFT(
       IERC20Metadata(underlying_).name(),
       IERC20Metadata(underlying_).symbol(),
       lzEndpoint_,
       delegate_
     )
-    Ownable(delegate_)
   {
     // ToDo:q are we handling it correctly ?
     (,,underlying) = TokensLogic.getPoolTokenInformation(provider_);
     provider = provider_;
     admin = admin_;
 
-    // _initializeSuperOwner(uint64(block.chainid), admin_);
+    _initializeSuperOwner(uint64(block.chainid), admin_);
   }
 
   /// @dev minting more than totalBalances will mint rToken and transfer underlying
