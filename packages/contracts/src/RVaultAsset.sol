@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
+import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
+import {IERC4626} from "@openzeppelin/contracts-v5/interfaces/IERC4626.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts-v5/token/ERC20/extensions/IERC20Metadata.sol";
+import {ILendingPoolAddressesProvider} from "./interfaces/ILendingPoolAddressesProvider.sol";
+import {ISuperAsset} from "./interfaces/ISuperAsset.sol";
+
 import {Predeploys} from "./libraries/Predeploys.sol";
 import {SuperchainERC20} from "./SuperchainERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
@@ -9,10 +15,6 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {OFT} from "@layerzerolabs/oft-evm/contracts/OFT.sol";
 import {ERC20} from "@openzeppelin/contracts-v5/token/ERC20/ERC20.sol";
 
-import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
-import {IERC4626} from "@openzeppelin/contracts-v5/interfaces/IERC4626.sol";
-import {IERC20Metadata} from "@openzeppelin/contracts-v5/token/ERC20/extensions/IERC20Metadata.sol";
-import {ILendingPoolAddressesProvider} from "./interfaces/ILendingPoolAddressesProvider.sol";
 
 /// @dev whenever user uses this with SuperchainTokenBridge,
 // the destination chain will mint aToken (if underlying < totalBalances)
@@ -21,11 +23,19 @@ import {ILendingPoolAddressesProvider} from "./interfaces/ILendingPoolAddressesP
 contract RVaultAsset is OFT, IERC4626 {
     using SafeERC20 for IERC20;
 
+    ///////////////////////////////////
+    ///////////// State Variables /////
+    ///////////////////////////////////
+
     address public underlying; // address of underlying asset
     mapping(address user => uint256 balance) public balances; // user balance of underlying
     uint256 public totalBalances; // total balances of underlying
     ILendingPoolAddressesProvider provider;
     address admin;
+
+    ///////////////////////////////////
+    ///////////// Modifiers //////////////
+    ///////////////////////////////////
 
     modifier onlyLendingPoolConfigurator() {
         require(
@@ -33,6 +43,11 @@ contract RVaultAsset is OFT, IERC4626 {
         );
         _;
     }
+    ///////////////////////////////////
+    ///////////// Errors //////////////
+    ///////////////////////////////////
+
+    error InvalidAsset();
 
     // delegate for layerzero OFT is zero address
 
@@ -158,17 +173,29 @@ contract RVaultAsset is OFT, IERC4626 {
     // Deposit assets and return shares (1:1 peg)
     function deposit(uint256 assets, address receiver) public virtual override returns (uint256 shares) {
         shares = assets; // 1:1 peg
-        IERC20(asset()).safeTransferFrom(msg.sender, address(this), assets);
+        address asset_ = asset();
+        IERC20(asset_).safeTransferFrom(msg.sender, address(this), assets);
+        address superAsset = provider.getSuperAsset();
+        address underlyingAsset = provider.getUnderlying();
+
+        if (asset_ == underlyingAsset) {
+            // mint superAsset if token was underlying
+            IERC20(asset_).approve(address(superAsset), shares);
+            ISuperAsset(superAsset).deposit(receiver, shares);
+            return shares;
+        } else if (asset_ != superAsset) {
+            // If token was neither superAsset nor underlying, revert
+            revert InvalidAsset();
+        }
+        // it is a super asset now
+
         _mint(receiver, shares);
         return shares;
     }
 
     // Mint shares and return assets (1:1 peg)
     function mint(uint256 shares, address receiver) public virtual override returns (uint256 assets) {
-        assets = shares; // 1:1 peg
-        IERC20(asset()).safeTransferFrom(msg.sender, address(this), assets);
-        _mint(receiver, shares);
-        return assets;
+        deposit(assets, receiver);
     }
 
     // Withdraw assets and burn shares (1:1 peg)

@@ -110,7 +110,6 @@ contract Base is Test {
         uint256 _forkId = vm.createSelectFork(chain_a_rpc);
         uint64 _chainId = uint64(chain_a_id);
 
-
         // ################ Deploy Event validator #################
         vm.prank(owner);
         EventValidator eventValidator = new EventValidator((chain_a_cross_l2_prover_address));
@@ -119,7 +118,6 @@ contract Base is Test {
         vm.prank(owner);
         superProxyAdmin = address(new ProxyAdmin{salt: "superProxyAdmin"}(owner, _chainId));
         vm.label(superProxyAdmin, "superProxyAdmin");
-
 
         // ################ Deploy underlyingAsset #################
         string memory underlyingAssetName = "TUSDC";
@@ -137,7 +135,6 @@ contract Base is Test {
         vm.prank(owner);
         underlyingAsset.mint(user1, 1000000 ether);
 
-
         // ################ Deploy LendingPoolAddressesProvider ################
         bytes32 lp_type = keccak256("OpSuperchain_LENDING_POOL");
         lpAddressProvider = new LendingPoolAddressesProvider("TUSDC", owner, superProxyAdmin, lp_type);
@@ -148,14 +145,13 @@ contract Base is Test {
         vm.prank(owner);
         implementationLp.initialize(ILendingPoolAddressesProvider(address(lpAddressProvider)));
         vm.label(address(implementationLp), "implementationLp");
-        
+
         // ################ Set LendingPoolImpl in LendingPoolAddressesProvider ################
         vm.prank(owner);
         lpAddressProvider.setLendingPoolImpl(address(implementationLp));
 
         proxyLp = LendingPool(lpAddressProvider.getLendingPool());
         vm.label(address(proxyLp), "proxyLp");
-
 
         // ################ Deploy Router ################
         router = new Router{salt: "router"}();
@@ -279,43 +275,41 @@ contract Base is Test {
         input[0].salt = "salt";
         vm.prank(poolAdmin1);
         proxyConfigurator.batchInitReserve(input);
-
     }
 
-//  // Function to initialize the reserve
-//     function initializeReserve(
-//         RToken rTokenImpl,
-//         string memory rTokenName,
-//         string memory rTokenSymbol,
-//         VariableDebtToken variableDebtTokenImpl,
-//         string memory variableDebtTokenName,
-//         string memory variableDebtTokenSymbol,
-//         address strategy,
-//         address treasury,
-//         address incentivesController,
-//         SuperAsset superAsset,
-//         address rVaultAsset,
-//         uint8 underlyingAssetDecimals,
-//         string memory underlyingAssetName
-//     ) internal {
-//         ILendingPoolConfigurator.InitReserveInput[] memory input = new ILendingPoolConfigurator.InitReserveInput[](1);
-//         input[0].rTokenImpl = address(rTokenImpl);
-//         input[0].rTokenName = rTokenName;
-//         input[0].rTokenSymbol = rTokenSymbol;
-//         input[0].variableDebtTokenImpl = address(variableDebtTokenImpl);
-//         input[0].variableDebtTokenName = variableDebtTokenName;
-//         input[0].variableDebtTokenSymbol = variableDebtTokenSymbol;
-//         input[0].interestRateStrategyAddress = strategy;
-//         input[0].treasury = treasury;
-//         input[0].incentivesController = incentivesController;
-//         input[0].superAsset = address(superAsset);
-//         input[0].underlyingAsset = address(rVaultAsset);
-//         input[0].underlyingAssetDecimals = underlyingAssetDecimals;
-//         input[0].underlyingAssetName = underlyingAssetName;
-//         input[0].params = "v";
-//         input[0].salt = "salt";
-//         vm.prank(poolAdmin1);
-//         proxyConfigurator.batchInitReserve(input);
-//     }
-
+    //  // Function to initialize the reserve
+    //     function initializeReserve(
+    //         RToken rTokenImpl,
+    //         string memory rTokenName,
+    //         string memory rTokenSymbol,
+    //         VariableDebtToken variableDebtTokenImpl,
+    //         string memory variableDebtTokenName,
+    //         string memory variableDebtTokenSymbol,
+    //         address strategy,
+    //         address treasury,
+    //         address incentivesController,
+    //         SuperAsset superAsset,
+    //         address rVaultAsset,
+    //         uint8 underlyingAssetDecimals,
+    //         string memory underlyingAssetName
+    //     ) internal {
+    //         ILendingPoolConfigurator.InitReserveInput[] memory input = new ILendingPoolConfigurator.InitReserveInput[](1);
+    //         input[0].rTokenImpl = address(rTokenImpl);
+    //         input[0].rTokenName = rTokenName;
+    //         input[0].rTokenSymbol = rTokenSymbol;
+    //         input[0].variableDebtTokenImpl = address(variableDebtTokenImpl);
+    //         input[0].variableDebtTokenName = variableDebtTokenName;
+    //         input[0].variableDebtTokenSymbol = variableDebtTokenSymbol;
+    //         input[0].interestRateStrategyAddress = strategy;
+    //         input[0].treasury = treasury;
+    //         input[0].incentivesController = incentivesController;
+    //         input[0].superAsset = address(superAsset);
+    //         input[0].underlyingAsset = address(rVaultAsset);
+    //         input[0].underlyingAssetDecimals = underlyingAssetDecimals;
+    //         input[0].underlyingAssetName = underlyingAssetName;
+    //         input[0].params = "v";
+    //         input[0].salt = "salt";
+    //         vm.prank(poolAdmin1);
+    //         proxyConfigurator.batchInitReserve(input);
+    //     }
 }

@@ -141,7 +141,7 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
 
         ReserveLogic.updateState(debtReserve);
 
-        uint256 stableDebtBurned = 0;
+        // uint256 stableDebtBurned = 0;
         uint256 variableDebtBurned = 0;
 
         if (vars.userVariableDebt >= vars.actualDebtToLiquidate) {
