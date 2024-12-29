@@ -285,6 +285,10 @@ contract Router is Initializable, SuperPausable {
         }
     }
 
+    // TODO: tabish frontend would need to calculate how much to burn for the rTokens on each chain for withdraw.
+    // toChainId - check if deposits are here and withdraw them all ...
+    // intercluster like if the toChainId withdraw is in opsuperchain then withdraw from superchain first and then go crosscluster ... 
+    // TODO: @umar in testing withdraw keep a track of deposits in what chains they are and use the same logic as frontend
     /**
      * @dev Withdraws an `amount` of underlying asset from the reserve, burning the equivalent aTokens owned
      * @param asset The address of the underlying asset to withdraw
@@ -358,15 +362,6 @@ contract Router is Initializable, SuperPausable {
                 );
             }
             emit CrossChainRepay(chainIds[i], msg.sender, asset, amounts[i], rateMode[i], onBehalfOf);
-        }
-    }
-
-    function crossChainSwapBorrowRateMode(address asset, uint256 rateMode, uint256[] calldata chainIds)
-        external
-        whenNotPaused
-    {
-        for (uint256 i = 0; i < chainIds.length; i++) {
-            emit CrossChainSwapBorrowRateMode(chainIds[i], msg.sender, asset, rateMode);
         }
     }
 

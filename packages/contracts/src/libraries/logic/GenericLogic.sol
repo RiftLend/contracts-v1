@@ -125,6 +125,9 @@ library GenericLogic {
         bool userUsesReserveAsCollateral;
     }
 
+
+    // TODO: @umar so in withdraw and repay and borrow we have to send and check local stuff like balance and healthfactor
+    // for liquidations we have to check crosschain stuff for healthfactor ...
     /**
      * @dev Calculates the user data across the reserves.
      * this includes the total liquidity/collateral/borrow balances in ETH,
@@ -143,7 +146,8 @@ library GenericLogic {
         DataTypes.UserConfigurationMap memory userConfig,
         mapping(uint256 => address) storage reserves,
         uint256 reservesCount,
-        address oracle
+        address oracle,
+        Enum.Action_type action_type
     ) internal view returns (uint256, uint256, uint256, uint256, uint256) {
         CalculateUserAccountDataVars memory vars;
 

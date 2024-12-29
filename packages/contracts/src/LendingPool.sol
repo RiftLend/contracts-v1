@@ -187,9 +187,11 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             "Withdrawal cooldown period not Passed"
         );
 
-        DataTypes.ReserveData storage reserve = _reserves[asset];
+        (address rVaultAsset, uint256 token_type) = getTokenType();
+        DataTypes.ReserveData storage reserve = _reserves[rVaultAsset];
         address rToken = reserve.rTokenAddress;
 
+        // local balance of rtoken for the user
         uint256 userBalance = IRToken(rToken).balanceOf(sender);
         uint256 amountToWithdraw = amount == type(uint256).max ? userBalance : amount;
 

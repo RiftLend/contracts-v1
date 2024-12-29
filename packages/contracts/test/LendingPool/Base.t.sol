@@ -241,10 +241,6 @@ contract Base is Test {
 
         // ################ Activate Reserves ################
         vm.prank(poolAdmin1);
-        proxyConfigurator.activateReserve(address(underlyingAsset));
-        vm.prank(poolAdmin1);
-        proxyConfigurator.activateReserve(address(superAsset));
-        vm.prank(poolAdmin1);
         proxyConfigurator.activateReserve(address(rVaultAsset));
 
         // ################ Deploy DefaultReserveInterestRateStrategy ################
