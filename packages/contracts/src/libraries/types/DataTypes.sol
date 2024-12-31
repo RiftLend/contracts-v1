@@ -38,10 +38,28 @@ library DataTypes {
         VARIABLE
     }
 
-    enum Chain_Cluster_Types{
+    enum Chain_Cluster_Types {
         NONE,
         INTER,
         INTRA
     }
 
+    enum INTRA_CLUSTER_SERVICE_CHOICE {
+        SUPERCHAIN,
+        OFT
+    }
+
+    struct BungeeBridgeOrder {
+        bytes32 id;
+        // 0 for INIT - initiated
+        // 1 for PENDING - sent order from source chain
+        // 2 for EXECUTED received at destination chain and funds transferred
+        uint8 status;
+        address user;
+        address receiver;
+        uint256 srcChainId;
+        uint256 destChainId;
+        uint256 timestamp;
+        uint256 amount;
+    }
 }

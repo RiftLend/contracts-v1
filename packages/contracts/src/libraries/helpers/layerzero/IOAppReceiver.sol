@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import { ILayerZeroReceiver, Origin } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroReceiver.sol";
+import {
+    ILayerZeroReceiver, Origin
+} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroReceiver.sol";
 
 interface IOAppReceiver is ILayerZeroReceiver {
     /**
@@ -17,9 +19,8 @@ interface IOAppReceiver is ILayerZeroReceiver {
      * @dev Applications can optionally choose to implement a separate composeMsg sender that is NOT the bridging layer.
      * @dev The default sender IS the OAppReceiver implementer.
      */
-    function isComposeMsgSender(
-        Origin calldata _origin,
-        bytes calldata _message,
-        address _sender
-    ) external view returns (bool isSender);
+    function isComposeMsgSender(Origin calldata _origin, bytes calldata _message, address _sender)
+        external
+        view
+        returns (bool isSender);
 }

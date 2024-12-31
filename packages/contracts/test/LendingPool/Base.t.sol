@@ -171,6 +171,7 @@ contract Base is Test {
 
         // ################ Deploy RVaultAsset ################
         vm.prank(owner);
+
         address rVaultAsset = address(
             new RVaultAsset{salt: "rVaultAssetImpl"}(
                 address(underlyingAsset),

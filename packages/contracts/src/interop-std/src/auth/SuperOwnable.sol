@@ -127,7 +127,7 @@ abstract contract SuperOwnable is Ownable, ISemver {
      * emits an extra event to notify the cross-chain contract of the ownership change.
      * Internal function without access restriction.
      */
-    function _setOwner(address newOwner) internal override {
+    function _setOwner(address newOwner) internal virtual override {
         emit InitiateCrosschainOwnershipTransfer(owner(), newOwner);
         super._setOwner(newOwner);
     }

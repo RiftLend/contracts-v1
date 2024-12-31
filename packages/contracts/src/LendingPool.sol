@@ -109,6 +109,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         _maxStableRateBorrowSizePercent = 2500;
         _flashLoanPremiumTotal = 9;
         _maxNumberOfReserves = 128;
+        (rVaultAsset, pool_type, baseAsset) = TokensLogic.getPoolTokenInformation(_addressesProvider);
     }
 
     /* @notice Deposits a specified `amount` of `asset` into the lending pool on behalf of `onBehalfOf`.
@@ -120,34 +121,46 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     * @param onBehalfOf The address on whose behalf the deposit is made.
     * @param referralCode The referral code for the deposit.
     */
-    function deposit(address sender, uint256 amount, address onBehalfOf, uint16 referralCode)
+    function deposit(address sender, address asset, uint256 amount, address onBehalfOf, uint16 referralCode)
         external
         onlyRouter
     {
-
-        (address rVaultAsset, uint256 pool_type,address baseAsset) = TokensLogic.getPoolTokenInformation(_addressesProvider);
-
         DataTypes.ReserveData storage reserve = _reserves[rVaultAsset];
         address rToken = reserve.rTokenAddress;
 
         ValidationLogic.validateDeposit(reserve, amount);
 
-        IERC20(baseAsset).safeTransferFrom(onBehalfOf, address(this), amount);
+        require(
+            asset == underlying_of_superAsset || asset == baseAsset || asset == rVaultAsset, "Invalid Deposit Asset"
+        );
 
-        // Update states with unchecked for gas optimization where safe
-        unchecked {
-            // Safe to use unchecked as amount is validated above
-                _updateStates(reserve, rVaultAsset, amount, 0, UPDATE_RATES_AND_STATES_MASK);
-                IERC20(baseAsset).approve(rVaultAsset, amount);
-                // pool_type == 1 means it is either SuperAsset or Underlying                
-                //op superchain , the base asset is either underlying or superasset , both ways we mint rvaultAsset in exchange for underlying/superAsset
-            if (pool_type == 1) { 
-                IRVaultAsset(rVaultAsset).mint(rToken, amount);
-            }else{
-                IRVaultAsset(rVaultAsset).deposit(rToken, amount);
-            }
+        // We have to transfer user's tokens any way
+        IERC20(asset).safeTransferFrom(onBehalfOf, address(this), amount);
+
+        // If user wants to deposit with underlying of superAsset on op_superchain,
+        // wrap them into superAsset and lendingPool will hold them for further processing
+
+        if (pool_type == 1 && asset == underlying_of_superAsset) {
+            IERC20(asset).approve(baseAsset, amount);
+            ISuperAsset(baseAsset).deposit(address(this), amount);
+        }
+        // here whether the deposit happens on op_superchain or any cluster
+        // we are having their baseAsset for rVaultAsset ... plain underlying for other clusters
+        // and superAsset for op_superchain ( because we just wrapped underlying above )
+
+        // If the user wishes to deposit in non-rvaultasset , then since we have underlying asset in lending pool for both cluster types
+        // with previous steps , we mint the rVaultAsset
+
+        // Note in both branches , we are minting rVaultAsset directly to rToken
+
+        if (asset != rVaultAsset) {
+            IERC20(baseAsset).approve(rVaultAsset, amount);
+            IRVaultAsset(rVaultAsset).mint(amount, rToken);
+        } else {
+            IRVaultAsset(rVaultAsset).deposit(amount, rToken);
         }
 
+        //  We Now mint RTokens to the user as a receipt of their deposit
         (bool isFirstDeposit, uint256 mintMode, uint256 amountScaled) =
             IRToken(rToken).mint(onBehalfOf, amount, reserve.liquidityIndex);
 
@@ -161,33 +174,10 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         emit Deposit(sender, baseAsset, amount, onBehalfOf, referralCode, mintMode, amountScaled);
     }
 
-    function updateStates(address asset, uint256 depositAmount, uint256 withdrawAmount, bytes2 mask)
-        public
-        onlyRouterOrSelf
-    {
-        DataTypes.ReserveData storage reserve = _reserves[asset];
-        _updateStates(reserve, asset, depositAmount, withdrawAmount, mask);
-    }
-
-    function _updateStates(
-        DataTypes.ReserveData storage reserve,
-        address asset,
-        uint256 depositAmount,
-        uint256 withdrawAmount,
-        bytes2 mask
-    ) internal {
-        if (mask & UPDATE_STATE_MASK != 0) reserve.updateState();
-        if (mask & UPDATE_RATES_MASK != 0) {
-            reserve.updateInterestRates(asset, reserve.rTokenAddress, depositAmount, withdrawAmount);
-        }
-    }
-
-    function withdraw(address sender, address /*asset*/, uint256 amount, address to, uint256 toChainId)
+    function withdraw(address sender, address, /*asset*/ uint256 amount, address to, uint256 toChainId)
         external
         onlyRouter
     {
-        (address rVaultAsset,,address baseAsset) = TokensLogic.getPoolTokenInformation(_addressesProvider);
-
         DataTypes.ReserveData storage reserve = _reserves[rVaultAsset];
         address rToken = reserve.rTokenAddress;
 
@@ -196,7 +186,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         uint256 amountToWithdraw = amount == type(uint256).max ? userBalance : amount;
 
         ValidationLogic.validateWithdraw(
-            asset,
+            rVaultAsset,
             amountToWithdraw,
             userBalance,
             _reserves,
@@ -210,13 +200,13 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
 
         if (amountToWithdraw == userBalance) {
             _usersConfig[sender].setUsingAsCollateral(reserve.id, false);
-            emit ReserveUsedAsCollateralDisabled(baseAsset, sender);
+            emit ReserveUsedAsCollateralDisabled(rVaultAsset, sender);
         }
 
         (uint256 mode, uint256 amountScaled) =
             IRToken(rToken).burn(sender, to, toChainId, amountToWithdraw, reserve.liquidityIndex);
 
-        emit Withdraw(sender, baseAsset, to, amountToWithdraw, mode, amountScaled);
+        emit Withdraw(sender, rVaultAsset, to, amountToWithdraw, mode, amountScaled);
     }
 
     function borrow(
@@ -250,10 +240,10 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         onlyRouter
     {
         // Getting repay amount in rVaultAsset for universality
-        (address rVaultAsset, uint256 pool_type,address baseAsset) = TokensLogic.getPoolTokenInformation(_addressesProvider);
+        (address rVaultAsset, uint256 pool_type, address baseAsset) =
+            TokensLogic.getPoolTokenInformation(_addressesProvider);
 
         DataTypes.ReserveData storage reserve = _reserves[rVaultAsset];
-
 
         /// @dev this will get the debt of the user on the current chain
         uint256 variableDebt = Helpers.getUserCurrentDebt(onBehalfOf, reserve);
@@ -282,14 +272,13 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             _usersConfig[onBehalfOf].setBorrowing(reserve.id, false);
         }
 
-
         IERC20(baseAsset).safeTransferFrom(onBehalfOf, address(this), amount);
 
         unchecked {
             if (pool_type == 1) {
                 // tokenType == 1 means it is either SuperAsset or Underlying
                 IERC20(baseAsset).approve(rVaultAsset, amount);
-                IRVaultAsset(rVaultAsset).mint(address(rToken), amount);
+                IRVaultAsset(rVaultAsset).mint(amount, address(rToken));
             }
         }
 
@@ -359,18 +348,19 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         address collateralManager = _addressesProvider.getLendingPoolCollateralManager();
 
         // Getting liquidation debt amount in rVaultAsset for universality
-       (address rVaultAsset,uint256 pool_type,address baseAsset) = TokensLogic.getPoolTokenInformation(_addressesProvider);
+        (address rVaultAsset, uint256 pool_type, address baseAsset) =
+            TokensLogic.getPoolTokenInformation(_addressesProvider);
 
         DataTypes.ReserveData storage reserve = _reserves[rVaultAsset];
         address rToken = reserve.rTokenAddress;
         // Transfer the asset of worth `amount` directly to the rToken contract
         // ToDo:q how debtAsset is related to rVaultAsset, what debt asset can be ?
         IERC20(debtAsset).safeTransferFrom(sender, address(rToken), debtToCover);
-                
+
         // unchecked {
-        //     if (pool_type == 1) 
+        //     if (pool_type == 1)
         //         // tokenType == 1 means it is either SuperAsset or Underlying
-        //         IRVaultAsset(rVaultAsset).mint(address(rToken), debtToCover);            
+        //         IRVaultAsset(rVaultAsset).mint(address(rToken), debtToCover);
         // }
 
         //solium-disable-next-line
@@ -509,12 +499,33 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         }
     }
 
+    function updateStates(address asset, uint256 depositAmount, uint256 withdrawAmount, bytes2 mask)
+        public
+        onlyRouterOrSelf
+    {
+        DataTypes.ReserveData storage reserve = _reserves[asset];
+        _updateStates(reserve, asset, depositAmount, withdrawAmount, mask);
+    }
+
+    function _updateStates(
+        DataTypes.ReserveData storage reserve,
+        address asset,
+        uint256 depositAmount,
+        uint256 withdrawAmount,
+        bytes2 mask
+    ) internal {
+        if (mask & UPDATE_STATE_MASK != 0) reserve.updateState();
+        if (mask & UPDATE_RATES_MASK != 0) {
+            reserve.updateInterestRates(asset, reserve.rTokenAddress, depositAmount, withdrawAmount);
+        }
+    }
     /**
      * @dev Returns the state and configuration of the reserve
      * @param asset The address of the underlying asset of the reserve
      * @return The state of the reserve
      *
      */
+
     function getReserveData(address asset) external view returns (DataTypes.ReserveData memory) {
         return _reserves[asset];
     }
@@ -839,12 +850,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             _reservesCount = reservesCount + 1;
         }
     }
-    
 
-
-    function setChainClusterType(uint256 chainId,DataTypes.Chain_Cluster_Types cluster_type)public onlyLendingPoolConfigurator() {
-        chainId_cluster_type[chainId]=cluster_type;
-    }
     /**
      * @dev Set the _pause state of a reserve
      * - Only callable by the LendingPoolConfigurator contract

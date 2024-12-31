@@ -11,7 +11,6 @@ import {OFT} from "@layerzerolabs/oft-evm/contracts/OFT.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ERC20} from "@openzeppelin/contracts-v5/token/ERC20/ERC20.sol";
 
-
 contract SuperAsset is OFT, SuperchainERC20 {
     using SafeERC20 for IERC20;
 

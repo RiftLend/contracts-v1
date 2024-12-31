@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import {MessagingFee, MessagingParams, MessagingReceipt, Origin} from '@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol';
+import {
+    Origin, MessagingReceipt
+} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 
-interface IRVaultAsset  {
+interface IRVaultAsset {
     // State variables
     function underlying() external view returns (address);
     function totalBalances() external view returns (uint256);
@@ -14,12 +16,8 @@ interface IRVaultAsset  {
     function mint(uint256 shares, address receiver) external returns (uint256 assets);
     function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets);
 
-    function bridgeUnderlying(
-        address payable _to,
-        bytes memory txData,
-        address _allowanceTarget,
-        uint256 _amount
-    ) external;
+    function bridgeUnderlying(address payable _to, bytes memory txData, address _allowanceTarget, uint256 _amount)
+        external;
 
     function lzReceive(
         Origin calldata _origin,
@@ -29,12 +27,8 @@ interface IRVaultAsset  {
         bytes calldata _extraData
     ) external payable;
 
-    function bridge(
-        uint256 amount,
-        address receiverOfUnderlying,
-        address _underlyingAsset,
-        uint256 toChainId
-    ) external;
+    function bridge(uint256 amount, address receiverOfUnderlying, address _underlyingAsset, uint256 toChainId)
+        external;
 
     // ERC4626 Vault compliant functions
     function asset() external view returns (address);
@@ -49,10 +43,15 @@ interface IRVaultAsset  {
     function maxMint(address) external view returns (uint256);
     function maxWithdraw(address owner) external view returns (uint256);
     function maxRedeem(address owner) external view returns (uint256);
+    function burn(address user, address receiverOfUnderlying, uint256 toChainId, uint256 amount) external;
 
     // Events
     event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
-    event Withdraw(address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares);
+    event Withdraw(
+        address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares
+    );
     event Mint(address indexed caller, address indexed receiver, uint256 shares, uint256 assets);
-    event Redeem(address indexed caller, address indexed receiver, address indexed owner, uint256 shares, uint256 assets);
+    event Redeem(
+        address indexed caller, address indexed receiver, address indexed owner, uint256 shares, uint256 assets
+    );
 }

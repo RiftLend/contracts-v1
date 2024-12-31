@@ -35,9 +35,8 @@ interface IOAppOptionsType3 {
      * @param _extraOptions Additional options passed by the caller.
      * @return options The combination of caller specified options AND enforced options.
      */
-    function combineOptions(
-        uint32 _eid,
-        uint16 _msgType,
-        bytes calldata _extraOptions
-    ) external view returns (bytes memory options);
+    function combineOptions(uint32 _eid, uint16 _msgType, bytes calldata _extraOptions)
+        external
+        view
+        returns (bytes memory options);
 }

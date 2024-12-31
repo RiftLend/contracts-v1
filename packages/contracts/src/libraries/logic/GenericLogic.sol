@@ -13,13 +13,11 @@ import {WadRayMath} from "../math/WadRayMath.sol";
 import {PercentageMath} from "../math/PercentageMath.sol";
 import {DataTypes} from "../types/DataTypes.sol";
 
-
 /**
  * @title GenericLogic library
  * @author Aave
  * @title Implements protocol-level logic to calculate and validate the state of a user
  */
-
 library GenericLogic {
     using ReserveLogic for DataTypes.ReserveData;
     using WadRayMath for uint256;

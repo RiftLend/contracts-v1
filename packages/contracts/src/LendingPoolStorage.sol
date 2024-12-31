@@ -10,7 +10,6 @@ import {DataTypes} from "./libraries/types/DataTypes.sol";
  * @dev This contract is used internally by the Lending Pool to manage reserves, users, and other protocol data.
  */
 contract LendingPoolStorage {
-
     /**
      * @notice Provides access to addresses within the protocol, such as oracles or lending pools.
      * @dev This is an internal reference to the addresses provider contract.
@@ -29,11 +28,8 @@ contract LendingPoolStorage {
      */
     mapping(address => DataTypes.UserConfigurationMap) internal _usersConfig;
 
-
     // chainId => bytes32 (is underlying native, is there Super Asset, locator, ... )
     // locator => bool (is intracluster or intercluster)
-
-    mapping(uint256 => DataTypes.Chain_Cluster_Types )public chainId_cluster_type; // is chainId intra cluter or inter-cluster
 
     /**
      * @notice List of reserves indexed by reserve ID.
@@ -68,4 +64,17 @@ contract LendingPoolStorage {
      * @notice Maximum number of reserves that can be supported by the protocol.
      */
     uint256 internal _maxNumberOfReserves;
+
+    // For eliminating external calls each time we deposit ,withdraw etc..
+    address rVaultAsset;
+    uint256 pool_type; // 1 for op_superchain cluster and other for other clusters
+
+    //  The Base asset of the pool is the bottom most in the hierarchy that the pool accepts to operate on.
+    // For example , if you see in TokensLogic.getPoolTokenInformation() , on superchain , the baseAsset is superAsset ( and pool type is 1 )
+    // and in other clusters , the base asset is the underlying token because there is no SuperAsset on other clusters ( as for now )
+
+    address baseAsset;
+
+    // If the chain is superchain , the superAsset has some underlying , we will store that in this variable
+    address underlying_of_superAsset;
 }

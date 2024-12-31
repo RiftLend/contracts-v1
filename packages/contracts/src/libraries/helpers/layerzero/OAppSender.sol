@@ -2,9 +2,13 @@
 
 pragma solidity ^0.8.20;
 
-import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { MessagingParams, MessagingFee, MessagingReceipt } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
-import { OAppCore } from "./OAppCore.sol";
+import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {
+    MessagingParams,
+    MessagingFee,
+    MessagingReceipt
+} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
+import {OAppCore} from "./OAppCore.sol";
 
 /**
  * @title OAppSender
@@ -44,17 +48,15 @@ abstract contract OAppSender is OAppCore {
      *      - nativeFee: The native fee for the message.
      *      - lzTokenFee: The LZ token fee for the message.
      */
-    function _quote(
-        uint32 _dstEid,
-        bytes memory _message,
-        bytes memory _options,
-        bool _payInLzToken
-    ) internal view virtual returns (MessagingFee memory fee) {
-        return
-            endpoint.quote(
-                MessagingParams(_dstEid, _getPeerOrRevert(_dstEid), _message, _options, _payInLzToken),
-                address(this)
-            );
+    function _quote(uint32 _dstEid, bytes memory _message, bytes memory _options, bool _payInLzToken)
+        internal
+        view
+        virtual
+        returns (MessagingFee memory fee)
+    {
+        return endpoint.quote(
+            MessagingParams(_dstEid, _getPeerOrRevert(_dstEid), _message, _options, _payInLzToken), address(this)
+        );
     }
 
     /**
@@ -82,12 +84,11 @@ abstract contract OAppSender is OAppCore {
         uint256 messageValue = _payNative(_fee.nativeFee);
         if (_fee.lzTokenFee > 0) _payLzToken(_fee.lzTokenFee);
 
-        return
+        return endpoint
             // solhint-disable-next-line check-send-result
-            endpoint.send{ value: messageValue }(
-                MessagingParams(_dstEid, _getPeerOrRevert(_dstEid), _message, _options, _fee.lzTokenFee > 0),
-                _refundAddress
-            );
+            .send{value: messageValue}(
+            MessagingParams(_dstEid, _getPeerOrRevert(_dstEid), _message, _options, _fee.lzTokenFee > 0), _refundAddress
+        );
     }
 
     /**

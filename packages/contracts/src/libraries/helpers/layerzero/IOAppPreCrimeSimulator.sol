@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 
 // @dev Import the Origin so it's exposed to OAppPreCrimeSimulator implementers.
 // solhint-disable-next-line no-unused-import
-import { InboundPacket, Origin } from "./Packet.sol";
+import {InboundPacket, Origin} from "./Packet.sol";
 
 /**
  * @title IOAppPreCrimeSimulator Interface

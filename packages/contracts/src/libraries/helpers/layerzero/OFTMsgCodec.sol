@@ -15,11 +15,11 @@ library OFTMsgCodec {
      * @return _msg The encoded message.
      * @return hasCompose A boolean indicating whether the message has a composed payload.
      */
-    function encode(
-        bytes32 _sendTo,
-        uint64 _amountShared,
-        bytes memory _composeMsg
-    ) internal view returns (bytes memory _msg, bool hasCompose) {
+    function encode(bytes32 _sendTo, uint64 _amountShared, bytes memory _composeMsg)
+        internal
+        view
+        returns (bytes memory _msg, bool hasCompose)
+    {
         hasCompose = _composeMsg.length > 0;
         // @dev Remote chains will want to know the composed function caller ie. msg.sender on the src.
         _msg = hasCompose

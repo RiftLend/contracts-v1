@@ -2,9 +2,9 @@
 
 pragma solidity ^0.8.20;
 
-import { Ownable } from "@solady/auth/Ownable.sol";
-import { IPreCrime } from "./IPreCrime.sol";
-import { IOAppPreCrimeSimulator, InboundPacket, Origin } from "./IOAppPreCrimeSimulator.sol";
+import {Ownable} from "@solady/auth/Ownable.sol";
+import {IPreCrime} from "./IPreCrime.sol";
+import {IOAppPreCrimeSimulator, InboundPacket, Origin} from "./IOAppPreCrimeSimulator.sol";
 
 /**
  * @title OAppPreCrimeSimulator
@@ -56,12 +56,8 @@ abstract contract OAppPreCrimeSimulator is IOAppPreCrimeSimulator, Ownable {
             // They are instead stubbed to default values, address(0) and bytes("")
             // @dev Calling this.lzReceiveSimulate removes ability for assembly return 0 callstack exit,
             // which would cause the revert to be ignored.
-            this.lzReceiveSimulate{ value: packet.value }(
-                packet.origin,
-                packet.guid,
-                packet.message,
-                packet.executor,
-                packet.extraData
+            this.lzReceiveSimulate{value: packet.value}(
+                packet.origin, packet.guid, packet.message, packet.executor, packet.extraData
             );
         }
 

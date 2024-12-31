@@ -2,15 +2,15 @@
 
 pragma solidity ^0.8.20;
 
-import { OApp, Origin } from "./OApp.sol";
-import { OAppOptionsType3 } from "./OAppOptionsType3.sol";
-import { IOAppMsgInspector } from "./IOAppMsgInspector.sol";
+import {OApp, Origin} from "./OApp.sol";
+import {OAppOptionsType3} from "./OAppOptionsType3.sol";
+import {IOAppMsgInspector} from "./IOAppMsgInspector.sol";
 
-import { OAppPreCrimeSimulator } from "./OAppPreCrimeSimulator.sol";
+import {OAppPreCrimeSimulator} from "./OAppPreCrimeSimulator.sol";
 
-import { IOFT, SendParam, OFTLimit, OFTReceipt, OFTFeeDetail, MessagingReceipt, MessagingFee } from "./IOFT.sol";
-import { OFTMsgCodec } from "./OFTMsgCodec.sol";
-import { OFTComposeMsgCodec } from "./OFTComposeMsgCodec.sol";
+import {IOFT, SendParam, OFTLimit, OFTReceipt, OFTFeeDetail, MessagingReceipt, MessagingFee} from "./IOFT.sol";
+import {OFTMsgCodec} from "./OFTMsgCodec.sol";
+import {OFTComposeMsgCodec} from "./OFTComposeMsgCodec.sol";
 
 /**
  * @title OFTCore
@@ -43,6 +43,7 @@ abstract contract OFTCore is IOFT, OApp, OAppPreCrimeSimulator, OAppOptionsType3
 
     // Address of an optional contract to inspect both 'message' and 'options'
     address public msgInspector;
+
     event MsgInspectorSet(address inspector);
 
     /**
@@ -103,9 +104,7 @@ abstract contract OFTCore is IOFT, OApp, OAppPreCrimeSimulator, OAppOptionsType3
      * @return oftFeeDetails The details of OFT fees.
      * @return oftReceipt The OFT receipt information.
      */
-    function quoteOFT(
-        SendParam calldata _sendParam
-    )
+    function quoteOFT(SendParam calldata _sendParam)
         external
         view
         virtual
@@ -122,11 +121,8 @@ abstract contract OFTCore is IOFT, OApp, OAppPreCrimeSimulator, OAppOptionsType3
         // - amountSentLD is the amount in local decimals that would be sent from the sender.
         // - amountReceivedLD is the amount in local decimals that will be credited to the recipient on the remote OFT instance.
         // @dev The amountSentLD MIGHT not equal the amount the user actually receives. HOWEVER, the default does.
-        (uint256 amountSentLD, uint256 amountReceivedLD) = _debitView(
-            _sendParam.amountLD,
-            _sendParam.minAmountLD,
-            _sendParam.dstEid
-        );
+        (uint256 amountSentLD, uint256 amountReceivedLD) =
+            _debitView(_sendParam.amountLD, _sendParam.minAmountLD, _sendParam.dstEid);
         oftReceipt = OFTReceipt(amountSentLD, amountReceivedLD);
     }
 
@@ -140,10 +136,12 @@ abstract contract OFTCore is IOFT, OApp, OAppPreCrimeSimulator, OAppOptionsType3
      *  - nativeFee: The native fee.
      *  - lzTokenFee: The lzToken fee.
      */
-    function quoteSend(
-        SendParam calldata _sendParam,
-        bool _payInLzToken
-    ) external view virtual returns (MessagingFee memory msgFee) {
+    function quoteSend(SendParam calldata _sendParam, bool _payInLzToken)
+        external
+        view
+        virtual
+        returns (MessagingFee memory msgFee)
+    {
         // @dev mock the amount to receive, this is the same operation used in the send().
         // The quote is as similar as possible to the actual send() operation.
         (, uint256 amountReceivedLD) = _debitView(_sendParam.amountLD, _sendParam.minAmountLD, _sendParam.dstEid);
@@ -170,20 +168,17 @@ abstract contract OFTCore is IOFT, OApp, OAppPreCrimeSimulator, OAppOptionsType3
      *  - nonce: The nonce of the sent message.
      *  - fee: The LayerZero fee incurred for the message.
      */
-    function send(
-        SendParam calldata _sendParam,
-        MessagingFee calldata _fee,
-        address _refundAddress
-    ) external payable virtual returns (MessagingReceipt memory msgReceipt, OFTReceipt memory oftReceipt) {
+    function send(SendParam calldata _sendParam, MessagingFee calldata _fee, address _refundAddress)
+        external
+        payable
+        virtual
+        returns (MessagingReceipt memory msgReceipt, OFTReceipt memory oftReceipt)
+    {
         // @dev Applies the token transfers regarding this send() operation.
         // - amountSentLD is the amount in local decimals that was ACTUALLY sent/debited from the sender.
         // - amountReceivedLD is the amount in local decimals that will be received/credited to the recipient on the remote OFT instance.
-        (uint256 amountSentLD, uint256 amountReceivedLD) = _debit(
-            msg.sender,
-            _sendParam.amountLD,
-            _sendParam.minAmountLD,
-            _sendParam.dstEid
-        );
+        (uint256 amountSentLD, uint256 amountReceivedLD) =
+            _debit(msg.sender, _sendParam.amountLD, _sendParam.minAmountLD, _sendParam.dstEid);
 
         // @dev Builds the options and OFT message to quote in the endpoint.
         (bytes memory message, bytes memory options) = _buildMsgAndOptions(_sendParam, amountReceivedLD);
@@ -203,10 +198,12 @@ abstract contract OFTCore is IOFT, OApp, OAppPreCrimeSimulator, OAppOptionsType3
      * @return message The encoded message.
      * @return options The encoded options.
      */
-    function _buildMsgAndOptions(
-        SendParam calldata _sendParam,
-        uint256 _amountLD
-    ) internal view virtual returns (bytes memory message, bytes memory options) {
+    function _buildMsgAndOptions(SendParam calldata _sendParam, uint256 _amountLD)
+        internal
+        view
+        virtual
+        returns (bytes memory message, bytes memory options)
+    {
         bool hasCompose;
         // @dev This generated message has the msg.sender encoded into the payload so the remote knows who the caller is.
         (message, hasCompose) = OFTMsgCodec.encode(
@@ -241,7 +238,7 @@ abstract contract OFTCore is IOFT, OApp, OAppPreCrimeSimulator, OAppOptionsType3
         Origin calldata _origin,
         bytes32 _guid,
         bytes calldata _message,
-        address /*_executor*/, // @dev unused in the default implementation.
+        address, /*_executor*/ // @dev unused in the default implementation.
         bytes calldata /*_extraData*/ // @dev unused in the default implementation.
     ) internal virtual override {
         // @dev The src sending chain doesnt know the address length on this chain (potentially non-evm)
@@ -252,19 +249,15 @@ abstract contract OFTCore is IOFT, OApp, OAppPreCrimeSimulator, OAppOptionsType3
 
         if (_message.isComposed()) {
             // @dev Proprietary composeMsg format for the OFT.
-            bytes memory composeMsg = OFTComposeMsgCodec.encode(
-                _origin.nonce,
-                _origin.srcEid,
-                amountReceivedLD,
-                _message.composeMsg()
-            );
+            bytes memory composeMsg =
+                OFTComposeMsgCodec.encode(_origin.nonce, _origin.srcEid, amountReceivedLD, _message.composeMsg());
 
             // @dev Stores the lzCompose payload that will be executed in a separate tx.
             // Standardizes functionality for executing arbitrary contract invocation on some non-evm chains.
             // @dev The off-chain executor will listen and process the msg based on the src-chain-callers compose options passed.
             // @dev The index is used when a OApp needs to compose multiple msgs on lzReceive.
             // For default OFT implementation there is only 1 compose msg per lzReceive, thus its always 0.
-            endpoint.sendCompose(toAddress, _guid, 0 /* the index of the composed message*/, composeMsg);
+            endpoint.sendCompose(toAddress, _guid, 0, /* the index of the composed message*/ composeMsg);
         }
 
         emit OFTReceived(_guid, _origin.srcEid, toAddress, amountReceivedLD);
@@ -346,11 +339,12 @@ abstract contract OFTCore is IOFT, OApp, OAppPreCrimeSimulator, OAppOptionsType3
      *
      * @dev This is where things like fees would be calculated and deducted from the amount to be received on the remote.
      */
-    function _debitView(
-        uint256 _amountLD,
-        uint256 _minAmountLD,
-        uint32 /*_dstEid*/
-    ) internal view virtual returns (uint256 amountSentLD, uint256 amountReceivedLD) {
+    function _debitView(uint256 _amountLD, uint256 _minAmountLD, uint32 /*_dstEid*/ )
+        internal
+        view
+        virtual
+        returns (uint256 amountSentLD, uint256 amountReceivedLD)
+    {
         // @dev Remove the dust so nothing is lost on the conversion between chains with different decimals for the token.
         amountSentLD = _removeDust(_amountLD);
         // @dev The amount to send is the same as amount received in the default implementation.
@@ -374,12 +368,10 @@ abstract contract OFTCore is IOFT, OApp, OAppPreCrimeSimulator, OAppOptionsType3
      * @dev Defined here but are intended to be overriden depending on the OFT implementation.
      * @dev Depending on OFT implementation the _amountLD could differ from the amountReceivedLD.
      */
-    function _debit(
-        address _from,
-        uint256 _amountLD,
-        uint256 _minAmountLD,
-        uint32 _dstEid
-    ) internal virtual returns (uint256 amountSentLD, uint256 amountReceivedLD);
+    function _debit(address _from, uint256 _amountLD, uint256 _minAmountLD, uint32 _dstEid)
+        internal
+        virtual
+        returns (uint256 amountSentLD, uint256 amountReceivedLD);
 
     /**
      * @dev Internal function to perform a credit operation.
@@ -391,9 +383,8 @@ abstract contract OFTCore is IOFT, OApp, OAppPreCrimeSimulator, OAppOptionsType3
      * @dev Defined here but are intended to be overriden depending on the OFT implementation.
      * @dev Depending on OFT implementation the _amountLD could differ from the amountReceivedLD.
      */
-    function _credit(
-        address _to,
-        uint256 _amountLD,
-        uint32 _srcEid
-    ) internal virtual returns (uint256 amountReceivedLD);
+    function _credit(address _to, uint256 _amountLD, uint32 _srcEid)
+        internal
+        virtual
+        returns (uint256 amountReceivedLD);
 }

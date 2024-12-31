@@ -2,8 +2,8 @@
 
 pragma solidity ^0.8.20;
 
-import { Ownable } from "@solady/auth/Ownable.sol";
-import { IOAppOptionsType3, EnforcedOptionParam } from "./IOAppOptionsType3.sol";
+import {Ownable} from "@solady/auth/Ownable.sol";
+import {IOAppOptionsType3, EnforcedOptionParam} from "./IOAppOptionsType3.sol";
 
 /**
  * @title OAppOptionsType3
@@ -60,11 +60,12 @@ abstract contract OAppOptionsType3 is IOAppOptionsType3, Ownable {
      * - The resulting options will be {gasLimit: 300k, msg.value: 1.5 ether} when the message is executed on the remote lzReceive() function.
      * @dev This presence of duplicated options is handled off-chain in the verifier/executor.
      */
-    function combineOptions(
-        uint32 _eid,
-        uint16 _msgType,
-        bytes calldata _extraOptions
-    ) public view virtual returns (bytes memory) {
+    function combineOptions(uint32 _eid, uint16 _msgType, bytes calldata _extraOptions)
+        public
+        view
+        virtual
+        returns (bytes memory)
+    {
         bytes memory enforced = enforcedOptions[_eid][_msgType];
 
         // No enforced options, pass whatever the caller supplied, even if it's empty or legacy type 1/2 options.

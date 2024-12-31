@@ -2,8 +2,8 @@
 
 pragma solidity ^0.8.20;
 
-import { Origin } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
-import { PacketV1Codec } from "@layerzerolabs/lz-evm-protocol-v2/contracts/messagelib/libs/PacketV1Codec.sol";
+import {Origin} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
+import {PacketV1Codec} from "@layerzerolabs/lz-evm-protocol-v2/contracts/messagelib/libs/PacketV1Codec.sol";
 
 /**
  * @title InboundPacket
@@ -46,10 +46,11 @@ library PacketDecoder {
      * @param _packetMsgValues An array of associated message values for each packet.
      * @return packets An array of InboundPacket structs representing the decoded packets.
      */
-    function decode(
-        bytes[] calldata _packets,
-        uint256[] memory _packetMsgValues
-    ) internal pure returns (InboundPacket[] memory packets) {
+    function decode(bytes[] calldata _packets, uint256[] memory _packetMsgValues)
+        internal
+        pure
+        returns (InboundPacket[] memory packets)
+    {
         packets = new InboundPacket[](_packets.length);
         for (uint256 i = 0; i < _packets.length; i++) {
             bytes calldata packet = _packets[i];

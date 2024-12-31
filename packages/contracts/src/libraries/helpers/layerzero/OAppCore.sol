@@ -2,8 +2,8 @@
 
 pragma solidity ^0.8.20;
 
-import { Ownable } from "@solady/auth/Ownable.sol";
-import { IOAppCore, ILayerZeroEndpointV2 } from "./IOAppCore.sol";
+import {Ownable} from "@solady/auth/Ownable.sol";
+import {IOAppCore, ILayerZeroEndpointV2} from "./IOAppCore.sol";
 
 /**
  * @title OAppCore

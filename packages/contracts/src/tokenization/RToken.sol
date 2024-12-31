@@ -17,7 +17,7 @@ import {IAaveIncentivesController} from "../interfaces/IAaveIncentivesController
 import {ILendingPoolAddressesProvider} from "../interfaces/ILendingPoolAddressesProvider.sol";
 import {ISuperAsset} from "../interfaces/ISuperAsset.sol";
 import {ISuperchainTokenBridge} from "../interfaces/ISuperchainTokenBridge.sol";
-import {IRVaultAsset} from "../../interfaces/IRVaultAsset";
+import {IRVaultAsset} from "../interfaces/IRVaultAsset.sol";
 
 /**
  * @title Aave ERC20 RToken
@@ -193,8 +193,8 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         require(amountScaled != 0, Errors.CT_INVALID_BURN_AMOUNT);
         _burn(user, amountScaled);
 
-        IRVaultAsset(_underlyingAsset).burn(user,receiverOfUnderlying,toChainId, amount);
-        
+        IRVaultAsset(_underlyingAsset).burn(user, receiverOfUnderlying, toChainId, amount);
+
         emit Transfer(user, address(0), amount);
         emit Burn(user, receiverOfUnderlying, amount, index);
         return (2, amountScaled);
