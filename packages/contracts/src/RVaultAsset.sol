@@ -6,7 +6,7 @@ import {ILendingPoolAddressesProvider} from "./interfaces/ILendingPoolAddressesP
 import {ISuperAsset} from "./interfaces/ISuperAsset.sol";
 import "./interfaces/IRVaultAsset.sol";
 import {ISuperchainTokenBridge} from "./interfaces/ISuperchainTokenBridge.sol";
-import {IERC20} from "@solady/tokens/IERC20.sol";
+import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
 
 import {Predeploys} from "./libraries/Predeploys.sol";
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
@@ -410,7 +410,6 @@ contract RVaultAsset is SuperOwnable, OFT {
     }
 
     // Withdraw assets and burn shares (1:1 peg)
-    //@inheritdoc IERC4626
     function withdraw(uint256 assets, address receiver, address owner)
         public
         virtual

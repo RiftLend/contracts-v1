@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.25;
+// SPDX-License-Identifier: agpl-3.0
+pragma solidity 0.8.25;
 
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts-v5/token/ERC20/extensions/IERC20Metadata.sol";
@@ -15,33 +15,26 @@ contract SuperAsset is OFT, SuperchainERC20 {
     using SafeERC20 for IERC20;
 
     address public underlying;
-    address address_null = 0x000000000000000000000000000000000000dEaD;
 
-    constructor(address underlying_, address _lzEndpoint, address _delegate)
-        OFT(IERC20Metadata(underlying_).name(), IERC20Metadata(underlying_).symbol(), _lzEndpoint, _delegate)
+    constructor(address _underlying, address _lzEndpoint, address _delegate, string memory _name, string memory _symbol)
+        OFT(_name, _symbol, _lzEndpoint, _delegate)
         Ownable(_delegate)
     {
-        underlying = underlying_;
+        underlying = _underlying;
     }
 
-    function deposit(address to, uint256 amount) public {
-        // Get underlying tokens from user
-        IERC20(underlying).safeTransferFrom(msg.sender, address(this), amount);
-
-        // Mint at 1:1 ratio
-        _mint(to, amount);
+    function deposit(address _to, uint256 _amount) public {
+        IERC20(underlying).safeTransferFrom(msg.sender, address(this), _amount);
+        _mint(_to, _amount);
     }
 
-    function withdraw(address to, uint256 amount) external {
-        // Burn user's superAsset
-        _burn(msg.sender, amount);
-
-        IERC20(underlying).safeTransfer(to, amount);
+    function withdraw(address _to, uint256 _amount) external {
+        _burn(msg.sender, _amount);
+        IERC20(underlying).safeTransfer(_to, _amount);
     }
 
     receive() external payable {
         assembly ("memory-safe") {
-            // Load underlying address from storage slot 0
             let underlyingAddr := sload(underlying.slot)
             pop(call(gas(), underlyingAddr, callvalue(), codesize(), 0x00, codesize(), 0x00))
         }
