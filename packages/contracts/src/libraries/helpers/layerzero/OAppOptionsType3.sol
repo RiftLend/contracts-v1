@@ -60,7 +60,7 @@ abstract contract OAppOptionsType3 is IOAppOptionsType3, Ownable {
      * - The resulting options will be {gasLimit: 300k, msg.value: 1.5 ether} when the message is executed on the remote lzReceive() function.
      * @dev This presence of duplicated options is handled off-chain in the verifier/executor.
      */
-    function combineOptions(uint32 _eid, uint16 _msgType, bytes calldata _extraOptions)
+    function combineOptions(uint32 _eid, uint16 _msgType, bytes memory _extraOptions)
         public
         view
         virtual
@@ -78,7 +78,13 @@ abstract contract OAppOptionsType3 is IOAppOptionsType3, Ownable {
         if (_extraOptions.length >= 2) {
             _assertOptionsType3(_extraOptions);
             // @dev Remove the first 2 bytes containing the type from the _extraOptions and combine with enforced.
-            return bytes.concat(enforced, _extraOptions[2:]);
+            // TODO: check this math
+            // return bytes.concat(enforced, _extraOptions[2:]);
+            assembly {
+                mstore(add(_extraOptions, 32), sub(mload(_extraOptions), 2)) // reduce length by 2
+                mstore(_extraOptions, add(mload(add(_extraOptions, 32)), 2)) // increase data pointer by 2
+            }
+            return bytes.concat(enforced, _extraOptions);
         }
 
         // No valid set of options was found.

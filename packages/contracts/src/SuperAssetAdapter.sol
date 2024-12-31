@@ -22,17 +22,16 @@ contract SuperAssetAdapter is OFTAdapter {
         Origin calldata _origin,
         bytes32 _guid,
         bytes calldata _message,
-        address _executor,
         bytes calldata _extraData
     ) external payable returns (MessagingReceipt memory msgReceipt, OFTReceipt memory oftReceipt) {
         // Validate crosschain message's authenticity
-
         (,, address _underlyingAsset) = abi.decode(_message, (uint64, address, address));
 
         (bytes32 lendingPool_type, address rVaultAsset) =
             ILendingPoolAddressesProvider(underlyingToPoolAddressProvider[_underlyingAsset]).getRVaultAsset();
         require(rVaultAsset == address(0), "InvalidPool");
         IRVaultAsset(rVaultAsset).lzReceive(_origin, _guid, _message, _executor, _extraData);
+        // TODO check _credit to is rvault or nto 
 
         // super._lzReceive(_origin, _guid, _message, _executor, _extraData);
     }

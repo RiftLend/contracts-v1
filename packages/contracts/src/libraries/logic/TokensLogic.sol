@@ -1,6 +1,7 @@
-pragma solidity ^0.8.0;
+// SPDX-License-Identifier: agpl-3.0
+pragma solidity 0.8.25;
 
-import "../../interfaces/ILendingPoolAddressesProvider.sol";
+import {ILendingPoolAddressesProvider} from "../../interfaces/ILendingPoolAddressesProvider.sol";
 
 library TokensLogic {
     // Get type of asset configured as underlying in pool

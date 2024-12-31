@@ -136,8 +136,8 @@ abstract contract OFTCore is IOFT, OApp, OAppPreCrimeSimulator, OAppOptionsType3
      *  - nativeFee: The native fee.
      *  - lzTokenFee: The lzToken fee.
      */
-    function quoteSend(SendParam calldata _sendParam, bool _payInLzToken)
-        external
+    function quoteSend(SendParam memory _sendParam, bool _payInLzToken)
+        public
         view
         virtual
         returns (MessagingFee memory msgFee)
@@ -198,7 +198,7 @@ abstract contract OFTCore is IOFT, OApp, OAppPreCrimeSimulator, OAppOptionsType3
      * @return message The encoded message.
      * @return options The encoded options.
      */
-    function _buildMsgAndOptions(SendParam calldata _sendParam, uint256 _amountLD)
+    function _buildMsgAndOptions(SendParam memory _sendParam, uint256 _amountLD)
         internal
         view
         virtual
