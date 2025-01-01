@@ -189,7 +189,6 @@ abstract contract OFTCore is IOFT, OApp, OAppPreCrimeSimulator, OAppOptionsType3
         oftReceipt = OFTReceipt(amountSentLD, amountReceivedLD);
 
         emit OFTSent(msgReceipt.guid, _sendParam.dstEid, msg.sender, amountSentLD, amountReceivedLD);
-        
     }
 
     /**

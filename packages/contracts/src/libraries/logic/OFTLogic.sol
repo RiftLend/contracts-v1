@@ -7,7 +7,7 @@ library OFTLogic {
 
     function encodeMessage(address _receiverOfUnderlying, uint256 _amount)
         public
-        view
+        pure
         returns (bytes memory _message)
     {
         _message = abi.encode(_receiverOfUnderlying, _amount);
@@ -15,7 +15,7 @@ library OFTLogic {
 
     function decodeMessage(bytes memory _message)
         public
-        view
+        pure
         returns (address _receiverOfUnderlying, uint256 _amount)
     {
         // the oft's _buildMsgAndOptions is used by _send method that encodes the passed messagein following way

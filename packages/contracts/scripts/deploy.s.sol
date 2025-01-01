@@ -75,7 +75,7 @@ contract LendingPoolDeployer is Script {
         (address variableDebtTokenImpl) = deployVariableDebtTokenImpl();
         (address proxyAdmin) = deployProxyAdmin();
         (address lpAddressProvider) = deployLendingPoolAddressesProvider(proxyAdmin);
-        (address superAsset) = deploySuperAsset(lpAddressProvider, underlying);
+        (address superAsset) = deploySuperAsset(underlying);
         (address implementationLp) = deployLendingPoolImpl();
         (address lpConfigurator) = deployLendingPoolConfigurator();
         (address strategy) = deployDefaultReserveInterestRateStrategy(lpAddressProvider);
@@ -274,7 +274,7 @@ contract LendingPoolDeployer is Script {
         }
     }
 
-    function deploySuperAsset(address lpAddressProvider, address underlying) public returns (address addr_) {
+    function deploySuperAsset(address underlying) public returns (address addr_) {
         string memory salt = vm.parseTomlString(deployConfig, ".superchain_asset_1.salt");
         address ownerAddr_ = vm.parseTomlAddress(deployConfig, ".superchain_asset_1.owner_address");
         string memory name = vm.parseTomlString(deployConfig, ".superchain_asset_1.name");

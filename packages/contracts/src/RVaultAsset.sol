@@ -159,6 +159,8 @@ contract RVaultAsset is SuperOwnable, OFT {
     /// @notice Deposit underlying and mint shares (1:1 peg)
     function deposit(uint256 assets, address receiver) public returns (uint256 shares) {
         totalBalances += assets;
+        shares = assets;
+
         balances[receiver] += assets;
         super._mint(receiver, assets);
         IERC20(underlying).safeTransferFrom(msg.sender, address(this), assets);
@@ -211,15 +213,15 @@ contract RVaultAsset is SuperOwnable, OFT {
         emit CrossChainBridgeUnderlyingSent(txData, block.timestamp);
     }
     //  @dev On receiving side of the bridgeUnderlying call, this function will be called to send the underlying to desired address
+
     function withdrawTokens(address _recipient, uint256 _amount) external onlySuperAdmin {
         IERC20(underlying).safeTransfer(_recipient, _amount);
     }
 
-    
     function _bridgeCrossCluster(
         uint256 tokensToSend,
         address receiverOfUnderlying,
-        address _underlyingAsset,
+        address, /*_underlyingAsset*/
         uint256 toChainId
     ) internal {
         IERC20(underlying).safeTransferFrom(msg.sender, address(this), tokensToSend);
@@ -250,8 +252,7 @@ contract RVaultAsset is SuperOwnable, OFT {
                 "" // empty oftCmd
             );
             MessagingFee memory fee = quoteSend(sendParam, false);
-            (MessagingReceipt memory msgReceipt, OFTReceipt memory oftReceipt) =
-                _send(sendParam, fee, payable(address(this)));
+            _send(sendParam, fee, payable(address(this)));
 
             // revert case will be handled in _send()
         }
@@ -281,11 +282,11 @@ contract RVaultAsset is SuperOwnable, OFT {
 
     // ToDo: what should be the access control ?
     function lzReceive(
-        Origin calldata _origin,
-        bytes32 _guid,
+        Origin calldata, /*_origin*/
+        bytes32, /*_guid*/
         bytes calldata _message,
-        address _executor,
-        bytes calldata _extraData
+        address, /*_executor*/
+        bytes calldata /*_extraData*/
     ) public payable override {
         (address receiverOfUnderlying, uint256 tokensAmount) = OFTLogic.decodeMessage(_message);
 
@@ -365,7 +366,6 @@ contract RVaultAsset is SuperOwnable, OFT {
     function setWithdrawCoolDownPeriod(uint256 _newPeriod) external onlySuperAdmin {
         WITHDRAW_COOL_DOWN_PERIOD = _newPeriod;
     }
-
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*      ERC4626 Vault compliant functions                     */
