@@ -106,7 +106,6 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
      */
     function initialize(ILendingPoolAddressesProvider provider) public initializer {
         _addressesProvider = provider;
-        _maxStableRateBorrowSizePercent = 2500;
         _flashLoanPremiumTotal = 9;
         _maxNumberOfReserves = 128;
         (rVaultAsset, pool_type, baseAsset) = TokensLogic.getPoolTokenInformation(_addressesProvider);
@@ -348,13 +347,13 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         address collateralManager = _addressesProvider.getLendingPoolCollateralManager();
 
         // Getting liquidation debt amount in rVaultAsset for universality
-        (address rVaultAsset, uint256 pool_type, address baseAsset) =
-            TokensLogic.getPoolTokenInformation(_addressesProvider);
+        (address rVaultAsset,,) = TokensLogic.getPoolTokenInformation(_addressesProvider);
 
         DataTypes.ReserveData storage reserve = _reserves[rVaultAsset];
         address rToken = reserve.rTokenAddress;
         // Transfer the asset of worth `amount` directly to the rToken contract
         // ToDo:q how debtAsset is related to rVaultAsset, what debt asset can be ?
+
         IERC20(debtAsset).safeTransferFrom(sender, address(rToken), debtToCover);
 
         // unchecked {
@@ -603,7 +602,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
      */
     // TODO rVaultAsset
     function getReserveNormalizedVariableDebt() external view returns (uint256) {
-        address superAsset = _addressesProvider.getSuperAsset();
+        address superAsset = _addressesProvider.getRVaultAsset();
 
         return _reserves[superAsset].getNormalizedDebt();
     }

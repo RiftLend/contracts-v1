@@ -241,8 +241,6 @@ library GenericLogic {
         availableBorrowsETH = availableBorrowsETH - totalDebtInETH;
         return availableBorrowsETH;
     }
-    // TODO: @umar so in withdraw and repay and borrow we have to send and check local stuff like balance and healthfactor
-    // for liquidations we have to check crosschain stuff for healthfactor ...
 
     function getActionBasedUserBalance(address user, address rTokenAddress, DataTypes.Action_type action_type)
         public

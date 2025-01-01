@@ -125,6 +125,11 @@ contract Base is Test {
         string memory underlyingAssetSymbol = "USDC";
         string memory rTokenName = "rTUSDC";
         string memory rTokenSymbol = "rTUSDC";
+        string memory rVaultAssetTokenName = "rVaultAsset-TUSDC";
+        string memory rVaultAssetTokenSymbol = "rVaultAsset-rTUSDC";
+        string memory superAssetTokenName = "superTUSDC";
+        string memory superAsseTokenSymbol = "superTUSDC";
+
         string memory variableDebtTokenName = "vDebt-TUSDC";
         string memory variableDebtTokenSymbol = "vDBT-rTUSDC";
         uint8 underlyingAssetDecimals = 6;
@@ -166,7 +171,9 @@ contract Base is Test {
 
         // ################ Deploy SuperAsset ################
         vm.prank(owner);
-        superAsset = new SuperAsset(address(underlyingAsset), address(lzEndpoint), _delegate);
+        superAsset = new SuperAsset(
+            address(underlyingAsset), address(lzEndpoint), _delegate, superAssetTokenName, superAsseTokenSymbol
+        );
         vm.label(address(superAsset), "superAsset");
 
         // ################ Deploy RVaultAsset ################
@@ -176,9 +183,11 @@ contract Base is Test {
             new RVaultAsset{salt: "rVaultAssetImpl"}(
                 address(underlyingAsset),
                 ILendingPoolAddressesProvider(address(lpAddressProvider)),
-                poolAdmin1,
                 address(lzEndpoint),
-                _delegate
+                _delegate,
+                rVaultAssetTokenName,
+                rVaultAssetTokenSymbol,
+                underlyingAssetDecimals
             )
         );
 

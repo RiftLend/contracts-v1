@@ -277,7 +277,6 @@ contract LendingPoolAddressesProvider is SuperOwnable {
             _addresses[id] = address(proxy);
             emit ProxyCreated(id, address(proxy));
         } else {
-            // TODO: fix this
             ProxyAdmin proxyAdmin = ProxyAdmin(_proxyAdmin);
             proxyAdmin.upgradeAndCall(ITransparentUpgradeableProxy(address(proxy)), newAddress, params);
 

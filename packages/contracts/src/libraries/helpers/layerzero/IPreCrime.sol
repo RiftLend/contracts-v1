@@ -8,7 +8,7 @@ struct PreCrimePeer {
     bytes32 oApp;
 }
 
-// TODO not done yet
+// TODO:tabish not done yet
 interface IPreCrime {
     error OnlyOffChain();
 

@@ -386,7 +386,7 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
     function _upgradeTokenImplementation(address proxyAddress, address implementation, bytes memory initParams)
         internal
     {
-        // Q: Should we add this check?
+        // TODO:Q Should we add this check?
         // TransparentUpgradeableProxy proxy = TransparentUpgradeableProxy(payable(proxyAddress));
         // if (proxyAddress == address(0)) {
         //     proxy = new TransparentUpgradeableProxy(newAddress, _proxyAdmin, params);
@@ -395,9 +395,6 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
         // } else {
         // Get the proxy admin
         ProxyAdmin _proxyAdmin = ProxyAdmin(proxyAdmin);
-
-        // Upgrade and call
-        // TODO: fix this
         _proxyAdmin.upgradeAndCall(ITransparentUpgradeableProxy(proxyAddress), implementation, initParams);
 
         // }

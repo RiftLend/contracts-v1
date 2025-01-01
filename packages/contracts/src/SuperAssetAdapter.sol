@@ -12,26 +12,56 @@ import {OFTReceipt} from "@layerzerolabs/oft-evm/contracts/interfaces/IOFT.sol";
 
 import {OFTAdapter} from "./libraries/helpers/layerzero/OFTAdapter.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {OFTLogic} from "./libraries/logic/OFTLogic.sol";
 
 contract SuperAssetAdapter is OFTAdapter {
-    constructor(address rVaultAsset, address _lzEndpoint) OFTAdapter(rVaultAsset, _lzEndpoint, msg.sender) {}
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                  State Variables                           */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     mapping(address => address) public underlyingToPoolAddressProvider;
+    address public underlyingAsset;
 
-    function lzReceive(
-        Origin calldata _origin,
-        bytes32 _guid,
-        bytes calldata _message,
-        bytes calldata _extraData
-    ) external payable returns (MessagingReceipt memory msgReceipt, OFTReceipt memory oftReceipt) {
-        // Validate crosschain message's authenticity
-        (,, address _underlyingAsset) = abi.decode(_message, (uint64, address, address));
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                  Errors                                    */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    error InvalidPool();
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                  Constructor                               */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    constructor(address rVaultAsset, address _lzEndpoint, address _underlyingAsset)
+        OFTAdapter(rVaultAsset, _lzEndpoint, msg.sender)
+    {
+        underlyingAsset = _underlyingAsset;
+    }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                  External Functions                        */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    function lzReceive(Origin calldata _origin, bytes32 _guid, bytes calldata _message, bytes calldata _extraData)
+        external
+        payable
+        returns (MessagingReceipt memory msgReceipt, OFTReceipt memory oftReceipt)
+    {
+        // Ensures that only the endpoint can attempt to lzReceive() messages to this OApp.
+        if (address(endpoint) != msg.sender) revert OnlyEndpoint(msg.sender);
+
+        // Ensure that the sender matches the expected peer for the source endpoint.
+        if (_getPeerOrRevert(_origin.srcEid) != _origin.sender) revert OnlyPeer(_origin.srcEid, _origin.sender);
+
+        (address receiverOfUnderlying, uint256 amount) = OFTLogic.decodeMessage(_message);
 
         (bytes32 lendingPool_type, address rVaultAsset) =
-            ILendingPoolAddressesProvider(underlyingToPoolAddressProvider[_underlyingAsset]).getRVaultAsset();
-        require(rVaultAsset == address(0), "InvalidPool");
-        IRVaultAsset(rVaultAsset).lzReceive(_origin, _guid, _message, _executor, _extraData);
-        // TODO check _credit to is rvault or nto 
+            ILendingPoolAddressesProvider(underlyingToPoolAddressProvider[underlyingAsset]).getRVaultAsset();
+
+        if (rVaultAsset == address(0)) revert InvalidPool();
+
+        _credit(rVaultAsset, amount, 0);
+        IRVaultAsset(rVaultAsset).lzReceive(_origin, _guid, _message, address(0), _extraData);
 
         // super._lzReceive(_origin, _guid, _message, _executor, _extraData);
     }

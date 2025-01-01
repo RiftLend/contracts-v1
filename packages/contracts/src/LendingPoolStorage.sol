@@ -48,12 +48,6 @@ contract LendingPoolStorage {
      */
     bool internal _paused;
 
-    // TODO: remove this
-    /**
-     * @notice Maximum size of stable rate borrow as a percentage of total liquidity.
-     */
-    uint256 internal _maxStableRateBorrowSizePercent;
-
     /**
      * @notice Premium fee applied to flash loans.
      * @dev Expressed as a percentage in basis points (bps).

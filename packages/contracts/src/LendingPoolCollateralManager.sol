@@ -118,10 +118,6 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
         }
 
         vars.collateralRToken = IRToken(collateralReserve.rTokenAddress);
-        // ToDO : should we pass crosschain balance here or simple one ?
-        // liquidation of other chain's debt should be allowed or not ?
-        // if allowed, then how to handle the cross chain balance ?
-        // Resolved: let getActionBasedUserBalance decide the balance based on the action type
         vars.userCollateralBalance = GenericLogic.getActionBasedUserBalance(
             user, address(vars.collateralRToken), DataTypes.Action_type.LIQUIDATION
         );

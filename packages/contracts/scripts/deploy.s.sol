@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.8.25;
 
+import {ILendingPoolConfigurator} from "../src/interfaces/ILendingPoolConfigurator.sol";
+import {ILendingPoolAddressesProvider} from "../src/interfaces/ILendingPoolAddressesProvider.sol";
+
 import {Script, console} from "forge-std/Script.sol";
 import {Vm} from "forge-std/Vm.sol";
 
@@ -16,9 +19,7 @@ import {VariableDebtToken} from "../src/tokenization/VariableDebtToken.sol";
 import {L2NativeSuperchainERC20} from "../src/L2NativeSuperchainERC20.sol";
 import {Router} from "../src/Router.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-
-import {ILendingPoolConfigurator} from "../src/interfaces/ILendingPoolConfigurator.sol";
-import {ILendingPoolAddressesProvider} from "../src/interfaces/ILendingPoolAddressesProvider.sol";
+import {MockLayerZeroEndpointV2} from "../test/utils/MockLayerZeroEndpointV2.sol";
 
 /// @dev the owner and deployer are currently the same.
 /// @notice for EventValidation library change the prover address to be deployed on each chain. - https://docs.polymerlabs.org/docs/build/start/
@@ -278,24 +279,18 @@ contract LendingPoolDeployer is Script {
         address ownerAddr_ = vm.parseTomlAddress(deployConfig, ".superchain_asset_1.owner_address");
         string memory name = vm.parseTomlString(deployConfig, ".superchain_asset_1.name");
         string memory symbol = vm.parseTomlString(deployConfig, ".superchain_asset_1.symbol");
-        uint256 decimals = vm.parseTomlUint(deployConfig, ".superchain_asset_1.decimals");
-        // address lzEndpoint = vm.parseTomlAddress(deployConfig, ".superchain_asset_1.lzEndpoint");
-        // address lzdelegate = vm.parseTomlAddress(deployConfig, ".superchain_asset_1.lzdelegate");
-        address lzEndpoint = address(0);
+        uint32 lzEndpoint_eid = 1;
+        address lzEndpoint = address(new MockLayerZeroEndpointV2(lzEndpoint_eid, ownerAddr_));
+        address delegate = address(1);
 
-        require(decimals <= type(uint8).max, "decimals exceeds uint8 range");
-        bytes memory initCode = abi.encodePacked(
-            type(SuperAsset).creationCode,
-            abi.encode(
-                name, symbol, uint8(decimals), underlying, ILendingPoolAddressesProvider(lpAddressProvider), ownerAddr_
-            )
-        );
+        bytes memory initCode =
+            abi.encodePacked(type(SuperAsset).creationCode, abi.encode(underlying, lzEndpoint, delegate, name, symbol));
         address preComputedAddress = vm.computeCreate2Address(_implSalt(salt), keccak256(initCode));
         if (preComputedAddress.code.length > 0) {
             console.log("SuperAsset already deployed at %s", preComputedAddress, "on chain id: ", block.chainid);
             addr_ = preComputedAddress;
         } else {
-            addr_ = address(new SuperAsset{salt: _implSalt(salt)}(underlying, lzEndpoint, address(0)));
+            addr_ = address(new SuperAsset{salt: _implSalt(salt)}(underlying, lzEndpoint, delegate, name, symbol));
             console.log("Deployed SuperAsset at address: ", addr_, "on chain id: ", block.chainid);
         }
     }
