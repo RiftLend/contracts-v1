@@ -789,11 +789,13 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         if (isFirstBorrowing) {
             userConfig.setBorrowing(reserve.id, true);
         }
-
-        _updateStates(reserve, vars.rTokenAddress, 0, vars.releaseUnderlying ? vars.amount : 0, UPDATE_RATES_MASK);
+        // TODO:q discuss asset should be rVaultAsset or rTokenAddress, since reserve is from rVaultAsset
+        _updateStates(reserve, vars.rVaultAsset, 0, vars.releaseUnderlying ? vars.amount : 0, UPDATE_RATES_MASK);
 
         if (vars.releaseUnderlying) {
-            IRToken(vars.rTokenAddress).transferUnderlyingTo(vars.user, vars.user, vars.amount, vars.sendToChainId);
+            IRToken(vars.rTokenAddress).transferUnderlyingTo(
+                vars.user, vars.onBehalfOf, vars.amount, vars.sendToChainId
+            );
         }
 
         emit Borrow(
