@@ -386,18 +386,8 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
     function _upgradeTokenImplementation(address proxyAddress, address implementation, bytes memory initParams)
         internal
     {
-        // TODO:Q Should we add this check?
-        // TransparentUpgradeableProxy proxy = TransparentUpgradeableProxy(payable(proxyAddress));
-        // if (proxyAddress == address(0)) {
-        //     proxy = new TransparentUpgradeableProxy(newAddress, _proxyAdmin, params);
-        //     _addresses[id] = address(proxy);
-        //     emit ProxyCreated(id, address(proxy));
-        // } else {
-        // Get the proxy admin
         ProxyAdmin _proxyAdmin = ProxyAdmin(proxyAdmin);
         _proxyAdmin.upgradeAndCall(ITransparentUpgradeableProxy(proxyAddress), implementation, initParams);
-
-        // }
     }
 
     function _checkNoLiquidity(address asset) internal view {

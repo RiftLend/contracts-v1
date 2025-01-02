@@ -13,8 +13,7 @@ import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.
 import {OFT} from "./libraries/helpers/layerzero/OFT.sol";
 import {ERC20} from "@solady/tokens/ERC20.sol";
 import {SendParam, OFTReceipt} from "./libraries/helpers/layerzero/IOFT.sol";
-import {OptionsBuilder} from "@layerzerolabs/oapp-evm/libs/OptionsBuilder.sol";
-import {MessagingFee, MessagingReceipt} from "./libraries/helpers/layerzero/OFTCore.sol";
+import {MessagingFee} from "./libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
 import {TokensLogic} from "./libraries/logic/TokensLogic.sol";
 import {SuperOwnable} from "./interop-std/src/auth/SuperOwnable.sol";
 import {DataTypes} from "./libraries/types/DataTypes.sol";
@@ -79,6 +78,7 @@ contract RVaultAsset is SuperOwnable, OFT {
     error NonConfiguredCluster(uint256 ChainId);
     error OnlyRelayerCall();
     error BridgeCrossClusterFailed();
+    error OftSendFailed();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           Modifiers                        */
@@ -239,7 +239,8 @@ contract RVaultAsset is SuperOwnable, OFT {
                 ""
             );
             MessagingFee memory fee = superAssetAdapter.quoteSend(sendParam, false);
-            superAssetAdapter.send(sendParam, fee, payable(address(this)));
+            (MessagingReceipt memory msgReceipt,) = superAssetAdapter.send(sendParam, fee, payable(address(this)));
+            if (msgReceipt.guid == 0 && msgReceipt.nonce == 0) revert OftSendFailed();
         } else {
             bytes memory compose_message = OFTLogic.encodeMessage(receiverOfUnderlying, tokensToSend);
             SendParam memory sendParam = SendParam(
@@ -280,18 +281,22 @@ contract RVaultAsset is SuperOwnable, OFT {
         emit OFTSent(msgReceipt.guid, _sendParam.dstEid, msg.sender, amountSentLD, amountReceivedLD);
     }
 
-    // ToDo: what should be the access control ?
     function lzReceive(
-        Origin calldata, /*_origin*/
+        Origin calldata _origin,
         bytes32, /*_guid*/
         bytes calldata _message,
         address, /*_executor*/
         bytes calldata /*_extraData*/
     ) public payable override {
+        // Ensures that only the endpoint can attempt to lzReceive() messages to this OApp.
+        if (address(endpoint) != msg.sender) revert OnlyEndpoint(msg.sender);
+
+        // Ensure that the sender matches the expected peer for the source endpoint.
+        if (_getPeerOrRevert(_origin.srcEid) != _origin.sender) revert OnlyPeer(_origin.srcEid, _origin.sender);
+
         (address receiverOfUnderlying, uint256 tokensAmount) = OFTLogic.decodeMessage(_message);
 
-        /* TODO check here inter or intra
-
+        /* Check here inter or intra
               if msg.sender is superassetadapter , cross cluster - other cluster to superchain
               else intra-cluster
                    - arb-eth cluster
@@ -308,7 +313,7 @@ contract RVaultAsset is SuperOwnable, OFT {
                 IERC20(underlying).safeTransfer(receiverOfUnderlying, tokensAmount);
             }
         }
-        // Intra clusters
+        // Intra clusters ( superchain to superchain or arb->eth cluster)
         else {
             IERC20(underlying).safeTransfer(receiverOfUnderlying, tokensAmount);
         }

@@ -17,7 +17,7 @@ interface IRToken is IERC20, IScaledBalanceToken, IInitializableRToken {
     event Mint(address indexed from, uint256 value, uint256 index);
 
     /**
-     * @dev Mints `amount` aTokens to `user`
+     * @dev Mints `amount` rTokens to `user`
      * @param user The address receiving the minted tokens
      * @param amount The amount of tokens getting minted
      * @param index The new liquidity index of the reserve
@@ -26,8 +26,8 @@ interface IRToken is IERC20, IScaledBalanceToken, IInitializableRToken {
     function mint(address user, uint256 amount, uint256 index) external returns (bool, uint256, uint256);
 
     /**
-     * @dev Emitted after aTokens are burned
-     * @param from The owner of the aTokens, getting them burned
+     * @dev Emitted after rTokens are burned
+     * @param from The owner of the rTokens, getting them burned
      * @param target The address that will receive the underlying
      * @param value The amount being burned
      * @param index The new liquidity index of the reserve
@@ -46,8 +46,8 @@ interface IRToken is IERC20, IScaledBalanceToken, IInitializableRToken {
     event BalanceTransfer(address indexed from, address indexed to, uint256 value, uint256 index);
 
     /**
-     * @dev Burns aTokens from `user` and sends the equivalent amount of underlying to `receiverOfUnderlying`
-     * @param user The owner of the aTokens, getting them burned
+     * @dev Burns rTokens from `user` and sends the equivalent amount of underlying to `receiverOfUnderlying`
+     * @param user The owner of the rTokens, getting them burned
      * @param receiverOfUnderlying The address that will receive the underlying
      * @param sendToChainId The chain id to send the funds to
      * @param amount The amount being burned
@@ -59,15 +59,15 @@ interface IRToken is IERC20, IScaledBalanceToken, IInitializableRToken {
         returns (uint256, uint256);
 
     /**
-     * @dev Mints aTokens to the reserve treasury
+     * @dev Mints rTokens to the reserve treasury
      * @param amount The amount of tokens getting minted
      * @param index The new liquidity index of the reserve
      */
     function mintToTreasury(uint256 amount, uint256 index) external returns (uint256, uint256);
 
     /**
-     * @dev Transfers aTokens in the event of a borrow being liquidated, in case the liquidators reclaims the aToken
-     * @param from The address getting liquidated, current owner of the aTokens
+     * @dev Transfers rTokens in the event of a borrow being liquidated, in case the liquidators reclaims the aToken
+     * @param from The address getting liquidated, current owner of the rTokens
      * @param to The recipient
      * @param value The amount of tokens getting transferred
      *
@@ -79,11 +79,13 @@ interface IRToken is IERC20, IScaledBalanceToken, IInitializableRToken {
      * assets in borrow(), withdraw() and flashLoan()
      * @param user The recipient of the underlying
      * @param amount The amount getting transferred
-     * @param sendToChainId The chain id to send the funds to
+     * @param toChainId The chain id to send the funds to
      * @return The amount transferred
      *
      */
-    function transferUnderlyingTo(address user, uint256 amount, uint256 sendToChainId) external returns (uint256);
+    function transferUnderlyingTo(address user, address receiverOfUnderlying, uint256 amount, uint256 toChainId)
+        external
+        returns (uint256);
 
     /**
      * @dev Invoked to execute actions on the aToken side after a repayment.

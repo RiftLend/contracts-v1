@@ -60,19 +60,4 @@ contract LendingPoolStorage {
      * @notice Maximum number of reserves that can be supported by the protocol.
      */
     uint256 internal _maxNumberOfReserves;
-
-    // TODO: umar think about this.
-    // // For eliminating external calls each time we deposit ,withdraw etc..
-    // mapping(address underlying => address rVaultAsset) internal _rVaultAsset; // underlying here should be the base asset (superAsset or underlying) of the pool.
-    // uint256 pool_type; // 1 for op_superchain cluster and other for other clusters
-
-    // // The Base asset of the pool is the bottom most in the hierarchy that the pool accepts to operate on.
-    // // For example , if you see in TokensLogic.getPoolTokenInformation() , on superchain , the baseAsset is superAsset ( and pool type is 1 )
-    // // and in other clusters , the base asset is the underlying token because there is no SuperAsset on other clusters ( as for now )
-
-    // // TODO : fix this for each rVaultAsset
-    // mapping(address rVaultAsset => address baseAsset) internal _baseAsset;
-
-    // // If the chain is superchain , the superAsset has some underlying , we will store that in this variable
-    // address underlying_of_superAsset;
 }

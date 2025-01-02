@@ -123,25 +123,13 @@ contract Router is Initializable, SuperPausable {
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
         // event Borrow(address reserve,uint256 amount,address user,address onBehalfOf,uint256 borrowRateMode,uint256 sendToChainId,uint256 borrowRate,uint256 mintMode,uint256 amountScaled,uint16 referral);
         if (selector == Borrow.selector && _identifier.chainId != block.chainid) {
-            (
-                address asset,
-                uint256 amount,
-                ,
-                address onBehalfOf,
-                uint256 interestRateMode,
-                ,
-                ,
-                uint256 mintMode,
-                uint256 amountScaled,
-            ) = abi.decode(
-                _data[32:], (address, uint256, address, address, uint256, uint256, uint256, uint256, uint256, uint16)
-            );
+            (address asset, uint256 amount,, address onBehalfOf,,, uint256 mintMode, uint256 amountScaled,) =
+                abi.decode(_data[32:], (address, uint256, address, address, uint256, uint256, uint256, uint256, uint16));
             DataTypes.ReserveData memory reserve = lendingPool.getReserveData(asset);
-            if (interestRateMode == 2) {
-                IVariableDebtToken(reserve.variableDebtTokenAddress).updateCrossChainBalance(
-                    onBehalfOf, amountScaled, mintMode
-                );
-            }
+            IVariableDebtToken(reserve.variableDebtTokenAddress).updateCrossChainBalance(
+                onBehalfOf, amountScaled, mintMode
+            );
+
             lendingPool.updateStates(asset, 0, amount, UPDATE_RATES_AND_STATES_MASK);
         }
         if (selector == CrossChainBorrow.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
@@ -150,11 +138,10 @@ contract Router is Initializable, SuperPausable {
                 address sender,
                 address asset,
                 uint256 amount,
-                uint256 interestRateMode,
                 address onBehalfOf,
                 uint16 referralCode
-            ) = abi.decode(_data[96:], (uint256, address, address, uint256, uint256, address, uint16));
-            lendingPool.borrow(sender, asset, amount, interestRateMode, onBehalfOf, sendToChainId, referralCode);
+            ) = abi.decode(_data[96:], (uint256, address, address, uint256, address, uint16));
+            lendingPool.borrow(sender, asset, amount, onBehalfOf, sendToChainId, referralCode);
         }
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -269,7 +256,7 @@ contract Router is Initializable, SuperPausable {
      * @dev Deposits an `amount` of underlying asset into the reserve across multiple chains
      * @param asset The address of the underlying asset to deposit
      * @param amounts Array of amounts to deposit per chain
-     * @param onBehalfOf Address that will receive the aTokens
+     * @param onBehalfOf Address that will receive the rTokens
      * @param referralCode Code used to register the integrator originating the operation
      * @param chainIds Array of chain IDs where the deposits should be made
      */
@@ -290,7 +277,7 @@ contract Router is Initializable, SuperPausable {
     // intercluster like if the toChainId withdraw is in opsuperchain then withdraw from superchain first and then go crosscluster ...
     // TODO: @umar in testing withdraw keep a track of deposits in what chains they are and use the same logic as frontend
     /**
-     * @dev Withdraws an `amount` of underlying asset from the reserve, burning the equivalent aTokens owned
+     * @dev Withdraws an `amount` of underlying asset from the reserve, burning the equivalent rTokens owned
      * @param asset The address of the underlying asset to withdraw
      * @param amounts Array of amounts to withdraw per chain
      * @param to Address that will receive the underlying
@@ -312,7 +299,6 @@ contract Router is Initializable, SuperPausable {
      * @dev Allows users to borrow across multiple chains, provided they have enough collateral
      * @param asset The address of the underlying asset to borrow
      * @param amounts Array of amounts to borrow per chain
-     * @param interestRateMode The interest rate mode: 1 for Stable, 2 for Variable
      * @param referralCode Code used to register the integrator originating the operation
      * @param onBehalfOf Address that will receive the debt
      * @param chainIds Array of chain IDs where to borrow from
@@ -320,16 +306,13 @@ contract Router is Initializable, SuperPausable {
     function borrow(
         address asset,
         uint256[] calldata amounts,
-        uint256[] calldata interestRateMode,
         uint16 referralCode,
         address onBehalfOf,
         uint256 sendToChainId,
         uint256[] calldata chainIds
     ) external whenNotPaused {
         for (uint256 i = 0; i < chainIds.length; i++) {
-            emit CrossChainBorrow(
-                chainIds[i], sendToChainId, msg.sender, asset, amounts[i], interestRateMode[i], onBehalfOf, referralCode
-            );
+            emit CrossChainBorrow(chainIds[i], sendToChainId, msg.sender, asset, amounts[i], onBehalfOf, referralCode);
         }
     }
 
@@ -390,7 +373,7 @@ contract Router is Initializable, SuperPausable {
      * @param debtToCover The debt amount of borrowed `asset` the liquidator wants to cover, from each chain
      * @param totalDebtToCover The total debt amount of borrowed `asset` the liquidator wants to cover
      * @param chainIds Array of chain IDs where the liquidation should be executed
-     * @param receiveRToken `true` if the liquidators wants to receive the collateral aTokens, `false` if he wants
+     * @param receiveRToken `true` if the liquidators wants to receive the collateral rTokens, `false` if he wants
      * @param sendToChainId the chain id to send the collateral to if receiveRToken is `false`
      * to receive the underlying collateral asset directly
      *

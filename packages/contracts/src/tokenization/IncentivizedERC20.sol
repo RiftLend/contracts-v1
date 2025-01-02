@@ -71,7 +71,7 @@ abstract contract IncentivizedERC20 is Context, IERC20, IERC20Metadata {
 
     /**
      * @return Abstract function implemented by the child aToken/debtToken.
-     * Done this way in order to not break compatibility with previous versions of aTokens/debtTokens
+     * Done this way in order to not break compatibility with previous versions of rTokens/debtTokens
      *
      */
     function _getIncentivesController() internal view virtual returns (IAaveIncentivesController);

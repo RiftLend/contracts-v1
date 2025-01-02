@@ -45,6 +45,17 @@ library ValidationLogic {
         require(!isFrozen, Errors.VL_RESERVE_FROZEN);
     }
 
+    //   ValidationLogic.validateWithdraw(
+    //             rVaultAsset,
+    //             amountToWithdraw,
+    //             userBalance,
+    //             _reserves,
+    //             _usersConfig[sender],
+    //             _reservesList,
+    //             _reservesCount,
+    //             _addressesProvider.getPriceOracle()
+    //         );
+
     /**
      * @dev Validates a withdraw action
      * @param reserveAddress The address of the reserve
@@ -58,10 +69,11 @@ library ValidationLogic {
      */
     function validateWithdraw(
         address reserveAddress,
-        uint256 amount,
+        address user,
         uint256 userBalance,
-        mapping(address => DataTypes.ReserveData) storage reservesData,
         DataTypes.UserConfigurationMap storage userConfig,
+        uint256 amount,
+        mapping(address => DataTypes.ReserveData) storage reservesData,
         mapping(uint256 => address) storage reserves,
         uint256 reservesCount,
         address oracle
@@ -75,7 +87,7 @@ library ValidationLogic {
         require(
             GenericLogic.balanceDecreaseAllowed(
                 reserveAddress,
-                msg.sender,
+                user,
                 amount,
                 reservesData,
                 userConfig,
@@ -120,7 +132,6 @@ library ValidationLogic {
         address userAddress,
         uint256 amount,
         uint256 amountInETH,
-        uint256, //interestRateMode
         mapping(address => DataTypes.ReserveData) storage reservesData,
         DataTypes.UserConfigurationMap storage userConfig,
         mapping(uint256 => address) storage reserves,
@@ -324,7 +335,7 @@ library ValidationLogic {
 
     /**
      * @dev Validates an aToken transfer
-     * @param from The user from which the aTokens are being transferred
+     * @param from The user from which the rTokens are being transferred
      * @param reservesData The state of all the reserves
      * @param userConfig The state of the user for the specific reserve
      * @param reserves The addresses of all the active reserves

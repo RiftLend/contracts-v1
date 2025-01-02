@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {
-    ILayerZeroReceiver, Origin
-} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroReceiver.sol";
+import {ILayerZeroReceiver, Origin} from "./ILayerZeroReceiver.sol";
 
 interface IOAppReceiver is ILayerZeroReceiver {
     /**

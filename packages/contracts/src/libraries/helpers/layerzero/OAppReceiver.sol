@@ -99,7 +99,7 @@ abstract contract OAppReceiver is IOAppReceiver, OAppCore {
         bytes calldata _message,
         address _executor,
         bytes calldata _extraData
-    ) public payable virtual {
+    ) external payable virtual {
         // Ensures that only the endpoint can attempt to lzReceive() messages to this OApp.
         if (address(endpoint) != msg.sender) revert OnlyEndpoint(msg.sender);
 

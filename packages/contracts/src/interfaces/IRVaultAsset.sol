@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import {
-    Origin, MessagingReceipt
-} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
+import {Origin, MessagingReceipt} from "../libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
 
 interface IRVaultAsset {
     // State variables

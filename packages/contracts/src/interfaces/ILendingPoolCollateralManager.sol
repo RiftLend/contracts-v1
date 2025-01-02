@@ -18,10 +18,10 @@ interface ILendingPoolCollateralManager {
      * @param debtToCover The debt amount of borrowed `asset` the liquidator wants to cover
      * @param liquidatedCollateralAmount The amount of collateral received by the liiquidator
      * @param liquidator The address of the liquidator
-     * @param receiveRToken `true` if the liquidators wants to receive the collateral aTokens, `false` if he wants
+     * @param receiveRToken `true` if the liquidators wants to receive the collateral rTokens, `false` if he wants
      * to receive the underlying collateral asset directly
      * @param variableDebtBurned The amount of variable debt burned
-     * @param collateralRTokenBurned The amount of collateral aTokens burned
+     * @param collateralRTokenBurned The amount of collateral rTokens burned
      *
      */
     event LiquidationCall(
@@ -59,7 +59,7 @@ interface ILendingPoolCollateralManager {
      * @param principal The address of the principal reserve
      * @param user The address of the borrower
      * @param debtToCover The amount of principal that the liquidator wants to repay
-     * @param receiveRToken true if the liquidators wants to receive the aTokens, false if
+     * @param receiveRToken true if the liquidators wants to receive the rTokens, false if
      * he wants to receive the underlying asset directly
      * @param sendToChainId the chain id to send the collateral to if receiveRToken is `false`
      *

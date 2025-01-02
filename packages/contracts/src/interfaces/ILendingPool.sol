@@ -12,9 +12,9 @@ import "../interfaces/ICrossL2Inbox.sol";
  * @param user The address initiating the deposit
  * @param reserve The address of the underlying asset of the reserve
  * @param amount The amount deposited
- * @param onBehalfOf The beneficiary of the deposit, receiving the aTokens
+ * @param onBehalfOf The beneficiary of the deposit, receiving the rTokens
  * @param referral The referral code used
- * @param mintMode The mint mode: 0 for aTokens, 1 for minting, 2 for burning
+ * @param mintMode The mint mode: 0 for rTokens, 1 for minting, 2 for burning
  * @param amountScaled The amount scaled to the pool's unit
  *
  */
@@ -30,11 +30,11 @@ event Deposit(
 
 /**
  * @dev Emitted on withdraw()
- * @param user The address initiating the withdrawal, owner of aTokens
+ * @param user The address initiating the withdrawal, owner of rTokens
  * @param reserve The address of the underlyng asset being withdrawn
  * @param to Address that will receive the underlying
  * @param amount The amount to be withdrawn
- * @param mode The mode: 0 for aTokens, 1 for minting, 2 for burning
+ * @param mode The mode: 0 for rTokens, 1 for minting, 2 for burning
  * @param amountScaled The amount scaled to the pool's unit
  *
  */
@@ -48,9 +48,8 @@ event Withdraw(address user, address reserve, address to, uint256 amount, uint25
  * initiator of the transaction on flashLoan()
  * @param onBehalfOf The address that will be getting the debt
  * @param sendToChainId The chain id to send the funds to
- * @param borrowRateMode The rate mode: 1 for Stable, 2 for Variable
  * @param borrowRate The numeric rate at which the user has borrowed
- * @param mintMode 0 if minting aTokens, 1 if minting stable debt, 2 if minting variable debt
+ * @param mintMode 0 if minting rTokens, 1 if minting stable debt, 2 if minting variable debt
  * @param amountScaled The amount scaled to the pool's unit
  * @param referral The referral code used
  *
@@ -60,7 +59,6 @@ event Borrow(
     uint256 amount,
     address user,
     address onBehalfOf,
-    uint256 borrowRateMode,
     uint256 sendToChainId,
     uint256 borrowRate,
     uint256 mintMode,
@@ -168,7 +166,6 @@ event CrossChainBorrow(
     address sender,
     address asset,
     uint256 amount,
-    uint256 interestRateMode,
     address onBehalfOf,
     uint16 referralCode
 );
@@ -212,7 +209,6 @@ interface ILendingPool {
         address sender,
         address asset,
         uint256 amount,
-        uint256 interestRateMode,
         address onBehalfOf,
         uint256 sendToChainId,
         uint16 referralCode

@@ -40,12 +40,6 @@ interface IOAppPreCrimeSimulator {
     function setPreCrime(address _preCrime) external;
 
     /**
-     * @dev Mocks receiving a packet, then reverts with a series of data to infer the state/result.
-     * @param _packets An array of LayerZero InboundPacket objects representing received packets.
-     */
-    function lzReceiveAndRevert(InboundPacket[] calldata _packets) external payable;
-
-    /**
      * @dev checks if the specified peer is considered 'trusted' by the OApp.
      * @param _eid The endpoint Id to check.
      * @param _peer The peer to check.

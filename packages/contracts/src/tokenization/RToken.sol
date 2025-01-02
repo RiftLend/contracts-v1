@@ -88,7 +88,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         address underlyingAsset,
         IAaveIncentivesController incentivesController,
         ILendingPoolAddressesProvider addressesProvider,
-        uint8 aTokenDecimals,
+        uint8 rTokenDecimals,
         string calldata rTokenName,
         string calldata rTokenSymbol,
         bytes calldata params,
@@ -107,7 +107,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
 
         _setName(rTokenName);
         _setSymbol(rTokenSymbol);
-        _setDecimals(aTokenDecimals);
+        _setDecimals(rTokenDecimals);
 
         _pool = pool;
         _treasury = treasury;
@@ -120,7 +120,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
             address(pool),
             treasury,
             address(incentivesController),
-            aTokenDecimals,
+            rTokenDecimals,
             rTokenName,
             rTokenSymbol,
             params
@@ -175,9 +175,9 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     }
 
     /**
-     * @dev Burns aTokens from `user` and sends the equivalent amount of underlying to `receiverOfUnderlying`
+     * @dev Burns rTokens from `user` and sends the equivalent amount of underlying to `receiverOfUnderlying`
      * - Only callable by the LendingPool, as extra state updates there need to be managed
-     * @param user The owner of the aTokens, getting them burned
+     * @param user The owner of the rTokens, getting them burned
      * @param receiverOfUnderlying The address that will receive the underlying
      * @param amount The amount being burned
      * @param index The new liquidity index of the reserve
@@ -201,7 +201,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     }
 
     /**
-     * @dev Mints `amount` aTokens to `user`
+     * @dev Mints `amount` rTokens to `user`
      * - Only callable by the LendingPool, as extra state updates there need to be managed
      * @param user The address receiving the minted tokens
      * @param amount The amount of tokens getting minted
@@ -227,7 +227,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     }
 
     /**
-     * @dev Mints aTokens to the reserve treasury
+     * @dev Mints rTokens to the reserve treasury
      * - Only callable by the LendingPool
      * @param amount The amount of tokens getting minted
      * @param index The new liquidity index of the reserve
@@ -258,9 +258,9 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     }
 
     /**
-     * @dev Transfers aTokens in the event of a borrow being liquidated, in case the liquidators reclaims the aToken
+     * @dev Transfers rTokens in the event of a borrow being liquidated, in case the liquidators reclaims the aToken
      * - Only callable by the LendingPool
-     * @param from The address getting liquidated, current owner of the aTokens
+     * @param from The address getting liquidated, current owner of the rTokens
      * @param to The recipient
      * @param value The amount of tokens getting transferred
      *
@@ -374,31 +374,19 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     /**
      * @dev Transfers the underlying asset to `target`. Used by the LendingPool to transfer
      * assets in borrow(), withdraw() and flashLoan()
-     * @param target The recipient of the aTokens
+     * @param user The send of the rTokens
+     * @param receiverOfUnderlying The recipient of the rTokens
      * @param amount The amount getting transferred
      * @return The amount transferred
      *
      */
-    // TODO: write this similar this to burn.
-    function transferUnderlyingTo(address target, uint256 amount, uint256 toChainId)
+    function transferUnderlyingTo(address user, address receiverOfUnderlying, uint256 amount, uint256 toChainId)
         external
         override
         onlyLendingPool
         returns (uint256)
     {
-        if (toChainId != block.chainid) {
-            ISuperchainTokenBridge(Predeploys.SUPERCHAIN_TOKEN_BRIDGE).sendERC20(
-                _underlyingAsset, target, amount, toChainId
-            );
-        } else {
-            uint256 underlyingAmount = ISuperAsset(_underlyingAsset).balanceOf(address(this));
-            if (underlyingAmount >= amount) {
-                ISuperAsset(_underlyingAsset).burn(target, amount);
-            } else {
-                ISuperAsset(_underlyingAsset).burn(target, underlyingAmount);
-                ISuperAsset(_underlyingAsset).transfer(target, amount - underlyingAmount);
-            }
-        }
+        IRVaultAsset(_underlyingAsset).burn(user, receiverOfUnderlying, toChainId, amount);
         return amount;
     }
 
@@ -441,7 +429,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     }
 
     /**
-     * @dev Transfers the aTokens between two users. Validates the transfer
+     * @dev Transfers the rTokens between two users. Validates the transfer
      * (ie checks for valid HF after the transfer) if required
      * @param from The source address
      * @param to The destination address

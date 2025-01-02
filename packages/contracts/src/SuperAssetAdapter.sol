@@ -4,12 +4,9 @@ pragma solidity ^0.8.22;
 
 import {ILendingPoolAddressesProvider} from "./interfaces/ILendingPoolAddressesProvider.sol";
 import {IRVaultAsset} from "./interfaces/IRVaultAsset.sol";
-import {
-    Origin, MessagingReceipt
-} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
-// packages/contracts/lib/LayerZero-v2/packages/layerzero-v2/evm/protocol/contracts/interfaces/ILayerZeroEndpointV2.sol
-import {OFTReceipt} from "@layerzerolabs/oft-evm/contracts/interfaces/IOFT.sol";
 
+import {Origin, MessagingReceipt} from "./libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
+import {OFTReceipt} from "@layerzerolabs/oft-evm/contracts/interfaces/IOFT.sol";
 import {OFTAdapter} from "./libraries/helpers/layerzero/OFTAdapter.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {OFTLogic} from "./libraries/logic/OFTLogic.sol";
@@ -42,7 +39,7 @@ contract SuperAssetAdapter is OFTAdapter {
     /*                  External Functions                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    function lzReceive(Origin calldata _origin, bytes32 _guid, bytes calldata _message, bytes calldata _extraData)
+    function lzReceive(Origin memory _origin, bytes32 _guid, bytes calldata _message, bytes calldata _extraData)
         external
         payable
     {
