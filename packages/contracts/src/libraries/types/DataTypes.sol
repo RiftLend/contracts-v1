@@ -13,6 +13,8 @@ library DataTypes {
         address variableDebtTokenAddress;
         address interestRateStrategyAddress;
         uint8 id;
+        uint8 pool_type;
+        address superAsset;
     }
 
     enum Action_type {

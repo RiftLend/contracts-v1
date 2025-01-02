@@ -108,75 +108,58 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         _addressesProvider = provider;
         _flashLoanPremiumTotal = 9;
         _maxNumberOfReserves = 128;
-        (rVaultAsset, pool_type, baseAsset) = TokensLogic.getPoolTokenInformation(_addressesProvider);
     }
 
-    /* @notice Deposits a specified `amount` of `asset` into the lending pool on behalf of `onBehalfOf`.
-    * @dev This function can only be called by the router.
-    * @param sender The address of the sender initiating the deposit.
-    * @param asset The address of the asset to be deposited (underlying, superAsset, or Rvault).
-    * @param token_type The type of the token being deposited.
-    * @param amount The amount of the asset to be deposited.
-    * @param onBehalfOf The address on whose behalf the deposit is made.
-    * @param referralCode The referral code for the deposit.
-    */
+    /**
+     * @notice Deposits a specified `amount` of `asset` into the lending pool on behalf of `onBehalfOf`.
+     * @dev This function can only be called by the router.
+     * @param sender The address of the sender initiating the deposit.
+     * @param asset The address of the asset to be deposited (underlying, superAsset, or Rvault).
+     * @param amount The amount of the asset to be deposited.
+     * @param onBehalfOf The address on whose behalf the deposit is made.
+     * @param referralCode The referral code for the deposit.
+     */
     function deposit(address sender, address asset, uint256 amount, address onBehalfOf, uint16 referralCode)
         external
         onlyRouter
-    {
+    {   
+        address rVaultAsset = _rVaultAsset[asset];
+        require(rVaultAsset != address(0), "!rVaultAsset");
         DataTypes.ReserveData storage reserve = _reserves[rVaultAsset];
         address rToken = reserve.rTokenAddress;
 
         ValidationLogic.validateDeposit(reserve, amount);
 
-        require(
-            asset == underlying_of_superAsset || asset == baseAsset || asset == rVaultAsset, "Invalid Deposit Asset"
-        );
-
         // We have to transfer user's tokens any way
-        IERC20(asset).safeTransferFrom(onBehalfOf, address(this), amount);
+        IERC20(asset).safeTransferFrom(sender, address(this), amount);
 
         // If user wants to deposit with underlying of superAsset on op_superchain,
         // wrap them into superAsset and lendingPool will hold them for further processing
-
-        if (pool_type == 1 && asset == underlying_of_superAsset) {
-            IERC20(asset).approve(baseAsset, amount);
-            ISuperAsset(baseAsset).deposit(address(this), amount);
+        if (reserve.pool_type == 1) {
+            IERC20(asset).approve(reserve.superAsset, amount);
+            ISuperAsset(reserve.superAsset).deposit(address(this), amount);
         }
-        // here whether the deposit happens on op_superchain or any cluster
-        // we are having their baseAsset for rVaultAsset ... plain underlying for other clusters
-        // and superAsset for op_superchain ( because we just wrapped underlying above )
+        IRVaultAsset(rVaultAsset).mint(amount, rToken);
 
-        // If the user wishes to deposit in non-rvaultasset , then since we have underlying asset in lending pool for both cluster types
-        // with previous steps , we mint the rVaultAsset
-
-        // Note in both branches , we are minting rVaultAsset directly to rToken
-
-        if (asset != rVaultAsset) {
-            IERC20(baseAsset).approve(rVaultAsset, amount);
-            IRVaultAsset(rVaultAsset).mint(amount, rToken);
-        } else {
-            IRVaultAsset(rVaultAsset).deposit(amount, rToken);
-        }
-
-        //  We Now mint RTokens to the user as a receipt of their deposit
+        // We now mint RTokens to the user as a receipt of their deposit
         (bool isFirstDeposit, uint256 mintMode, uint256 amountScaled) =
             IRToken(rToken).mint(onBehalfOf, amount, reserve.liquidityIndex);
-
         if (isFirstDeposit) {
             unchecked {
                 _usersConfig[onBehalfOf].setUsingAsCollateral(reserve.id, true);
             }
-            emit ReserveUsedAsCollateralEnabled(baseAsset, onBehalfOf);
+            emit ReserveUsedAsCollateralEnabled(rVaultAsset, onBehalfOf);
         }
 
-        emit Deposit(sender, baseAsset, amount, onBehalfOf, referralCode, mintMode, amountScaled);
+        emit Deposit(sender, rVaultAsset, amount, onBehalfOf, referralCode, mintMode, amountScaled);
     }
 
-    function withdraw(address sender, address, /*asset*/ uint256 amount, address to, uint256 toChainId)
+    function withdraw(address sender, address asset, uint256 amount, address to, uint256 toChainId)
         external
         onlyRouter
     {
+        address rVaultAsset = _rVaultAsset[asset];
+        require(rVaultAsset != address(0), "!rVaultAsset");
         DataTypes.ReserveData storage reserve = _reserves[rVaultAsset];
         address rToken = reserve.rTokenAddress;
 
@@ -217,7 +200,8 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         uint256 sendToChainId,
         uint16 referralCode
     ) external onlyRouter {
-        DataTypes.ReserveData storage reserve = _reserves[asset];
+        address rVaultAsset = _rVaultAsset[asset];
+        require(rVaultAsset != address(0), "!rVaultAsset");
 
         _executeBorrow(
             ExecuteBorrowParams(
@@ -227,7 +211,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
                 sendToChainId,
                 amount,
                 2, // only allow variable rate borrowing
-                reserve.rTokenAddress,
+                rVaultAsset,
                 referralCode,
                 true
             )
@@ -767,17 +751,17 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         uint256 sendToChainId;
         uint256 amount;
         uint256 interestRateMode;
-        address rTokenAddress;
+        address rVaultAsset;
         uint16 referralCode;
         bool releaseUnderlying;
     }
 
     function _executeBorrow(ExecuteBorrowParams memory vars) internal {
-        DataTypes.ReserveData storage reserve = _reserves[vars.asset];
+        DataTypes.ReserveData storage reserve = _reserves[vars.rVaultAsset];
         DataTypes.UserConfigurationMap storage userConfig = _usersConfig[vars.onBehalfOf];
 
         address oracle = _addressesProvider.getPriceOracle();
-        // ToDo: Ensure rigourous testing of this scenario where decimals differ (  oracle returns answers with diferrent decimals etc. )
+        // ToDo: Ensure rigourous testing of this scenario where decimals differ (oracle returns answers with diferrent decimals etc.)
         uint256 amountInETH = (IPriceOracleGetter(oracle).getAssetPrice(vars.asset) * vars.amount)
             / 10 ** reserve.configuration.getDecimals();
         address superAsset = _addressesProvider.getSuperAsset();

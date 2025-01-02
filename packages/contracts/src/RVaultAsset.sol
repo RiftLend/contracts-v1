@@ -151,19 +151,19 @@ contract RVaultAsset is SuperOwnable, OFT {
     }
 
     /// @notice Mint's shares (1:1 peg)
-    function mint(uint256 shares, address receiver) external returns (uint256 assets) {
-        deposit(shares, receiver);
-        assets = shares;
+    function mint(uint256 shares, address receiver) external returns (uint256) {
+        return deposit(shares, receiver);
     }
 
     /// @notice Deposit underlying and mint shares (1:1 peg)
-    function deposit(uint256 assets, address receiver) public returns (uint256 shares) {
+    function deposit(uint256 assets, address receiver) public returns (uint256) {
         totalBalances += assets;
-        shares = assets;
 
         balances[receiver] += assets;
         super._mint(receiver, assets);
         IERC20(underlying).safeTransferFrom(msg.sender, address(this), assets);
+
+        return assets;
     }
 
     /// @notice Burn shares and return underlying
