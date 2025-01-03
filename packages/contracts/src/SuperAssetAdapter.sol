@@ -18,6 +18,7 @@ contract SuperAssetAdapter is OFTAdapter {
 
     mapping(address => address) public underlyingToPoolAddressProvider;
     address public underlyingAsset;
+    address public rVaultAsset;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                  Errors                                    */
@@ -29,10 +30,11 @@ contract SuperAssetAdapter is OFTAdapter {
     /*                  Constructor                               */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    constructor(address rVaultAsset, address _lzEndpoint, address _underlyingAsset)
-        OFTAdapter(rVaultAsset, _lzEndpoint, msg.sender)
+    constructor(address _rVaultAsset, address _lzEndpoint, address _underlyingAsset)
+        OFTAdapter(_underlyingAsset, _lzEndpoint, msg.sender)
     {
         underlyingAsset = _underlyingAsset;
+        rVaultAsset = _rVaultAsset;
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -50,11 +52,6 @@ contract SuperAssetAdapter is OFTAdapter {
         if (_getPeerOrRevert(_origin.srcEid) != _origin.sender) revert OnlyPeer(_origin.srcEid, _origin.sender);
 
         (, uint256 amount) = OFTLogic.decodeMessage(_message);
-
-        (, address rVaultAsset) =
-            ILendingPoolAddressesProvider(underlyingToPoolAddressProvider[underlyingAsset]).getRVaultAsset();
-
-        if (rVaultAsset == address(0)) revert InvalidPool();
 
         _credit(rVaultAsset, amount, 0);
         IRVaultAsset(rVaultAsset).lzReceive(_origin, _guid, _message, address(0), _extraData);

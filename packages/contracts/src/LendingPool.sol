@@ -161,11 +161,8 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         onlyRouter
     {
         address rVaultAsset = _getRVaultAssetOrRevert(asset);
-
         DataTypes.ReserveData storage reserve = _reserves[rVaultAsset];
         address rToken = reserve.rTokenAddress;
-
-        // local balance of rtoken for the user
         uint256 userBalance = IRToken(rToken).balanceOf(sender);
         uint256 amountToWithdraw = amount == type(uint256).max ? userBalance : amount;
 
@@ -257,8 +254,16 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             }
         }
 
-        IRVaultAsset(rVaultAsset).mint(amount, address(rToken));
+        // check if they have the loan on current chain for the asset and repay that amount remaining
+        // if the amount remains, extra amount ... TODO: think - 
 
+        // borrow on eth, repay on arb (assets get deposited in arb)
+        // bridge RVaultAsset to eth
+        // we repay the loan using rvault asset on eth
+        // burn the debt token on eth accordingly
+
+        IRVaultAsset(rVaultAsset).mint(amount, address(rToken));
+        
         IRToken(rToken).handleRepayment(onBehalfOf, paybackAmount);
 
         emit Repay(asset, paybackAmount, onBehalfOf, sender, rateMode, mode, amountBurned);

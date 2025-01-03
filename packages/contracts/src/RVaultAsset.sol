@@ -169,6 +169,7 @@ contract RVaultAsset is SuperOwnable, OFT {
     /// @notice Burn shares and return underlying
     function burn(address user, address receiverOfUnderlying, uint256 toChainId, uint256 amount) external {
         super._burn(user, amount);
+        // TODO: transfer asset here instead of bridge
         _bridge(receiverOfUnderlying, toChainId, amount);
     }
 
@@ -224,7 +225,7 @@ contract RVaultAsset is SuperOwnable, OFT {
         address, /*_underlyingAsset*/
         uint256 toChainId
     ) internal {
-        IERC20(underlying).safeTransferFrom(msg.sender, address(this), tokensToSend);
+        IERC20(underlying).safeTransferFrom(msg.sender, address(this), tokensToSend); // TODO: move this to burn
 
         if (pool_type == 1) {
             bytes memory compose_message = OFTLogic.encodeMessage(receiverOfUnderlying, tokensToSend);
@@ -255,7 +256,7 @@ contract RVaultAsset is SuperOwnable, OFT {
             MessagingFee memory fee = quoteSend(sendParam, false);
             _send(sendParam, fee, payable(address(this)));
 
-            // revert case will be handled in _send()
+            // TODO: add revert case here
         }
     }
 
@@ -289,8 +290,8 @@ contract RVaultAsset is SuperOwnable, OFT {
         bytes calldata /*_extraData*/
     ) public payable override {
         // Ensures that only the endpoint can attempt to lzReceive() messages to this OApp.
+        // TODO: fix this for superassetadapter
         if (address(endpoint) != msg.sender) revert OnlyEndpoint(msg.sender);
-
         // Ensure that the sender matches the expected peer for the source endpoint.
         if (_getPeerOrRevert(_origin.srcEid) != _origin.sender) revert OnlyPeer(_origin.srcEid, _origin.sender);
 
@@ -303,18 +304,15 @@ contract RVaultAsset is SuperOwnable, OFT {
                    - op superchains ( op chain_a to op chain_b)
         */
 
+        // eth<->arb when we go through superassetadapter / rvaultasset
+        // TODO: think who to mint the RVaultAssetTokens to all the users
+
+        // when indivual users send ... 
+        // just mint it to the user.
+
         if (msg.sender == address(superAssetAdapter)) {
-            // arbETH->superchain
-            if (pool_type == 1) {
-                ISuperAsset(underlying).withdraw(receiverOfUnderlying, tokensAmount);
-            }
-            // arb->eth
-            else {
-                IERC20(underlying).safeTransfer(receiverOfUnderlying, tokensAmount);
-            }
-        }
-        // Intra clusters ( superchain to superchain or arb->eth cluster)
-        else {
+            ISuperAsset(underlying).withdraw(receiverOfUnderlying, tokensAmount);
+        } else {
             IERC20(underlying).safeTransfer(receiverOfUnderlying, tokensAmount);
         }
     }
