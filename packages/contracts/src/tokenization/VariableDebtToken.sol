@@ -23,6 +23,8 @@ contract VariableDebtToken is DebtTokenBase, IVariableDebtToken {
     ILendingPool internal _pool;
     address internal _underlyingAsset;
     IAaveIncentivesController internal _incentivesController;
+    // Syncing the cross chain balancs of users.
+    mapping(address => uint256) public crossChainUserBalance;
 
     /**
      * @dev Initializes the debt token.
@@ -82,7 +84,7 @@ contract VariableDebtToken is DebtTokenBase, IVariableDebtToken {
             return 0;
         }
 
-        return scaledBalance.rayMul(_pool.getReserveNormalizedVariableDebt(_underlyingAsset));
+        return scaledBalance.rayMul(_pool.getReserveNormalizedVariableDebt());
     }
 
     /**
@@ -90,11 +92,17 @@ contract VariableDebtToken is DebtTokenBase, IVariableDebtToken {
      * @param amountScaled The amount scaled
      * @param mode The mode
      */
-    function updateCrossChainBalance(uint256 amountScaled, uint256 mode) external override onlyLendingPool {
+    function updateCrossChainBalance(address user, uint256 amountScaled, uint256 mode)
+        external
+        override
+        onlyLendingPool
+    {
         if (mode == 1) {
+            crossChainUserBalance[user] += amountScaled;
             _totalCrossChainSupply += amountScaled;
         } else if (mode == 2) {
             _totalCrossChainSupply -= amountScaled;
+            crossChainUserBalance[user] -= amountScaled;
         }
     }
 
@@ -171,7 +179,7 @@ contract VariableDebtToken is DebtTokenBase, IVariableDebtToken {
      *
      */
     function totalSupply() public view virtual override returns (uint256) {
-        return super.totalSupply().rayMul(_pool.getReserveNormalizedVariableDebt(_underlyingAsset));
+        return super.totalSupply().rayMul(_pool.getReserveNormalizedVariableDebt());
     }
 
     /**

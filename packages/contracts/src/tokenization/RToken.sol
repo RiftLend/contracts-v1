@@ -1,29 +1,30 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.8.25;
 
-import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
 import {WadRayMath} from "../libraries/math/WadRayMath.sol";
 import {Errors} from "../libraries/helpers/Errors.sol";
 import {Initializable} from "@solady/utils/Initializable.sol";
+import {SuperPausable} from "../interop-std/src/utils/SuperPausable.sol";
+import {EventValidator, ValidationMode, Identifier} from "../libraries/EventValidator.sol";
+import {Predeploys} from "../libraries/Predeploys.sol";
 
+import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
 import {ILendingPool} from "../interfaces/ILendingPool.sol";
-import {IAToken} from "../interfaces/IAToken.sol";
+import {IRToken} from "../interfaces/IRToken.sol";
 import {IncentivizedERC20} from "./IncentivizedERC20.sol";
 import {IAaveIncentivesController} from "../interfaces/IAaveIncentivesController.sol";
 import {ILendingPoolAddressesProvider} from "../interfaces/ILendingPoolAddressesProvider.sol";
-
-import {Predeploys} from "@contracts-bedrock/libraries/Predeploys.sol";
-import "@contracts-bedrock/L2/interfaces/ICrossL2Inbox.sol";
-import {ISuperchainAsset} from "../interfaces/ISuperchainAsset.sol";
-import {ISuperchainTokenBridge} from "@contracts-bedrock/L2/interfaces/ISuperchainTokenBridge.sol";
+import {ISuperAsset} from "../interfaces/ISuperAsset.sol";
+import {ISuperchainTokenBridge} from "../interfaces/ISuperchainTokenBridge.sol";
+import {IRVaultAsset} from "../interfaces/IRVaultAsset.sol";
 
 /**
- * @title Aave ERC20 AToken
+ * @title Aave ERC20 RToken
  * @dev Implementation of the interest bearing token for the Aave protocol
  * @author Aave
  */
-contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL", 0), IAToken {
+contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL", 0), IRToken, SuperPausable {
     using WadRayMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -45,8 +46,11 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
     address internal _underlyingAsset;
     IAaveIncentivesController internal _incentivesController;
     ILendingPoolAddressesProvider internal _addressesProvider;
+    EventValidator internal _eventValidator;
+    // Syncing the cross chain balancs of users.
+    mapping(address => uint256) public crossChainUserBalance;
 
-    event CrossChainMint(address indexed user, uint256 amount, uint256 index);
+    event CrossChainMint(address user, uint256 amount, uint256 index);
 
     modifier onlyLendingPool() {
         require(_msgSender() == address(_pool), Errors.CT_CALLER_MUST_BE_LENDING_POOL);
@@ -62,30 +66,33 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
         require(_addressesProvider.getRelayer() == msg.sender, "!relayer");
     }
 
+    modifier onlyLendingPoolConfigurator() {
+        _onlyLendingPoolConfigurator();
+        _;
+    }
+
+    function _onlyLendingPoolConfigurator() internal view {
+        require(
+            _addressesProvider.getLendingPoolConfigurator() == msg.sender,
+            Errors.LP_CALLER_NOT_LENDING_POOL_CONFIGURATOR
+        );
+    }
+
     function getRevision() internal pure virtual returns (uint256) {
         return ATOKEN_REVISION;
     }
 
-    /**
-     * @dev Initializes the aToken
-     * @param pool The address of the lending pool where this aToken will be used
-     * @param treasury The address of the Aave treasury, receiving the fees on this aToken
-     * @param underlyingAsset The address of the underlying asset of this aToken (E.g. WETH for aWETH)
-     * @param incentivesController The smart contract managing potential incentives distribution
-     * @param aTokenDecimals The decimals of the aToken, same as the underlying asset's
-     * @param aTokenName The name of the aToken
-     * @param aTokenSymbol The symbol of the aToken
-     */
     function initialize(
         ILendingPool pool,
         address treasury,
         address underlyingAsset,
         IAaveIncentivesController incentivesController,
         ILendingPoolAddressesProvider addressesProvider,
-        uint8 aTokenDecimals,
-        string calldata aTokenName,
-        string calldata aTokenSymbol,
-        bytes calldata params
+        uint8 rTokenDecimals,
+        string calldata rTokenName,
+        string calldata rTokenSymbol,
+        bytes calldata params,
+        address eventValidator
     ) external override initializer {
         uint256 chainId;
 
@@ -95,41 +102,57 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
         }
 
         DOMAIN_SEPARATOR = keccak256(
-            abi.encode(EIP712_DOMAIN, keccak256(bytes(aTokenName)), keccak256(EIP712_REVISION), chainId, address(this))
+            abi.encode(EIP712_DOMAIN, keccak256(bytes(rTokenName)), keccak256(EIP712_REVISION), chainId, address(this))
         );
 
-        _setName(aTokenName);
-        _setSymbol(aTokenSymbol);
-        _setDecimals(aTokenDecimals);
+        _setName(rTokenName);
+        _setSymbol(rTokenSymbol);
+        _setDecimals(rTokenDecimals);
 
         _pool = pool;
         _treasury = treasury;
         _underlyingAsset = underlyingAsset;
         _incentivesController = incentivesController;
         _addressesProvider = addressesProvider;
+        _eventValidator = EventValidator(eventValidator);
         emit Initialized(
             underlyingAsset,
             address(pool),
             treasury,
             address(incentivesController),
-            aTokenDecimals,
-            aTokenName,
-            aTokenSymbol,
+            rTokenDecimals,
+            rTokenName,
+            rTokenSymbol,
             params
         );
     }
 
-    function dispatch(Identifier calldata _identifier, bytes calldata _data) external onlyRelayer {
-        if (_identifier.origin != address(this)) revert("!origin");
-        ICrossL2Inbox(Predeploys.CROSS_L2_INBOX).validateMessage(_identifier, keccak256(_data));
+    function dispatch(
+        ValidationMode _mode,
+        Identifier[] calldata _identifier,
+        bytes[] calldata _data,
+        bytes calldata _proof,
+        uint256[] calldata _logIndex
+    ) external onlyRelayer whenNotPaused {
+        for (uint256 i = 0; i < _identifier.length; i++) {
+            if (_mode != ValidationMode.CUSTOM) {
+                _eventValidator.validate(_mode, _identifier[i], _data, _logIndex, _proof);
+            }
+            _dispatch(_identifier[i], _data[i]);
+        }
+    }
 
+    function _dispatch(Identifier calldata _identifier, bytes calldata _data) internal {
         bytes32 selector = abi.decode(_data[:32], (bytes32));
         if (selector == CrossChainMint.selector && _identifier.chainId != block.chainid) {
-            (, uint256 amount,) = abi.decode(_data[32:], (address, uint256, uint256));
+            (address user, uint256 amount,) = abi.decode(_data[32:], (address, uint256, uint256));
             _totalCrossChainSupply += amount;
+            crossChainUserBalance[user] += amount;
         }
-
-        revert("Invalid selector");
+        if (selector == Mint.selector) {
+            (address user, uint256 amount) = abi.decode(_data[32:], (address, uint256));
+            crossChainUserBalance[user] += amount;
+        }
     }
 
     /**
@@ -137,18 +160,24 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
      * @param amountScaled The amount scaled
      * @param mode The mode
      */
-    function updateCrossChainBalance(uint256 amountScaled, uint256 mode) external override onlyLendingPool {
+    function updateCrossChainBalance(address user, uint256 amountScaled, uint256 mode)
+        external
+        override
+        onlyLendingPool
+    {
         if (mode == 1) {
+            crossChainUserBalance[user] += amountScaled;
             _totalCrossChainSupply += amountScaled;
         } else if (mode == 2) {
             _totalCrossChainSupply -= amountScaled;
+            crossChainUserBalance[user] -= amountScaled;
         }
     }
 
     /**
-     * @dev Burns aTokens from `user` and sends the equivalent amount of underlying to `receiverOfUnderlying`
+     * @dev Burns rTokens from `user` and sends the equivalent amount of underlying to `receiverOfUnderlying`
      * - Only callable by the LendingPool, as extra state updates there need to be managed
-     * @param user The owner of the aTokens, getting them burned
+     * @param user The owner of the rTokens, getting them burned
      * @param receiverOfUnderlying The address that will receive the underlying
      * @param amount The amount being burned
      * @param index The new liquidity index of the reserve
@@ -164,13 +193,7 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
         require(amountScaled != 0, Errors.CT_INVALID_BURN_AMOUNT);
         _burn(user, amountScaled);
 
-        if (toChainId != block.chainid) {
-            ISuperchainTokenBridge(Predeploys.SUPERCHAIN_TOKEN_BRIDGE).sendERC20(
-                _underlyingAsset, receiverOfUnderlying, amount, toChainId
-            );
-        } else {
-            ISuperchainAsset(_underlyingAsset).burn(receiverOfUnderlying, amount);
-        }
+        IRVaultAsset(_underlyingAsset).burn(user, receiverOfUnderlying, toChainId, amount);
 
         emit Transfer(user, address(0), amount);
         emit Burn(user, receiverOfUnderlying, amount, index);
@@ -178,7 +201,7 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
     }
 
     /**
-     * @dev Mints `amount` aTokens to `user`
+     * @dev Mints `amount` rTokens to `user`
      * - Only callable by the LendingPool, as extra state updates there need to be managed
      * @param user The address receiving the minted tokens
      * @param amount The amount of tokens getting minted
@@ -204,7 +227,7 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
     }
 
     /**
-     * @dev Mints aTokens to the reserve treasury
+     * @dev Mints rTokens to the reserve treasury
      * - Only callable by the LendingPool
      * @param amount The amount of tokens getting minted
      * @param index The new liquidity index of the reserve
@@ -235,9 +258,9 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
     }
 
     /**
-     * @dev Transfers aTokens in the event of a borrow being liquidated, in case the liquidators reclaims the aToken
+     * @dev Transfers rTokens in the event of a borrow being liquidated, in case the liquidators reclaims the aToken
      * - Only callable by the LendingPool
-     * @param from The address getting liquidated, current owner of the aTokens
+     * @param from The address getting liquidated, current owner of the rTokens
      * @param to The recipient
      * @param value The amount of tokens getting transferred
      *
@@ -351,30 +374,19 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
     /**
      * @dev Transfers the underlying asset to `target`. Used by the LendingPool to transfer
      * assets in borrow(), withdraw() and flashLoan()
-     * @param target The recipient of the aTokens
+     * @param user The send of the rTokens
+     * @param receiverOfUnderlying The recipient of the rTokens
      * @param amount The amount getting transferred
      * @return The amount transferred
      *
      */
-    function transferUnderlyingTo(address target, uint256 amount, uint256 toChainId)
+    function transferUnderlyingTo(address user, address receiverOfUnderlying, uint256 amount, uint256 toChainId)
         external
         override
         onlyLendingPool
         returns (uint256)
     {
-        if (toChainId != block.chainid) {
-            ISuperchainTokenBridge(Predeploys.SUPERCHAIN_TOKEN_BRIDGE).sendERC20(
-                _underlyingAsset, target, amount, toChainId
-            );
-        } else {
-            uint256 underlyingAmount = ISuperchainAsset(_underlyingAsset).balances(address(this));
-            if (underlyingAmount >= amount) {
-                ISuperchainAsset(_underlyingAsset).burn(target, amount);
-            } else {
-                ISuperchainAsset(_underlyingAsset).burn(target, underlyingAmount);
-                ISuperchainAsset(_underlyingAsset).transfer(target, amount - underlyingAmount);
-            }
-        }
+        IRVaultAsset(_underlyingAsset).burn(user, receiverOfUnderlying, toChainId, amount);
         return amount;
     }
 
@@ -417,7 +429,7 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
     }
 
     /**
-     * @dev Transfers the aTokens between two users. Validates the transfer
+     * @dev Transfers the rTokens between two users. Validates the transfer
      * (ie checks for valid HF after the transfer) if required
      * @param from The source address
      * @param to The destination address
@@ -452,5 +464,13 @@ contract AToken is Initializable, IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL"
      */
     function _transfer(address from, address to, uint256 amount) internal override {
         _transfer(from, to, amount, true);
+    }
+
+    function setPause(bool val) external onlyLendingPoolConfigurator {
+        if (val) {
+            _pause();
+        } else {
+            _unpause();
+        }
     }
 }

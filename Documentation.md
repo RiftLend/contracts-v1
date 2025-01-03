@@ -70,7 +70,7 @@ This ensures:
    - Wrapper tokens enabling cross-chain functionality (e.g., superUSDC)
    - Facilitates seamless cross-chain transfers and eliminates bridging complexity
 
-3. **aTokens**
+3. **RTokens**
    - Interest-bearing tokens minted against SuperChainAssets (e.g., aUSDC)
    - Represent user deposits and earned interest
 
@@ -154,16 +154,16 @@ Each `LendingPool` instance is:
 In RiftLend:
 - Users deposit underlying assets (e.g., USDC).
 - SuperChainAssets (e.g., superUSDC) are minted for cross-chain functionality.
-- aTokens (e.g., aUSDC) represent deposits and interest.
+- RTokens (e.g., aUSDC) represent deposits and interest.
 
 ### **Token Flow**
 1. Deposit underlying asset (e.g., USDC).
 2. Mint SuperChainAsset (e.g., superUSDC).
-3. Mint aTokens (e.g., aUSDC) against SuperChainAssets.
+3. Mint RTokens (e.g., aUSDC) against SuperChainAssets.
 
 This model enables efficient cross-chain operations while retaining compatibility with Aave's proven framework.
 
-![aTokens](https://github.com/user-attachments/assets/f931a3c5-656e-4d94-8ac3-93a4933e1059)
+![RTokens](https://github.com/user-attachments/assets/f931a3c5-656e-4d94-8ac3-93a4933e1059)
 
 ---
 
