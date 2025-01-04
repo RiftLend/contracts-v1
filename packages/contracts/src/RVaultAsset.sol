@@ -194,7 +194,7 @@ contract RVaultAsset is SuperOwnable, OFT {
     function _bridgeCrossCluster(
         uint256 tokensToSend,
         address receiverOfUnderlying,
-        address, /*_underlyingAsset*/
+        address, /*_underlyingAsset*/ // TODO: Remove this
         uint256 toChainId
     ) internal {
         if (pool_type == 1) {
@@ -216,7 +216,7 @@ contract RVaultAsset is SuperOwnable, OFT {
             bytes memory compose_message = OFTLogic.encodeMessage(receiverOfUnderlying, tokensToSend);
             SendParam memory sendParam = SendParam(
                 uint32(toChainId),
-                bytes32(uint256(uint160(address(superAssetAdapter)))),
+                bytes32(uint256(uint160(address(superAssetAdapter)))), // TODO: u have to check if toChainId this is going to superchain / normal and then pass superAssetAdapter / address(this)
                 tokensToSend,
                 tokensToSend, // No Slippage
                 "", // No options

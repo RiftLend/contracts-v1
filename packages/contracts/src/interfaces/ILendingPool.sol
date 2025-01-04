@@ -172,7 +172,7 @@ event CrossChainWithdraw(
 );
 
 event CrossChainRepay(
-    uint256 toChainId, address sender, address asset, uint256 amount, address onBehalfOf, uint256 debtChainId
+    uint256 fundChainId, address sender, address asset, uint256 amount, address onBehalfOf, uint256 debtChainId
 );
 
 event CrossChainRepayFinalize(uint256 debtchainid, address sender, address onbehalfof, uint256 amount, address asset);

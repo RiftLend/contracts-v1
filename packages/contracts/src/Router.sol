@@ -166,7 +166,9 @@ contract Router is Initializable, SuperPausable {
             IERC20(asset).safeTransferFrom(sender, address(this), amount);
             if (reserve.pool_type == 1) {
                 IERC20(asset).approve(reserve.superAsset, amount);
-                ISuperAsset(reserve.superAsset).deposit(address(this), amount);
+                ISuperAsset(reserve.superAsset).deposit(rVaultAsset, amount);
+            } else {
+                IERC20(asset).safeTransfer(rVaultAsset, amount);
             }
             // send rvaultasset to debtchain  normal bridging
             IRVaultAsset(rVaultAsset).bridge(address(lendingPool), debtChainId, amount);

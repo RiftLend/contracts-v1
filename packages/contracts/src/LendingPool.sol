@@ -212,18 +212,18 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
 
     function repay(address sender, address onBehalfOf, address asset, uint256 amount) external onlyRouter {
         address rVaultAsset = getRVaultAssetOrRevert(asset);
-
         DataTypes.ReserveData storage reserve = _reserves[rVaultAsset];
 
         /// @dev this will get the debt of the user on the current chain
         uint256 debt = Helpers.getUserCurrentDebt(onBehalfOf, reserve);
+        ValidationLogic.validateRepay(reserve, amount, debt);
 
-        ValidationLogic.validateRepay(reserve, amount, onBehalfOf, debt);
-
-        uint256 paybackAmount = debt;
-
-        if (amount < paybackAmount) {
+        uint256 paybackAmount;
+        if (amount <= paybackAmount) {
             paybackAmount = amount;
+        } else {
+            paybackAmount = debt;
+            // TODO: send the remaining RVault tokens on the debtChain back to the user on this chain.
         }
 
         _updateStates(reserve, asset, paybackAmount, 0, UPDATE_RATES_AND_STATES_MASK);
@@ -240,15 +240,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             _usersConfig[onBehalfOf].setBorrowing(reserve.id, false);
         }
 
-        unchecked {
-            if (reserve.pool_type == 1) {
-                IERC20(asset).approve(reserve.superAsset, amount);
-                IRVaultAsset(reserve.superAsset).mint(amount, address(rVaultAsset));
-            }
-        }
-
-        IRVaultAsset(rVaultAsset).mint(amount, address(rToken));
-
+        IERC20(rVaultAsset).safeTransfer(address(rToken), amount);
         IRToken(rToken).handleRepayment(onBehalfOf, paybackAmount);
 
         emit Repay(asset, paybackAmount, onBehalfOf, sender, mode, amountBurned);
