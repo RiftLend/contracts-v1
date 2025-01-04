@@ -175,7 +175,7 @@ event CrossChainWithdraw(
 );
 
 event CrossChainRepay(
-    uint256 toChainId, address sender, address asset, uint256 amount, uint256 rateMode, address onBehalfOf
+    uint256 toChainId, address sender, address asset, uint256 amount, address onBehalfOf
 );
 
 event ReserveUsedAsCollateral(address user, address asset, bool useAsCollateral);

@@ -210,7 +210,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         );
     }
 
-    function repay(address sender, address asset, uint256 amount, uint256 rateMode, address onBehalfOf)
+    function repay( address asset, uint256 amount,  address onBehalfOf)
         external
         onlyRouter
     {
@@ -244,8 +244,6 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         if (variableDebt - paybackAmount == 0) {
             _usersConfig[onBehalfOf].setBorrowing(reserve.id, false);
         }
-
-        IERC20(asset).safeTransferFrom(onBehalfOf, address(this), amount);
 
         unchecked {
             if (reserve.pool_type == 1) {

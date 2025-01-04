@@ -214,7 +214,6 @@ contract RVaultAsset is SuperOwnable, OFT {
         emit CrossChainBridgeUnderlyingSent(txData, block.timestamp);
     }
     //  @dev On receiving side of the bridgeUnderlying call, this function will be called to send the underlying to desired address
-
     function withdrawTokens(address _recipient, uint256 _amount) external onlySuperAdmin {
         IERC20(underlying).safeTransfer(_recipient, _amount);
     }

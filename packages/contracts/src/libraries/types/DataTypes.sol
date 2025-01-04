@@ -42,7 +42,7 @@ library DataTypes {
 
     enum Chain_Cluster_Types {
         NONE,
-        INTER,
+        CROSS,
         INTRA
     }
 

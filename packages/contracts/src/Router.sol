@@ -149,6 +149,23 @@ contract Router is Initializable, SuperPausable {
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
         // event Repay(address reserve, uint256 amount, address user, address repayer, uint256 rateMode, uint256 mode, uint256 amountBurned);
 
+        // if (selector == Repay.selector && _identifier.chainId != block.chainid) {
+        //     (address asset, uint256 amount,, address repayer, uint256 rateMode, uint256 mintMode, uint256 amountBurned)
+        //     = abi.decode(_data[32:], (address, uint256, address, address, uint256, uint256, uint256));
+        //     DataTypes.ReserveData memory reserve = lendingPool.getReserveData(asset);
+        //     if (rateMode == 2) {
+        //         IVariableDebtToken(reserve.variableDebtTokenAddress).updateCrossChainBalance(
+        //             repayer, amountBurned, mintMode
+        //         );
+        //     }
+        //     lendingPool.updateStates(asset, amount, 0, UPDATE_RATES_AND_STATES_MASK);
+        // }
+        // if (selector == CrossChainRepay.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
+        //     (address sender, address asset, uint256 amount, address onBehalfOf) =
+        //         abi.decode(_data[64:], (address, address, uint256, address));
+        //     lendingPool.repay(sender, asset, amount, rateMode, onBehalfOf);
+        // }
+
         if (selector == Repay.selector && _identifier.chainId != block.chainid) {
             (address asset, uint256 amount,, address repayer, uint256 rateMode, uint256 mintMode, uint256 amountBurned)
             = abi.decode(_data[32:], (address, uint256, address, address, uint256, uint256, uint256));
@@ -161,9 +178,31 @@ contract Router is Initializable, SuperPausable {
             lendingPool.updateStates(asset, amount, 0, UPDATE_RATES_AND_STATES_MASK);
         }
         if (selector == CrossChainRepay.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
-            (address sender, address asset, uint256 amount, uint256 rateMode, address onBehalfOf) =
-                abi.decode(_data[64:], (address, address, uint256, uint256, address));
-            lendingPool.repay(sender, asset, amount, rateMode, onBehalfOf);
+            (address sender, address asset, uint256 amount, address onBehalfOf,uint256 debtChainId ) =
+                abi.decode(_data[64:], (address, address, uint256, address,uint256));
+        
+        address rVaultAsset = lendingPool._getRVaultAssetOrRevert(asset);
+        DataTypes.ReserveData memory reserve = lendingPool.getReserveData(rVaultAsset);
+        
+            // 1.get the asset from user            
+            IRVaultAsset(asset).safeTransferFrom(sender, address(this), amount);
+            // mint rvaultasset ( pre req for superchain )
+            //If pool is on op_superchain,
+        // wrap them into superAsset with lendingPool as receiver
+        if (reserve.pool_type == 1) {
+            IERC20(asset).approve(reserve.superAsset, amount);
+            ISuperAsset(reserve.superAsset).deposit(address(this), amount);
+        }            
+            // send rvaultasset to debtchain  normal bridging 
+            IRVaultAsset(rVaultAsset).bridge(asset, address(this), amount, debtChainId);
+            // emit crosschainrepayfinalize event  emit crosschainrepayfinalize(debtchainid,onbehalfof,amount,rvau;tasset)
+
+        }
+         if (selector == crossChainRepayFinalize.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
+            (uint onBehalfOf, uint amount, address asset) =
+                abi.decode(_data[64:], (uint256,uint256 ,address));
+
+            lendingPool.repay(onBehalfOf, asset, amount,  );
         }
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -180,7 +219,6 @@ contract Router is Initializable, SuperPausable {
                 uint256 maxCollateralToLiquidate,
                 , //liquidator
                 bool receiveRToken,
-                , //stableDebtBurned
                 uint256 variableDebtBurned,
                 uint256 collateralRTokenBurned
             ) = abi.decode(
@@ -327,26 +365,72 @@ contract Router is Initializable, SuperPausable {
      */
     function repay(
         address asset,
-        uint256[] calldata amounts,
-        uint256 totalAmount,
-        uint256[] calldata rateMode,
         address onBehalfOf,
-        uint256[] calldata chainIds
-    ) external whenNotPaused {
-        // DataTypes.ReserveData memory reserve = lendingPool.getReserveData(asset);
-        IERC20(asset).safeTransferFrom(msg.sender, address(this), totalAmount);
-        address superAsset = addressesProvider.getSuperAsset();
+        uint256[] calldata fundChainIds,
+        uint256[] calldata repayAmounts, 
+        // uint256[] calldata debtAmounts,
+        // uint256[] calldata debtChainIds
 
-        ISuperAsset(superAsset).mint(address(this), totalAmount);
+    ) external whenNotPaused {
+        // 
+        // for each fund chain , get repay amount , and then only bridge repayAmount<=debtAmount for each debtChainIds
+        uint256 total_srcChains = fundChainIds.length
+        // 
+        
+        require(
+            (fundChainIds.length == repayAmounts.length) && (repayAmounts.length == debtAmounts.length) && (debtAmounts.length == debtChainIds.length));
+        address rVaultAsset = lendingPool._getRVaultAssetOrRevert(asset);
+        DataTypes.ReserveData memory reserve = lendingPool.getReserveData(rVaultAsset);
+        
+        // transfer user's underlying tokens to the contract
+        IERC20(asset).safeTransferFrom(sender, address(this), amount);
+
+        //If pool is on op_superchain,
+        // wrap them into superAsset with lendingPool as receiver
+        if (reserve.pool_type == 1) {
+            IERC20(asset).approve(reserve.superAsset, amount);
+            ISuperAsset(reserve.superAsset).deposit(address(this), amount);
+        }
+
+        IRVaultAsset(rVaultAsset).mint(amount, address(this));
+
+        // IERC20(asset).safeTransferFrom(msg.sender, address(this), totalAmount);
+        // address superAsset = addressesProvider.getSuperAsset();
+        // ISuperAsset(superAsset).mint(address(this), totalAmount);
+
         for (uint256 i = 1; i < chainIds.length; i++) {
             if (chainIds[i] != block.chainid) {
-                ISuperchainTokenBridge(Predeploys.SUPERCHAIN_TOKEN_BRIDGE).sendERC20(
-                    superAsset, address(this), amounts[i], chainIds[i]
-                );
+                IRVaultAsset(rVaultAsset).bridge(rVaultAsset, ?, amounts[i], chainIds[i]);
+                // lendingPool.bridge(rVaultAsset, address(this), amounts[i], chainIds[i]);
+                // ISuperchainTokenBridge(Predeploys.SUPERCHAIN_TOKEN_BRIDGE).sendERC20(
+                //     rVaultAsset, address(this), amounts[i], chainIds[i]
+                // );
             }
-            emit CrossChainRepay(chainIds[i], msg.sender, asset, amounts[i], rateMode[i], onBehalfOf);
+            emit CrossChainRepay(chainIds[i], msg.sender, asset, amounts[i], onBehalfOf);
         }
     }
+
+
+
+struct RepayParam{
+    uint256 fundChainId;
+    uint256 debtChainId;
+    uint256 amount;
+}
+
+    function repay2(
+        address asset,
+        address onBehalfOf,
+        RepayParam[] _repayParams
+    ) external whenNotPaused {
+
+        for (uint256 i = 0; i < _repayParams.length; i++) {
+            emit CrossChainRepay(_repayParams[i].fundChainId, msg.sender, asset, _repayParams[i].amount, onBehalfOf,_repayParams[i].debtChainId);
+        }
+
+      
+    }
+
 
     /**
      * @dev Allows depositors to enable/disable a specific deposited asset as collateral across multiple chains
