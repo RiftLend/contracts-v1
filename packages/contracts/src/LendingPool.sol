@@ -247,14 +247,6 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             }
         }
 
-        // check if they have the loan on current chain for the asset and repay that amount remaining
-        // if the amount remains, extra amount ... TODO: think -
-
-        // borrow on eth, repay on arb (assets get deposited in arb)
-        // bridge RVaultAsset to eth
-        // we repay the loan using rvault asset on eth
-        // burn the debt token on eth accordingly
-
         IRVaultAsset(rVaultAsset).mint(amount, address(rToken));
 
         IRToken(rToken).handleRepayment(onBehalfOf, paybackAmount);
@@ -787,7 +779,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         if (isFirstBorrowing) {
             userConfig.setBorrowing(reserve.id, true);
         }
-        // TODO:q discuss asset should be rVaultAsset or rTokenAddress, since reserve is from rVaultAsset
+
         _updateStates(reserve, vars.rVaultAsset, 0, vars.releaseUnderlying ? vars.amount : 0, UPDATE_RATES_MASK);
 
         if (vars.releaseUnderlying) {

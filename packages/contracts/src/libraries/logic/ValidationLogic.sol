@@ -185,9 +185,7 @@ library ValidationLogic {
         external
         view
     {
-        bool isActive = reserve.configuration.getActive();
-
-        require(isActive, Errors.VL_NO_ACTIVE_RESERVE);
+        require(reserve.configuration.getActive(), Errors.VL_NO_ACTIVE_RESERVE);
 
         require(amountSent > 0, Errors.VL_INVALID_AMOUNT);
 

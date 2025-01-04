@@ -149,17 +149,14 @@ contract Router is Initializable, SuperPausable {
         /*                    REPAY DISPATCH                          */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
         if (selector == Repay.selector && _identifier.chainId != block.chainid) {
-            (address asset, uint256 amount,, address repayer, uint256 rateMode, uint256 mintMode, uint256 amountBurned)
-            = abi.decode(_data[32:], (address, uint256, address, address, uint256, uint256, uint256));
+            (address asset, uint256 amount,, address repayer,, uint256 mintMode, uint256 amountBurned) =
+                abi.decode(_data[32:], (address, uint256, address, address, uint256, uint256, uint256));
             DataTypes.ReserveData memory reserve = lendingPool.getReserveData(asset);
-            if (rateMode == 2) {
-                IVariableDebtToken(reserve.variableDebtTokenAddress).updateCrossChainBalance(
-                    repayer, amountBurned, mintMode
-                );
-            }
+            IVariableDebtToken(reserve.variableDebtTokenAddress).updateCrossChainBalance(
+                repayer, amountBurned, mintMode
+            );
             lendingPool.updateStates(asset, amount, 0, UPDATE_RATES_AND_STATES_MASK);
-        }
-        if (selector == CrossChainRepay.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
+        } else if (selector == CrossChainRepay.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
             (address sender, address asset, uint256 amount, address onBehalfOf, uint256 debtChainId) =
                 abi.decode(_data[64:], (address, address, uint256, address, uint256));
 
@@ -174,8 +171,8 @@ contract Router is Initializable, SuperPausable {
             // send rvaultasset to debtchain  normal bridging
             IRVaultAsset(rVaultAsset).bridge(address(lendingPool), debtChainId, amount);
             emit CrossChainRepayFinalize(debtChainId, sender, onBehalfOf, amount, rVaultAsset);
-        }
-        if (selector == CrossChainRepayFinalize.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
+        } else if (selector == CrossChainRepayFinalize.selector && abi.decode(_data[32:64], (uint256)) == block.chainid)
+        {
             (address sender, address onBehalfOf, uint256 amount, address asset) =
                 abi.decode(_data[64:], (address, address, uint256, address));
             lendingPool.repay(sender, onBehalfOf, asset, amount);
