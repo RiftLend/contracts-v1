@@ -64,4 +64,10 @@ library DataTypes {
         uint256 timestamp;
         uint256 amount;
     }
+
+    struct RepayParam {
+        uint256 fundChainId;
+        uint256 debtChainId;
+        uint256 amount;
+    }
 }

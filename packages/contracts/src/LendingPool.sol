@@ -124,7 +124,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         external
         onlyRouter
     {
-        address rVaultAsset = _getRVaultAssetOrRevert(asset);
+        address rVaultAsset = getRVaultAssetOrRevert(asset);
 
         DataTypes.ReserveData storage reserve = _reserves[rVaultAsset];
         address rToken = reserve.rTokenAddress;
@@ -160,7 +160,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         external
         onlyRouter
     {
-        address rVaultAsset = _getRVaultAssetOrRevert(asset);
+        address rVaultAsset = getRVaultAssetOrRevert(asset);
         DataTypes.ReserveData storage reserve = _reserves[rVaultAsset];
         address rToken = reserve.rTokenAddress;
         uint256 userBalance = IRToken(rToken).balanceOf(sender);
@@ -199,7 +199,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         uint256 sendToChainId,
         uint16 referralCode
     ) external onlyRouter {
-        address rVaultAsset = _getRVaultAssetOrRevert(asset);
+        address rVaultAsset = getRVaultAssetOrRevert(asset);
 
         address rToken = _reserves[rVaultAsset].rTokenAddress;
 
@@ -210,22 +210,17 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         );
     }
 
-    function repay( address asset, uint256 amount,  address onBehalfOf)
-        external
-        onlyRouter
-    {
-        address rVaultAsset = _getRVaultAssetOrRevert(asset);
+    function repay(address sender, address onBehalfOf, address asset, uint256 amount) external onlyRouter {
+        address rVaultAsset = getRVaultAssetOrRevert(asset);
 
         DataTypes.ReserveData storage reserve = _reserves[rVaultAsset];
 
         /// @dev this will get the debt of the user on the current chain
-        uint256 variableDebt = Helpers.getUserCurrentDebt(onBehalfOf, reserve);
+        uint256 debt = Helpers.getUserCurrentDebt(onBehalfOf, reserve);
 
-        DataTypes.InterestRateMode interestRateMode = DataTypes.InterestRateMode(rateMode);
+        ValidationLogic.validateRepay(reserve, amount, onBehalfOf, debt);
 
-        ValidationLogic.validateRepay(reserve, amount, interestRateMode, onBehalfOf, variableDebt);
-
-        uint256 paybackAmount = variableDebt;
+        uint256 paybackAmount = debt;
 
         if (amount < paybackAmount) {
             paybackAmount = amount;
@@ -241,7 +236,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
 
         address rToken = reserve.rTokenAddress;
 
-        if (variableDebt - paybackAmount == 0) {
+        if (debt - paybackAmount == 0) {
             _usersConfig[onBehalfOf].setBorrowing(reserve.id, false);
         }
 
@@ -253,7 +248,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         }
 
         // check if they have the loan on current chain for the asset and repay that amount remaining
-        // if the amount remains, extra amount ... TODO: think - 
+        // if the amount remains, extra amount ... TODO: think -
 
         // borrow on eth, repay on arb (assets get deposited in arb)
         // bridge RVaultAsset to eth
@@ -261,10 +256,10 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         // burn the debt token on eth accordingly
 
         IRVaultAsset(rVaultAsset).mint(amount, address(rToken));
-        
+
         IRToken(rToken).handleRepayment(onBehalfOf, paybackAmount);
 
-        emit Repay(asset, paybackAmount, onBehalfOf, sender, rateMode, mode, amountBurned);
+        emit Repay(asset, paybackAmount, onBehalfOf, sender, mode, amountBurned);
     }
 
     /**
@@ -327,7 +322,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
 
         // Getting liquidation debt amount in rVaultAsset for universality
         //TODO:umar read about liquidation , possibilities of debtAsset
-        address rVaultAsset = _getRVaultAssetOrRevert(debtAsset);
+        address rVaultAsset = getRVaultAssetOrRevert(debtAsset);
 
         DataTypes.ReserveData storage reserve = _reserves[rVaultAsset];
         address rToken = reserve.rTokenAddress;
@@ -829,7 +824,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         }
     }
 
-    function _getRVaultAssetOrRevert(address asset) internal view returns (address rVaultAsset) {
+    function getRVaultAssetOrRevert(address asset) public view returns (address rVaultAsset) {
         if ((rVaultAsset = _rVaultAsset[asset]) == address(0)) revert rVaultAssetNotFoundForAsset(asset);
     }
 

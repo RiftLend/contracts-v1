@@ -72,14 +72,11 @@ event Borrow(
  * @param amount The amount repaid
  * @param user The beneficiary of the repayment, getting his debt reduced
  * @param repayer The address of the user initiating the repay(), providing the funds
- * @param rateMode The rate mode: 1 for Stable, 2 for Variable
  * @param mode 1 if minting, 2 if burning
  * @param amountBurned The amount of debt being burned
  *
  */
-event Repay(
-    address reserve, uint256 amount, address user, address repayer, uint256 rateMode, uint256 mode, uint256 amountBurned
-);
+event Repay(address reserve, uint256 amount, address user, address repayer, uint256 mode, uint256 amountBurned);
 
 /**
  * @dev Emitted on swapBorrowRateMode()
@@ -175,8 +172,10 @@ event CrossChainWithdraw(
 );
 
 event CrossChainRepay(
-    uint256 toChainId, address sender, address asset, uint256 amount, address onBehalfOf
+    uint256 toChainId, address sender, address asset, uint256 amount, address onBehalfOf, uint256 debtChainId
 );
+
+event CrossChainRepayFinalize(uint256 debtchainid, address sender, address onbehalfof, uint256 amount, address asset);
 
 event ReserveUsedAsCollateral(address user, address asset, bool useAsCollateral);
 
@@ -214,7 +213,7 @@ interface ILendingPool {
         uint16 referralCode
     ) external;
 
-    function repay(address sender, address asset, uint256 amount, uint256 rateMode, address onBehalfOf) external;
+    function repay(address sender, address onBehalfOf, address asset, uint256 amount) external;
 
     function swapBorrowRateMode(address sender, address asset, uint256 rateMode) external;
 
@@ -272,6 +271,7 @@ interface ILendingPool {
     function getReservesList() external view returns (address[] memory);
 
     function getAddressesProvider() external view returns (ILendingPoolAddressesProvider);
+    function getRVaultAssetOrRevert(address asset) external view returns (address rVaultAsset);
 
     function FLASHLOAN_PREMIUM_TOTAL() external view returns (uint256);
 

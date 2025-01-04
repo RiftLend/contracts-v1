@@ -25,8 +25,7 @@ interface IRVaultAsset {
         bytes calldata _extraData
     ) external payable;
 
-    function bridge(uint256 amount, address receiverOfUnderlying, address _underlyingAsset, uint256 toChainId)
-        external;
+    function bridge(address receiverOfUnderlying, uint256 toChainId, uint256 amount) external;
 
     // ERC4626 Vault compliant functions
     function asset() external view returns (address);

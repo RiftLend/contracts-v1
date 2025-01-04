@@ -6,6 +6,7 @@ import "./interfaces/ILendingPool.sol";
 import {ILendingPoolCollateralManager} from "./interfaces/ILendingPoolCollateralManager.sol";
 import {ISuperAsset} from "./interfaces/ISuperAsset.sol";
 import {IRToken} from "./interfaces/IRToken.sol";
+import {IRVaultAsset} from "./interfaces/IRVaultAsset.sol";
 import {IVariableDebtToken} from "./interfaces/IVariableDebtToken.sol";
 import {ISuperchainTokenBridge} from "./interfaces/ISuperchainTokenBridge.sol";
 import {ILendingPoolAddressesProvider} from "./interfaces/ILendingPoolAddressesProvider.sol";
@@ -147,25 +148,6 @@ contract Router is Initializable, SuperPausable {
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*                    REPAY DISPATCH                          */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-        // event Repay(address reserve, uint256 amount, address user, address repayer, uint256 rateMode, uint256 mode, uint256 amountBurned);
-
-        // if (selector == Repay.selector && _identifier.chainId != block.chainid) {
-        //     (address asset, uint256 amount,, address repayer, uint256 rateMode, uint256 mintMode, uint256 amountBurned)
-        //     = abi.decode(_data[32:], (address, uint256, address, address, uint256, uint256, uint256));
-        //     DataTypes.ReserveData memory reserve = lendingPool.getReserveData(asset);
-        //     if (rateMode == 2) {
-        //         IVariableDebtToken(reserve.variableDebtTokenAddress).updateCrossChainBalance(
-        //             repayer, amountBurned, mintMode
-        //         );
-        //     }
-        //     lendingPool.updateStates(asset, amount, 0, UPDATE_RATES_AND_STATES_MASK);
-        // }
-        // if (selector == CrossChainRepay.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
-        //     (address sender, address asset, uint256 amount, address onBehalfOf) =
-        //         abi.decode(_data[64:], (address, address, uint256, address));
-        //     lendingPool.repay(sender, asset, amount, rateMode, onBehalfOf);
-        // }
-
         if (selector == Repay.selector && _identifier.chainId != block.chainid) {
             (address asset, uint256 amount,, address repayer, uint256 rateMode, uint256 mintMode, uint256 amountBurned)
             = abi.decode(_data[32:], (address, uint256, address, address, uint256, uint256, uint256));
@@ -178,37 +160,31 @@ contract Router is Initializable, SuperPausable {
             lendingPool.updateStates(asset, amount, 0, UPDATE_RATES_AND_STATES_MASK);
         }
         if (selector == CrossChainRepay.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
-            (address sender, address asset, uint256 amount, address onBehalfOf,uint256 debtChainId ) =
-                abi.decode(_data[64:], (address, address, uint256, address,uint256));
-        
-        address rVaultAsset = lendingPool._getRVaultAssetOrRevert(asset);
-        DataTypes.ReserveData memory reserve = lendingPool.getReserveData(rVaultAsset);
-        
-            // 1.get the asset from user            
-            IRVaultAsset(asset).safeTransferFrom(sender, address(this), amount);
-            // mint rvaultasset ( pre req for superchain )
-            //If pool is on op_superchain,
-        // wrap them into superAsset with lendingPool as receiver
-        if (reserve.pool_type == 1) {
-            IERC20(asset).approve(reserve.superAsset, amount);
-            ISuperAsset(reserve.superAsset).deposit(address(this), amount);
-        }            
-            // send rvaultasset to debtchain  normal bridging 
-            IRVaultAsset(rVaultAsset).bridge(asset, address(this), amount, debtChainId);
-            // emit crosschainrepayfinalize event  emit crosschainrepayfinalize(debtchainid,onbehalfof,amount,rvau;tasset)
+            (address sender, address asset, uint256 amount, address onBehalfOf, uint256 debtChainId) =
+                abi.decode(_data[64:], (address, address, uint256, address, uint256));
 
+            address rVaultAsset = lendingPool.getRVaultAssetOrRevert(asset);
+            DataTypes.ReserveData memory reserve = lendingPool.getReserveData(rVaultAsset);
+
+            IERC20(asset).safeTransferFrom(sender, address(this), amount);
+            if (reserve.pool_type == 1) {
+                IERC20(asset).approve(reserve.superAsset, amount);
+                ISuperAsset(reserve.superAsset).deposit(address(this), amount);
+            }
+            // send rvaultasset to debtchain  normal bridging
+            IRVaultAsset(rVaultAsset).bridge(address(lendingPool), debtChainId, amount);
+            emit CrossChainRepayFinalize(debtChainId, sender, onBehalfOf, amount, rVaultAsset);
         }
-         if (selector == crossChainRepayFinalize.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
-            (uint onBehalfOf, uint amount, address asset) =
-                abi.decode(_data[64:], (uint256,uint256 ,address));
-
-            lendingPool.repay(onBehalfOf, asset, amount,  );
+        if (selector == CrossChainRepayFinalize.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
+            (address sender, address onBehalfOf, uint256 amount, address asset) =
+                abi.decode(_data[64:], (address, address, uint256, address));
+            lendingPool.repay(sender, onBehalfOf, asset, amount);
         }
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*                    LIQUIDATION CALL DISPATCH               */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-        // event LiquidationCall(address indexed collateralAsset,address indexed debtAsset,address indexed user,uint256 debtToCover,uint256 liquidatedCollateralAmount,address liquidator,bool receiveRToken,uint256 stableDebtBurned,uint256 variableDebtBurned,uint256 collateralRTokenBurned);
+        //    event LiquidationCall(address indexed collateralAsset,address indexed debtAsset,address indexed user,uint256 debtToCover,uint256 liquidatedCollateralAmount,address liquidator,bool receiveRToken,uint256 variableDebtBurned,uint256 collateralRTokenBurned)
         if (selector == ILendingPoolCollateralManager.LiquidationCall.selector && _identifier.chainId != block.chainid)
         {
             (
@@ -221,11 +197,8 @@ contract Router is Initializable, SuperPausable {
                 bool receiveRToken,
                 uint256 variableDebtBurned,
                 uint256 collateralRTokenBurned
-            ) = abi.decode(
-                _data[64:], (address, address, address, uint256, uint256, address, bool, uint256, uint256, uint256)
-            );
-            // ToDo: Ensure the crosschain balances update correct , currently only burning variabledebt and rTokens
-            // should we be like increase liquidator's crosschain balance ?
+            ) = abi.decode(_data[32:], (address, address, address, uint256, uint256, address, bool, uint256, uint256));
+
             DataTypes.ReserveData memory debtReserve = lendingPool.getReserveData(debtAsset);
             IVariableDebtToken(debtReserve.variableDebtTokenAddress).updateCrossChainBalance(
                 user, variableDebtBurned, 2
@@ -356,81 +329,27 @@ contract Router is Initializable, SuperPausable {
 
     /**
      * @dev Repays a borrowed `amount` on a specific reserve across multiple chains, burning the equivalent debt tokens owned
-     * @param asset The address of the borrowed underlying asset previously borrowed
-     * @param amounts Array of amounts to repay per chain
-     * - Send the value type(uint256).max in order to repay the whole debt for `asset` on the specific `debtMode`
-     * @param rateMode Array of interest rate modes to repay per chain: 1 for Stable, 2 for Variable
-     * @param onBehalfOf Address of the user who will get their debt reduced/removed
-     * @param chainIds Array of chain IDs where the debt needs to be repaid
+     * @param _asset The address of the borrowed underlying asset previously borrowed
+     * @param _onBehalfOf Address of the user who will get their debt reduced/removed
+     * @param _repayParams Array of repay parameters including the amount to repay per chain, the debt chain ID, and the fund chain ID
+     * emits CrossChainRepay event
      */
-    function repay(
-        address asset,
-        address onBehalfOf,
-        uint256[] calldata fundChainIds,
-        uint256[] calldata repayAmounts, 
-        // uint256[] calldata debtAmounts,
-        // uint256[] calldata debtChainIds
-
-    ) external whenNotPaused {
-        // 
-        // for each fund chain , get repay amount , and then only bridge repayAmount<=debtAmount for each debtChainIds
-        uint256 total_srcChains = fundChainIds.length
-        // 
-        
-        require(
-            (fundChainIds.length == repayAmounts.length) && (repayAmounts.length == debtAmounts.length) && (debtAmounts.length == debtChainIds.length));
-        address rVaultAsset = lendingPool._getRVaultAssetOrRevert(asset);
-        DataTypes.ReserveData memory reserve = lendingPool.getReserveData(rVaultAsset);
-        
-        // transfer user's underlying tokens to the contract
-        IERC20(asset).safeTransferFrom(sender, address(this), amount);
-
-        //If pool is on op_superchain,
-        // wrap them into superAsset with lendingPool as receiver
-        if (reserve.pool_type == 1) {
-            IERC20(asset).approve(reserve.superAsset, amount);
-            ISuperAsset(reserve.superAsset).deposit(address(this), amount);
-        }
-
-        IRVaultAsset(rVaultAsset).mint(amount, address(this));
-
-        // IERC20(asset).safeTransferFrom(msg.sender, address(this), totalAmount);
-        // address superAsset = addressesProvider.getSuperAsset();
-        // ISuperAsset(superAsset).mint(address(this), totalAmount);
-
-        for (uint256 i = 1; i < chainIds.length; i++) {
-            if (chainIds[i] != block.chainid) {
-                IRVaultAsset(rVaultAsset).bridge(rVaultAsset, ?, amounts[i], chainIds[i]);
-                // lendingPool.bridge(rVaultAsset, address(this), amounts[i], chainIds[i]);
-                // ISuperchainTokenBridge(Predeploys.SUPERCHAIN_TOKEN_BRIDGE).sendERC20(
-                //     rVaultAsset, address(this), amounts[i], chainIds[i]
-                // );
-            }
-            emit CrossChainRepay(chainIds[i], msg.sender, asset, amounts[i], onBehalfOf);
-        }
-    }
-
-
-
-struct RepayParam{
-    uint256 fundChainId;
-    uint256 debtChainId;
-    uint256 amount;
-}
-
-    function repay2(
-        address asset,
-        address onBehalfOf,
-        RepayParam[] _repayParams
-    ) external whenNotPaused {
-
+    function repay(address _asset, address _onBehalfOf, DataTypes.RepayParam[] calldata _repayParams)
+        external
+        whenNotPaused
+        onlyRelayer
+    {
         for (uint256 i = 0; i < _repayParams.length; i++) {
-            emit CrossChainRepay(_repayParams[i].fundChainId, msg.sender, asset, _repayParams[i].amount, onBehalfOf,_repayParams[i].debtChainId);
+            emit CrossChainRepay(
+                _repayParams[i].fundChainId,
+                msg.sender,
+                _asset,
+                _repayParams[i].amount,
+                _onBehalfOf,
+                _repayParams[i].debtChainId
+            );
         }
-
-      
     }
-
 
     /**
      * @dev Allows depositors to enable/disable a specific deposited asset as collateral across multiple chains
@@ -513,13 +432,6 @@ struct RepayParam{
             );
         }
     }
-
-    /**
-     * @dev Returns the configuration of the reserve
-     * @param asset The address of the underlying asset of the reserve
-     * @return The configuration of the reserve
-     *
-     */
 
     /**
      * @dev Set the _pause state of a reserve

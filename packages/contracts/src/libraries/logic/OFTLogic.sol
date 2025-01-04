@@ -16,13 +16,12 @@ library OFTLogic {
     function decodeMessage(bytes memory _message)
         public
         pure
-        returns (address _receiverOfUnderlying, uint256 _amount)
+        returns (address _receiverOfUnderlying, uint256 _amount, address _oftCaller)
     {
         // the oft's _buildMsgAndOptions is used by _send method that encodes the passed messagein following way
         // abi.encodePacked(_sendTo, _amountShared, addressToBytes32(msg.sender), _composeMsg)
-
-        (,,, bytes memory encoded_message) = abi.decode(_message, (address, uint256, bytes32, bytes));
-
+        (,, bytes32 oftCaller, bytes memory encoded_message) = abi.decode(_message, (address, uint256, bytes32, bytes));
+        _oftCaller = address(uint160(uint256(oftCaller)));
         (_amount, _receiverOfUnderlying) = abi.decode(encoded_message, (uint256, address));
     }
 }

@@ -51,12 +51,9 @@ contract SuperAssetAdapter is OFTAdapter {
         // Ensure that the sender matches the expected peer for the source endpoint.
         if (_getPeerOrRevert(_origin.srcEid) != _origin.sender) revert OnlyPeer(_origin.srcEid, _origin.sender);
 
-        (, uint256 amount) = OFTLogic.decodeMessage(_message);
-
+        (, uint256 amount,) = OFTLogic.decodeMessage(_message);
         _credit(rVaultAsset, amount, 0);
         IRVaultAsset(rVaultAsset).lzReceive(_origin, _guid, _message, address(0), _extraData);
-
-        // super._lzReceive(_origin, _guid, _message, _executor, _extraData);
     }
 
     function setUnderlyingToPoolAddressProvider(address asset, address poolAddressProvider) external onlyOwner {

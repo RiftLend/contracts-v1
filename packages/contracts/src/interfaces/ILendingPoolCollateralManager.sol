@@ -25,9 +25,9 @@ interface ILendingPoolCollateralManager {
      *
      */
     event LiquidationCall(
-        address indexed collateralAsset,
-        address indexed debtAsset,
-        address indexed user,
+        address collateralAsset,
+        address debtAsset,
+        address user,
         uint256 debtToCover,
         uint256 liquidatedCollateralAmount,
         address liquidator,
