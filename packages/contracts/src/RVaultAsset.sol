@@ -193,6 +193,8 @@ contract RVaultAsset is SuperOwnable, OFT {
 
     function _bridgeCrossCluster(uint256 tokensToSend, address receiverOfUnderlying, uint256 toChainId) internal {
         if (pool_type == 1) {
+            ISuperAsset(underlying).withdraw(address(superAssetAdapter), tokensToSend);
+
             bytes memory compose_message = OFTLogic.encodeMessage(receiverOfUnderlying, tokensToSend);
 
             SendParam memory sendParam = SendParam(
@@ -292,7 +294,7 @@ contract RVaultAsset is SuperOwnable, OFT {
         }
     }
 
-    function bridgeUsingSuperTokenBridge(
+    function _bridgeUsingSuperTokenBridge(
         uint256 amount,
         address receiverOfUnderlying,
         address _underlyingAsset,
@@ -315,7 +317,7 @@ contract RVaultAsset is SuperOwnable, OFT {
 
         if (sourceType == super_chain_type) {
             if (destinationType == super_chain_type && isSuperTokenBridgeEnabled) {
-                bridgeUsingSuperTokenBridge(amount, receiverOfUnderlying, underlying, toChainId);
+                _bridgeUsingSuperTokenBridge(amount, receiverOfUnderlying, underlying, toChainId);
             } else {
                 _bridgeCrossCluster(amount, receiverOfUnderlying, toChainId);
             }
