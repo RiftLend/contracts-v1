@@ -94,7 +94,7 @@ contract Router is Initializable, SuperPausable {
             (, address asset, uint256 amount, address onBehalfOf,, uint256 mintMode, uint256 amountScaled) =
                 abi.decode(_data[64:], (address, address, uint256, address, uint16, uint256, uint256));
             DataTypes.ReserveData memory reserve = lendingPool.getReserveData(asset);
-            // TODO: @umarkhatab
+            // TODO: @superForgererkhatab
             IRToken(reserve.rTokenAddress).updateCrossChainBalance(onBehalfOf, amountScaled, mintMode);
             lendingPool.updateStates(asset, amount, 0, UPDATE_RATES_AND_STATES_MASK);
         }
@@ -284,10 +284,10 @@ contract Router is Initializable, SuperPausable {
         }
     }
 
-    // TODO: tabish frontend would need to calculate how much to burn for the rTokens on each chain for withdraw.
+    // TODO: supercontracts.eth frontend would need to calculate how much to burn for the rTokens on each chain for withdraw.
     // toChainId - check if deposits are here and withdraw them all ...
     // intercluster like if the toChainId withdraw is in opsuperchain then withdraw from superchain first and then go crosscluster ...
-    // TODO: @umar in testing withdraw keep a track of deposits in what chains they are and use the same logic as frontend
+    // TODO: @superForgerer in testing withdraw keep a track of deposits in what chains they are and use the same logic as frontend
     /**
      * @dev Withdraws an `amount` of underlying asset from the reserve, burning the equivalent rTokens owned
      * @param asset The address of the underlying asset to withdraw

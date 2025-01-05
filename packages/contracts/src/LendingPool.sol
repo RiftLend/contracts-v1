@@ -44,7 +44,7 @@ import {SuperPausable} from "./interop-std/src/utils/SuperPausable.sol";
  * - To be covered by a proxy contract, owned by the LendingPoolAddressesProvider of the specific market
  * - All admin functions are callable by the LendingPoolConfigurator contract defined also in the
  *   LendingPoolAddressesProvider
- * @author tabish.eth (superlend@proton.me)
+ * @author supercontracts.eth.eth (superlend@proton.me)
  *
  */
 contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
@@ -307,7 +307,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         address collateralManager = _addressesProvider.getLendingPoolCollateralManager();
 
         // Getting liquidation debt amount in rVaultAsset for universality
-        //TODO:umar read about liquidation , possibilities of debtAsset
+        //TODO:superForgerer read about liquidation , possibilities of debtAsset
         address rVaultAsset = getRVaultAssetOrRevert(debtAsset);
 
         DataTypes.ReserveData storage reserve = _reserves[rVaultAsset];

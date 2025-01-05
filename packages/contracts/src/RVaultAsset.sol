@@ -66,6 +66,7 @@ contract RVaultAsset is SuperOwnable, OFT {
 
     // For keep record of and distrbuting to all rValtAssetHolders
     // Protection against DOS when there are huge number of rVaultAssetHolders , good to use mappings than arrays
+    //todo:discuss with supercontracts.eth on edge cases
     mapping(uint256 => address) internal rVaultAssetHolder;
     mapping(address => bool) internal isRVaultAssetHolder;
     uint256 totalRVaultAssetHolders;
@@ -163,6 +164,7 @@ contract RVaultAsset is SuperOwnable, OFT {
         super._burn(user, amount);
         IERC20(underlying).safeTransferFrom(msg.sender, address(this), amount);
         bridge(receiverOfUnderlying, toChainId, amount);
+        if (balances[user]==0) isRVaultAssetHolder[user] = false;
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -212,7 +214,6 @@ contract RVaultAsset is SuperOwnable, OFT {
         } else {
             // Now there can be two cases , arb-eth cluster to superchain
             // or abrb-eth cluster to arb-eth
-            // TODO: u have to check if toChainId this is going to superchain / normal and then pass superAssetAdapter / address(this)
 
             bytes memory compose_message = OFTLogic.encodeMessage(receiverOfUnderlying, tokensToSend);
 
@@ -225,6 +226,8 @@ contract RVaultAsset is SuperOwnable, OFT {
                 compose_message,
                 "" // empty oftCmd
             );
+            // TODO: u have to check if toChainId this is going to superchain / normal and then pass superAssetAdapter / address(this)
+
             // decide recipient
             if (chainId_cluster_type[toChainId] == DataTypes.Chain_Cluster_Types.SUPER_CHAIN) {
                 sendParam.to = bytes32(uint256(uint160(address(superAssetAdapter))));
@@ -279,7 +282,7 @@ contract RVaultAsset is SuperOwnable, OFT {
             caller_codesize := extcodesize(oftTxCaller)
         }
         // if bridging happened through rvaultasset itself mint rvaultasset equals to tokensAmount to each rvaultasset holder
-        // todo: what about proportion of holders amount ?
+        // todo:discuss with supercontracts.eth what about proportion of holders amount ?
         if (oftTxCaller == address(this)) {
             distributeRVaultAsset(tokensAmount);
         } else if (caller_codesize == 0) {
@@ -356,6 +359,7 @@ contract RVaultAsset is SuperOwnable, OFT {
     // and also records the amount that rVaultAsset was distributed
     function distributeRVaultAsset(uint256 tokensAmount) internal {
         for (uint256 i = 0; i < totalRVaultAssetHolders; i++) {
+            if (!isRVaultAssetHolder[rVaultAssetHolder[i]]) continue;
             _mint(rVaultAssetHolder[i], tokensAmount);
         }
     }
