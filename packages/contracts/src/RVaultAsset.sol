@@ -164,7 +164,7 @@ contract RVaultAsset is SuperOwnable, OFT {
         super._burn(user, amount);
         IERC20(underlying).safeTransferFrom(msg.sender, address(this), amount);
         bridge(receiverOfUnderlying, toChainId, amount);
-        if (balances[user]==0) isRVaultAssetHolder[user] = false;
+        if (balances[user] == 0) isRVaultAssetHolder[user] = false;
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
