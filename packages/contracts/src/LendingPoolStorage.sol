@@ -20,7 +20,9 @@ contract LendingPoolStorage {
      * @notice Mapping of reserve data by asset address.
      * @dev Stores the configuration and state of each reserve.
      */
-    mapping(address => DataTypes.ReserveData) internal _reserves;
+    mapping(address rVaultAsset => DataTypes.ReserveData) internal _reserves;
+
+    mapping(address anything => address rVaultAsset) internal _rVaultAsset;
 
     /**
      * @notice Mapping of user configuration by user address.
@@ -28,11 +30,8 @@ contract LendingPoolStorage {
      */
     mapping(address => DataTypes.UserConfigurationMap) internal _usersConfig;
 
-    /**
-     * @notice Tracks initiated deposit amounts by user and asset.
-     * @dev Records the amount deposited by each user for each asset before final processing.
-     */
-    mapping(address user => mapping(address asset => uint256 amount)) internal initiatedDepositAmount;
+    // chainId => bytes32 (is underlying native, is there Super Asset, locator, ... )
+    // locator => bool (is intracluster or intercluster)
 
     /**
      * @notice List of reserves indexed by reserve ID.
@@ -52,11 +51,6 @@ contract LendingPoolStorage {
     bool internal _paused;
 
     /**
-     * @notice Maximum size of stable rate borrow as a percentage of total liquidity.
-     */
-    uint256 internal _maxStableRateBorrowSizePercent;
-
-    /**
      * @notice Premium fee applied to flash loans.
      * @dev Expressed as a percentage in basis points (bps).
      */
@@ -66,4 +60,6 @@ contract LendingPoolStorage {
      * @notice Maximum number of reserves that can be supported by the protocol.
      */
     uint256 internal _maxNumberOfReserves;
+
+    uint8 pool_type;
 }

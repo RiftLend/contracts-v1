@@ -3,10 +3,10 @@ pragma solidity 0.8.25;
 
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
 import {IScaledBalanceToken} from "./IScaledBalanceToken.sol";
-import {IInitializableAToken} from "./IInitializableAToken.sol";
+import {IInitializableRToken} from "./IInitializableRToken.sol";
 import {IAaveIncentivesController} from "./IAaveIncentivesController.sol";
 
-interface IAToken is IERC20, IScaledBalanceToken, IInitializableAToken {
+interface IRToken is IERC20, IScaledBalanceToken, IInitializableRToken {
     /**
      * @dev Emitted after the mint action
      * @param from The address performing the mint
@@ -17,7 +17,7 @@ interface IAToken is IERC20, IScaledBalanceToken, IInitializableAToken {
     event Mint(address indexed from, uint256 value, uint256 index);
 
     /**
-     * @dev Mints `amount` aTokens to `user`
+     * @dev Mints `amount` rTokens to `user`
      * @param user The address receiving the minted tokens
      * @param amount The amount of tokens getting minted
      * @param index The new liquidity index of the reserve
@@ -26,8 +26,8 @@ interface IAToken is IERC20, IScaledBalanceToken, IInitializableAToken {
     function mint(address user, uint256 amount, uint256 index) external returns (bool, uint256, uint256);
 
     /**
-     * @dev Emitted after aTokens are burned
-     * @param from The owner of the aTokens, getting them burned
+     * @dev Emitted after rTokens are burned
+     * @param from The owner of the rTokens, getting them burned
      * @param target The address that will receive the underlying
      * @param value The amount being burned
      * @param index The new liquidity index of the reserve
@@ -46,8 +46,8 @@ interface IAToken is IERC20, IScaledBalanceToken, IInitializableAToken {
     event BalanceTransfer(address indexed from, address indexed to, uint256 value, uint256 index);
 
     /**
-     * @dev Burns aTokens from `user` and sends the equivalent amount of underlying to `receiverOfUnderlying`
-     * @param user The owner of the aTokens, getting them burned
+     * @dev Burns rTokens from `user` and sends the equivalent amount of underlying to `receiverOfUnderlying`
+     * @param user The owner of the rTokens, getting them burned
      * @param receiverOfUnderlying The address that will receive the underlying
      * @param sendToChainId The chain id to send the funds to
      * @param amount The amount being burned
@@ -59,15 +59,15 @@ interface IAToken is IERC20, IScaledBalanceToken, IInitializableAToken {
         returns (uint256, uint256);
 
     /**
-     * @dev Mints aTokens to the reserve treasury
+     * @dev Mints rTokens to the reserve treasury
      * @param amount The amount of tokens getting minted
      * @param index The new liquidity index of the reserve
      */
     function mintToTreasury(uint256 amount, uint256 index) external returns (uint256, uint256);
 
     /**
-     * @dev Transfers aTokens in the event of a borrow being liquidated, in case the liquidators reclaims the aToken
-     * @param from The address getting liquidated, current owner of the aTokens
+     * @dev Transfers rTokens in the event of a borrow being liquidated, in case the liquidators reclaims the aToken
+     * @param from The address getting liquidated, current owner of the rTokens
      * @param to The recipient
      * @param value The amount of tokens getting transferred
      *
@@ -79,11 +79,13 @@ interface IAToken is IERC20, IScaledBalanceToken, IInitializableAToken {
      * assets in borrow(), withdraw() and flashLoan()
      * @param user The recipient of the underlying
      * @param amount The amount getting transferred
-     * @param sendToChainId The chain id to send the funds to
+     * @param toChainId The chain id to send the funds to
      * @return The amount transferred
      *
      */
-    function transferUnderlyingTo(address user, uint256 amount, uint256 sendToChainId) external returns (uint256);
+    function transferUnderlyingTo(address user, address receiverOfUnderlying, uint256 amount, uint256 toChainId)
+        external
+        returns (uint256);
 
     /**
      * @dev Invoked to execute actions on the aToken side after a repayment.
@@ -110,5 +112,11 @@ interface IAToken is IERC20, IScaledBalanceToken, IInitializableAToken {
      * @param amountScaled The amount scaled
      * @param mode 1 if minting, 2 if burning
      */
-    function updateCrossChainBalance(uint256 amountScaled, uint256 mode) external;
+    function updateCrossChainBalance(address user, uint256 amountScaled, uint256 mode) external;
+    /**
+     * @dev Updates the cross chain balance of user
+     * @param user The user address
+     * @return The user balance
+     */
+    function crossChainUserBalance(address user) external view returns (uint256);
 }

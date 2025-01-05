@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import {Predeploys} from "@contracts-bedrock/libraries/Predeploys.sol";
-import {SuperchainERC20} from "@contracts-bedrock/L2/SuperchainERC20.sol";
+import {Predeploys} from "./libraries/Predeploys.sol";
+import {SuperchainERC20} from "./SuperchainERC20.sol";
 import {Ownable} from "@solady/auth/Ownable.sol";
+import {ERC20} from "@openzeppelin/contracts-v5/token/ERC20/ERC20.sol";
 
 /**
  * @title L2NativeSuperchainERC20
@@ -24,7 +25,7 @@ contract L2NativeSuperchainERC20 is SuperchainERC20, Ownable {
      * @param symbol_ The symbol of the token (e.g., "SUPER").
      * @param decimals_ The number of decimal places the token uses (e.g., 18).
      */
-    constructor(address owner_, string memory name_, string memory symbol_, uint8 decimals_) {
+    constructor(address owner_, string memory name_, string memory symbol_, uint8 decimals_) ERC20(name_, symbol_) {
         _name = name_;
         _symbol = symbol_;
         _decimals = decimals_;

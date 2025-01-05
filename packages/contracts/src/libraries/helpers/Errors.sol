@@ -8,8 +8,8 @@ pragma solidity 0.8.25;
  * @dev Error messages prefix glossary:
  *  - VL = ValidationLogic
  *  - MATH = Math libraries
- *  - CT = Common errors between tokens (AToken, VariableDebtToken and StableDebtToken)
- *  - AT = AToken
+ *  - CT = Common errors between tokens (RToken, VariableDebtToken and StableDebtToken)
+ *  - AT = RToken
  *  - SDT = StableDebtToken
  *  - VDT = VariableDebtToken
  *  - LP = LendingPool
@@ -87,7 +87,7 @@ library Errors {
     string public constant LP_FAILED_COLLATERAL_SWAP = "60";
     string public constant LP_INVALID_EQUAL_ASSETS_TO_SWAP = "61";
     string public constant LP_REENTRANCY_NOT_ALLOWED = "62";
-    string public constant LP_CALLER_MUST_BE_AN_ATOKEN = "63";
+    string public constant LP_CALLER_MUST_BE_AN_RTOKEN = "63";
     string public constant LP_IS_PAUSED = "64"; // 'Pool is paused'
     string public constant LP_NO_MORE_RESERVES_ALLOWED = "65";
     string public constant LP_INVALID_FLASH_LOAN_EXECUTOR_RETURN = "66";

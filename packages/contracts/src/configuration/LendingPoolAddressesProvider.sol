@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.8.25;
 
-import {SuperOwnable} from "@interop-std/auth/SuperOwnable.sol";
+import {SuperOwnable} from "../interop-std/src/auth/SuperOwnable.sol";
 
-import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {
+    ITransparentUpgradeableProxy,
+    TransparentUpgradeableProxy
+} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
 import "../interfaces/ILendingPoolAddressesProvider.sol";
@@ -20,7 +23,12 @@ contract LendingPoolAddressesProvider is SuperOwnable {
     string private _marketId;
     mapping(bytes32 => address) private _addresses;
     address private _proxyAdmin;
-    bytes32 private constant LENDING_POOL = "LENDING_POOL";
+    bytes32 immutable LENDING_POOL; // naming will be like `"OpSuperchain_LENDING_POOL"` or `"EthArb_LENDING_POOL"`
+    bytes32 private constant RVAULT_ASSET = "RVAULT_ASSET";
+    bytes32 private constant UNDERLYING = "UNDERLYING";
+    bytes32 private constant SUPER_ASSET = "SUPER_ASSET";
+    bytes32 private constant SUPER_ASSET_ADAPTER = "SUPER_ASSET_ADAPTER";
+
     bytes32 private constant LENDING_POOL_CONFIGURATOR = "LENDING_POOL_CONFIGURATOR";
     bytes32 private constant POOL_ADMIN = "POOL_ADMIN";
     bytes32 private constant EMERGENCY_ADMIN = "EMERGENCY_ADMIN";
@@ -30,14 +38,19 @@ contract LendingPoolAddressesProvider is SuperOwnable {
     bytes32 private constant RELAYER = "RELAYER";
     bytes32 private constant ROUTER = "ROUTER";
 
-    event SuperchainAssetUpdated(address indexed superchainAsset);
+    event SuperAssetUpdated(address indexed superchainAsset);
+    event SuperAssetAdapterUpdated(address indexed superchainAssetAdapter);
+
     event RelayerUpdated(address indexed relayer);
     event RouterUpdated(address indexed router);
+    event RVaultAssetUpdated(address indexed RVaultAsset);
+    event UnderlyingUpdated(address indexed RVaultAsset);
 
-    constructor(string memory marketId, address initialOwner, address proxyAdmin) {
+    constructor(string memory marketId, address initialOwner, address proxyAdmin, bytes32 _lendingPool) {
         _initializeSuperOwner(uint64(block.chainid), initialOwner);
         _setMarketId(marketId);
         _proxyAdmin = proxyAdmin;
+        LENDING_POOL = _lendingPool;
     }
 
     /**
@@ -101,6 +114,40 @@ contract LendingPoolAddressesProvider is SuperOwnable {
      */
     function getLendingPool() external view returns (address) {
         return getAddress(LENDING_POOL);
+    }
+
+    // Set RVaultAsset addresses
+    function setRVaultAsset(address rVaultAsset) external onlyOwner {
+        _addresses[RVAULT_ASSET] = rVaultAsset;
+        emit RVaultAssetUpdated(rVaultAsset);
+    }
+
+    function setUnderlying(address underlying) external onlyOwner {
+        _addresses[UNDERLYING] = underlying;
+        emit UnderlyingUpdated(underlying);
+    }
+
+    function getUnderlying() external view returns (address) {
+        return getAddress(UNDERLYING);
+    }
+
+    function setSuperAsset(address superAsset) external onlyOwner {
+        if (LENDING_POOL != keccak256("OpSuperchain_LENDING_POOL")) revert("!allowed");
+        _addresses[SUPER_ASSET] = superAsset;
+        emit SuperAssetUpdated(superAsset);
+    }
+
+    function getSuperAsset() external view returns (address) {
+        return getAddress(SUPER_ASSET);
+    }
+
+    function setSuperAssetAdapter(address _superAssetAdapter) external onlyOwner {
+        _addresses[SUPER_ASSET_ADAPTER] = _superAssetAdapter;
+        emit SuperAssetAdapterUpdated(_superAssetAdapter);
+    }
+
+    function getSuperAssetAdapter() external view returns (address) {
+        return getAddress(SUPER_ASSET_ADAPTER);
     }
 
     /**
@@ -207,6 +254,10 @@ contract LendingPoolAddressesProvider is SuperOwnable {
         emit RelayerUpdated(relayer);
     }
 
+    function getPoolType() external view returns (uint8) {
+        return LENDING_POOL == keccak256("OpSuperchain_LENDING_POOL") ? 1 : 2;
+    }
+
     /**
      * @dev Internal function to update the implementation of a specific proxied component of the protocol
      * - If there is no proxy registered in the given `id`, it creates the proxy setting `newAdress`
@@ -226,7 +277,10 @@ contract LendingPoolAddressesProvider is SuperOwnable {
             _addresses[id] = address(proxy);
             emit ProxyCreated(id, address(proxy));
         } else {
-            proxy.upgradeToAndCall(newAddress, params);
+            ProxyAdmin proxyAdmin = ProxyAdmin(_proxyAdmin);
+            proxyAdmin.upgradeAndCall(ITransparentUpgradeableProxy(address(proxy)), newAddress, params);
+
+            // proxy.upgradeToAndCall(newAddress, params);
         }
     }
 

@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.8.25;
 
+import {ILendingPoolConfigurator} from "../src/interfaces/ILendingPoolConfigurator.sol";
+import {ILendingPoolAddressesProvider} from "../src/interfaces/ILendingPoolAddressesProvider.sol";
+
 import {Script, console} from "forge-std/Script.sol";
 import {Vm} from "forge-std/Vm.sol";
 
@@ -10,18 +13,16 @@ import {LendingPoolConfigurator} from "../src/LendingPoolConfigurator.sol";
 import {LendingPool} from "../src/LendingPool.sol";
 import {DefaultReserveInterestRateStrategy} from "../src/DefaultReserveInterestRateStrategy.sol";
 import {LendingRateOracle} from "../src/LendingRateOracle.sol";
-import {SuperchainAsset} from "../src/SuperchainAsset.sol";
-import {AToken} from "../src/tokenization/AToken.sol";
-import {StableDebtToken} from "../src/tokenization/StableDebtToken.sol";
+import {SuperAsset} from "../src/SuperAsset.sol";
+import {RToken} from "../src/tokenization/RToken.sol";
 import {VariableDebtToken} from "../src/tokenization/VariableDebtToken.sol";
 import {L2NativeSuperchainERC20} from "../src/L2NativeSuperchainERC20.sol";
 import {Router} from "../src/Router.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-
-import {ILendingPoolConfigurator} from "../src/interfaces/ILendingPoolConfigurator.sol";
-import {ILendingPoolAddressesProvider} from "../src/interfaces/ILendingPoolAddressesProvider.sol";
+import {MockLayerZeroEndpointV2} from "../test/utils/MockLayerZeroEndpointV2.sol";
 
 /// @dev the owner and deployer are currently the same.
+/// @notice for EventValidation library change the prover address to be deployed on each chain. - https://docs.polymerlabs.org/docs/build/start/
 contract LendingPoolDeployer is Script {
     string deployConfig;
 
@@ -31,12 +32,11 @@ contract LendingPoolDeployer is Script {
     struct DeployedContracts {
         address underlying;
         address lendingPoolImpl;
-        address aTokenImpl;
-        address stableDebtTokenImpl;
+        address rTokenImpl;
         address variableDebtTokenImpl;
         address proxyAdmin;
         address lendingPoolAddressesProvider;
-        address superchainAsset;
+        address superAsset;
         address lendingPool;
         address lendingPoolConfigurator;
         address defaultReserveInterestRateStrategy;
@@ -71,12 +71,11 @@ contract LendingPoolDeployer is Script {
     function deployFullLendingPool() public broadcast {
         // Deploy contracts using CREATE2
         (address underlying) = deployL2NativeSuperchainERC20();
-        (address aTokenImpl) = deployATokenImpl();
-        (address stableDebtTokenImpl) = deployStableDebtTokenImpl();
+        (address rTokenImpl) = deployRTokenImpl();
         (address variableDebtTokenImpl) = deployVariableDebtTokenImpl();
         (address proxyAdmin) = deployProxyAdmin();
         (address lpAddressProvider) = deployLendingPoolAddressesProvider(proxyAdmin);
-        (address superchainAsset) = deploySuperchainAsset(lpAddressProvider, underlying);
+        (address superAsset) = deploySuperAsset(underlying);
         (address implementationLp) = deployLendingPoolImpl();
         (address lpConfigurator) = deployLendingPoolConfigurator();
         (address strategy) = deployDefaultReserveInterestRateStrategy(lpAddressProvider);
@@ -95,22 +94,19 @@ contract LendingPoolDeployer is Script {
 
         ILendingPoolConfigurator.InitReserveInput[] memory input = new ILendingPoolConfigurator.InitReserveInput[](1);
         input[0] = ILendingPoolConfigurator.InitReserveInput({
-            aTokenImpl: address(aTokenImpl),
-            stableDebtTokenImpl: address(stableDebtTokenImpl),
+            rTokenImpl: address(rTokenImpl),
             variableDebtTokenImpl: address(variableDebtTokenImpl),
             underlyingAssetDecimals: uint8(vm.parseTomlUint(deployConfig, ".token.decimals")),
             interestRateStrategyAddress: address(strategy),
             underlyingAsset: address(underlying),
             treasury: treasury,
             incentivesController: incentivesController,
-            superchainAsset: address(superchainAsset),
+            superAsset: address(superAsset),
             underlyingAssetName: vm.parseTomlString(deployConfig, ".token.name"),
-            aTokenName: vm.parseTomlString(deployConfig, ".aToken1.name"),
-            aTokenSymbol: vm.parseTomlString(deployConfig, ".aToken1.symbol"),
+            rTokenName: vm.parseTomlString(deployConfig, ".RToken1.name"),
+            rTokenSymbol: vm.parseTomlString(deployConfig, ".RToken1.symbol"),
             variableDebtTokenName: vm.parseTomlString(deployConfig, ".variableDebtToken1.name"),
             variableDebtTokenSymbol: vm.parseTomlString(deployConfig, ".variableDebtToken1.symbol"),
-            stableDebtTokenName: vm.parseTomlString(deployConfig, ".stableDebtToken1.name"),
-            stableDebtTokenSymbol: vm.parseTomlString(deployConfig, ".stableDebtToken1.symbol"),
             params: "0x10",
             salt: _implSalt(vm.parseTomlString(deployConfig, ".deploy_config.salt"))
         });
@@ -119,12 +115,11 @@ contract LendingPoolDeployer is Script {
         deployedContracts = DeployedContracts({
             underlying: underlying,
             lendingPoolImpl: implementationLp,
-            aTokenImpl: aTokenImpl,
-            stableDebtTokenImpl: stableDebtTokenImpl,
+            rTokenImpl: rTokenImpl,
             variableDebtTokenImpl: variableDebtTokenImpl,
             proxyAdmin: proxyAdmin,
             lendingPoolAddressesProvider: lpAddressProvider,
-            superchainAsset: superchainAsset,
+            superAsset: superAsset,
             lendingPool: address(proxyLp),
             lendingPoolConfigurator: address(proxyConfigurator),
             defaultReserveInterestRateStrategy: strategy,
@@ -134,7 +129,7 @@ contract LendingPoolDeployer is Script {
         });
     }
 
-    function _implSalt(string memory salt) internal view returns (bytes32) {
+    function _implSalt(string memory salt) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(salt));
     }
 
@@ -145,12 +140,11 @@ contract LendingPoolDeployer is Script {
         vm.serializeAddress(obj, "deployedAddress", deployedContracts.underlying);
         vm.serializeAddress(obj, "ownerAddress", vm.parseTomlAddress(deployConfig, ".token.owner_address"));
 
-        vm.serializeAddress(obj, "aTokenAddress", deployedContracts.aTokenImpl);
-        vm.serializeAddress(obj, "stableDebtTokenAddress", deployedContracts.stableDebtTokenImpl);
+        vm.serializeAddress(obj, "RTokenAddress", deployedContracts.rTokenImpl);
         vm.serializeAddress(obj, "variableDebtTokenAddress", deployedContracts.variableDebtTokenImpl);
         vm.serializeAddress(obj, "proxyAdminAddress", deployedContracts.proxyAdmin);
         vm.serializeAddress(obj, "lendingPoolAddressesProviderAddress", deployedContracts.lendingPoolAddressesProvider);
-        vm.serializeAddress(obj, "superchainAssetAddress", deployedContracts.superchainAsset);
+        vm.serializeAddress(obj, "superAssetAddress", deployedContracts.superAsset);
         vm.serializeAddress(obj, "lendingPoolAddress", deployedContracts.lendingPool);
         vm.serializeAddress(obj, "lendingPoolConfiguratorAddress", deployedContracts.lendingPoolConfigurator);
         vm.serializeAddress(
@@ -186,16 +180,16 @@ contract LendingPoolDeployer is Script {
         }
     }
 
-    function deployATokenImpl() public returns (address addr_) {
-        string memory salt = vm.parseTomlString(deployConfig, ".aTokenImpl.salt");
-        bytes memory initCode = type(AToken).creationCode;
+    function deployRTokenImpl() public returns (address addr_) {
+        string memory salt = vm.parseTomlString(deployConfig, ".RTokenImpl.salt");
+        bytes memory initCode = type(RToken).creationCode;
         address preComputedAddress = vm.computeCreate2Address(_implSalt(salt), keccak256(initCode));
         if (preComputedAddress.code.length > 0) {
-            console.log("AToken already deployed at %s", preComputedAddress, "on chain id: ", block.chainid);
+            console.log("RToken already deployed at %s", preComputedAddress, "on chain id: ", block.chainid);
             addr_ = preComputedAddress;
         } else {
-            addr_ = address(new AToken{salt: _implSalt(salt)}());
-            console.log("Deployed AToken Impl at address: ", addr_, "on chain id: ", block.chainid);
+            addr_ = address(new RToken{salt: _implSalt(salt)}());
+            console.log("Deployed RToken Impl at address: ", addr_, "on chain id: ", block.chainid);
         }
     }
 
@@ -241,19 +235,6 @@ contract LendingPoolDeployer is Script {
         }
     }
 
-    function deployStableDebtTokenImpl() public returns (address addr_) {
-        string memory salt = vm.parseTomlString(deployConfig, ".stableDebtTokenImpl.salt");
-        bytes memory initCode = type(StableDebtToken).creationCode;
-        address preComputedAddress = vm.computeCreate2Address(_implSalt(salt), keccak256(initCode));
-        if (preComputedAddress.code.length > 0) {
-            console.log("StableDebtToken already deployed at %s", preComputedAddress, "on chain id: ", block.chainid);
-            addr_ = preComputedAddress;
-        } else {
-            addr_ = address(new StableDebtToken{salt: _implSalt(salt)}());
-            console.log("Deployed StableDebtToken at address: ", addr_, "on chain id: ", block.chainid);
-        }
-    }
-
     function deployVariableDebtTokenImpl() public returns (address addr_) {
         string memory salt = vm.parseTomlString(deployConfig, ".variableDebtTokenImpl.salt");
         bytes memory initCode = type(VariableDebtToken).creationCode;
@@ -284,40 +265,33 @@ contract LendingPoolDeployer is Script {
             );
             addr_ = preComputedAddress;
         } else {
-            addr_ = address(new LendingPoolAddressesProvider{salt: _implSalt(salt)}(marketId_, ownerAddr_, _proxyAdmin));
+            // ToDo: Add lending pool deployment here
+            bytes32 lendingPool = bytes32(uint256(0));
+            addr_ = address(
+                new LendingPoolAddressesProvider{salt: _implSalt(salt)}(marketId_, ownerAddr_, _proxyAdmin, lendingPool)
+            );
             console.log("Deployed LendingPoolAddressesProvider at address: ", addr_, "on chain id: ", block.chainid);
         }
     }
 
-    function deploySuperchainAsset(address lpAddressProvider, address underlying) public returns (address addr_) {
+    function deploySuperAsset(address underlying) public returns (address addr_) {
         string memory salt = vm.parseTomlString(deployConfig, ".superchain_asset_1.salt");
         address ownerAddr_ = vm.parseTomlAddress(deployConfig, ".superchain_asset_1.owner_address");
         string memory name = vm.parseTomlString(deployConfig, ".superchain_asset_1.name");
         string memory symbol = vm.parseTomlString(deployConfig, ".superchain_asset_1.symbol");
-        uint256 decimals = vm.parseTomlUint(deployConfig, ".superchain_asset_1.decimals");
-        require(decimals <= type(uint8).max, "decimals exceeds uint8 range");
-        bytes memory initCode = abi.encodePacked(
-            type(SuperchainAsset).creationCode,
-            abi.encode(
-                name, symbol, uint8(decimals), underlying, ILendingPoolAddressesProvider(lpAddressProvider), ownerAddr_
-            )
-        );
+        uint32 lzEndpoint_eid = 1;
+        address lzEndpoint = address(new MockLayerZeroEndpointV2(lzEndpoint_eid, ownerAddr_));
+        address delegate = address(1);
+
+        bytes memory initCode =
+            abi.encodePacked(type(SuperAsset).creationCode, abi.encode(underlying, lzEndpoint, delegate, name, symbol));
         address preComputedAddress = vm.computeCreate2Address(_implSalt(salt), keccak256(initCode));
         if (preComputedAddress.code.length > 0) {
-            console.log("SuperchainAsset already deployed at %s", preComputedAddress, "on chain id: ", block.chainid);
+            console.log("SuperAsset already deployed at %s", preComputedAddress, "on chain id: ", block.chainid);
             addr_ = preComputedAddress;
         } else {
-            addr_ = address(
-                new SuperchainAsset{salt: _implSalt(salt)}(
-                    name,
-                    symbol,
-                    uint8(decimals),
-                    underlying,
-                    ILendingPoolAddressesProvider(lpAddressProvider),
-                    ownerAddr_
-                )
-            );
-            console.log("Deployed SuperchainAsset at address: ", addr_, "on chain id: ", block.chainid);
+            addr_ = address(new SuperAsset{salt: _implSalt(salt)}(underlying, lzEndpoint, delegate, name, symbol));
+            console.log("Deployed SuperAsset at address: ", addr_, "on chain id: ", block.chainid);
         }
     }
 
@@ -336,13 +310,14 @@ contract LendingPoolDeployer is Script {
 
     function deployProxyAdmin() public returns (address addr_) {
         string memory salt = vm.parseTomlString(deployConfig, ".proxy_admin.salt");
+        address ownerAddr_ = vm.parseTomlAddress(deployConfig, ".proxy_admin.owner_address");
         bytes memory initCode = type(ProxyAdmin).creationCode;
         address preComputedAddress = vm.computeCreate2Address(_implSalt(salt), keccak256(initCode));
         if (preComputedAddress.code.length > 0) {
             console.log("ProxyAdmin already deployed at %s", preComputedAddress, "on chain id: ", block.chainid);
             addr_ = preComputedAddress;
         } else {
-            addr_ = address(new ProxyAdmin{salt: _implSalt(salt)}());
+            addr_ = address(new ProxyAdmin{salt: _implSalt(salt)}(ownerAddr_));
             console.log("Deployed ProxyAdmin at address: ", addr_, "on chain id: ", block.chainid);
         }
     }
@@ -372,10 +347,6 @@ contract LendingPoolDeployer is Script {
             vm.parseTomlUint(deployConfig, ".default_reserve_interest_rate_strategy.variableRateSlope1");
         uint256 variableRateSlope2 =
             vm.parseTomlUint(deployConfig, ".default_reserve_interest_rate_strategy.variableRateSlope2");
-        uint256 stableRateSlope1 =
-            vm.parseTomlUint(deployConfig, ".default_reserve_interest_rate_strategy.stableRateSlope1");
-        uint256 stableRateSlope2 =
-            vm.parseTomlUint(deployConfig, ".default_reserve_interest_rate_strategy.stableRateSlope2");
         bytes memory initCode = abi.encodePacked(
             type(DefaultReserveInterestRateStrategy).creationCode,
             abi.encode(
@@ -383,9 +354,7 @@ contract LendingPoolDeployer is Script {
                 optimalUtilizationRate,
                 baseVariableBorrowRate,
                 variableRateSlope1,
-                variableRateSlope2,
-                stableRateSlope1,
-                stableRateSlope2
+                variableRateSlope2
             )
         );
         address preComputedAddress = vm.computeCreate2Address(_implSalt(salt), keccak256(initCode));
@@ -404,9 +373,7 @@ contract LendingPoolDeployer is Script {
                     optimalUtilizationRate,
                     baseVariableBorrowRate,
                     variableRateSlope1,
-                    variableRateSlope2,
-                    stableRateSlope1,
-                    stableRateSlope2
+                    variableRateSlope2
                 )
             );
             console.log(

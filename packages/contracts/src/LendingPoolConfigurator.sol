@@ -6,13 +6,16 @@ import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
 import {ILendingPoolAddressesProvider} from "./interfaces/ILendingPoolAddressesProvider.sol";
 import {ILendingPool} from "./interfaces/ILendingPool.sol";
 import {IInitializableDebtToken} from "./interfaces/IInitializableDebtToken.sol";
-import {IInitializableAToken} from "./interfaces/IInitializableAToken.sol";
+import {IInitializableRToken} from "./interfaces/IInitializableRToken.sol";
 import {IAaveIncentivesController} from "./interfaces/IAaveIncentivesController.sol";
 import {ILendingPoolConfigurator} from "./interfaces/ILendingPoolConfigurator.sol";
-import {ISuperchainAsset} from "./interfaces/ISuperchainAsset.sol";
+import {ISuperAsset} from "./interfaces/ISuperAsset.sol";
 
 import {Initializable} from "@solady/utils/Initializable.sol";
-import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {
+    ITransparentUpgradeableProxy,
+    TransparentUpgradeableProxy
+} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import {ReserveConfiguration} from "./libraries/configuration/ReserveConfiguration.sol";
 import {Errors} from "./libraries/helpers/Errors.sol";
@@ -72,34 +75,21 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
         }
     }
 
-    function _initReserve(ILendingPool pool, InitReserveInput calldata input) internal {
-        address aTokenProxyAddress = _initTokenWithProxy(
-            input.aTokenImpl,
+    function _initReserve(ILendingPool _pool, InitReserveInput calldata input) internal {
+        // TODO: deploy rvaultAsset ...
+
+        address RTokenProxyAddress = _initTokenWithProxy(
+            input.rTokenImpl,
             abi.encodeWithSelector(
-                IInitializableAToken.initialize.selector,
-                pool,
+                IInitializableRToken.initialize.selector,
+                _pool,
                 input.treasury,
                 input.underlyingAsset,
                 IAaveIncentivesController(input.incentivesController),
                 addressesProvider,
                 input.underlyingAssetDecimals,
-                input.aTokenName,
-                input.aTokenSymbol,
-                input.params
-            ),
-            input.salt
-        );
-
-        address stableDebtTokenProxyAddress = _initTokenWithProxy(
-            input.stableDebtTokenImpl,
-            abi.encodeWithSelector(
-                IInitializableDebtToken.initialize.selector,
-                pool,
-                input.underlyingAsset,
-                IAaveIncentivesController(input.incentivesController),
-                input.underlyingAssetDecimals,
-                input.stableDebtTokenName,
-                input.stableDebtTokenSymbol,
+                input.rTokenName,
+                input.rTokenSymbol,
                 input.params
             ),
             input.salt
@@ -109,7 +99,7 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
             input.variableDebtTokenImpl,
             abi.encodeWithSelector(
                 IInitializableDebtToken.initialize.selector,
-                pool,
+                _pool,
                 input.underlyingAsset,
                 IAaveIncentivesController(input.incentivesController),
                 input.underlyingAssetDecimals,
@@ -120,42 +110,37 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
             input.salt
         );
 
-        pool.initReserve(
+        _pool.initReserve(
             input.underlyingAsset,
-            input.superchainAsset,
-            aTokenProxyAddress,
-            stableDebtTokenProxyAddress,
+            input.superAsset,
+            RTokenProxyAddress,
             variableDebtTokenProxyAddress,
             input.interestRateStrategyAddress
         );
 
-        DataTypes.ReserveConfigurationMap memory currentConfig = pool.getConfiguration(input.underlyingAsset);
+        DataTypes.ReserveConfigurationMap memory currentConfig = _pool.getConfiguration(input.underlyingAsset);
 
         currentConfig.setDecimals(input.underlyingAssetDecimals);
 
         currentConfig.setActive(true);
         currentConfig.setFrozen(false);
 
-        pool.setConfiguration(input.underlyingAsset, currentConfig.data);
+        _pool.setConfiguration(input.underlyingAsset, currentConfig.data);
 
         emit ReserveInitialized(
-            input.underlyingAsset,
-            aTokenProxyAddress,
-            stableDebtTokenProxyAddress,
-            variableDebtTokenProxyAddress,
-            input.interestRateStrategyAddress
+            input.underlyingAsset, RTokenProxyAddress, variableDebtTokenProxyAddress, input.interestRateStrategyAddress
         );
     }
 
     function withdrawSuperchainAssetSentToken(address asset, address recepient) external onlyProxyAdminOwner {
-        ISuperchainAsset(asset).withdrawTokens(asset, recepient);
+        ISuperAsset(asset).withdrawTokens(asset, recepient);
     }
     /**
-     * @dev Updates the aToken implementation for the reserve
+     * @dev Updates the RToken implementation for the reserve
      *
      */
 
-    function updateAToken(UpdateATokenInput calldata input) external onlyProxyAdminOwner {
+    function updateRToken(UpdateRTokenInput calldata input) external onlyProxyAdminOwner {
         ILendingPool cachedPool = pool;
 
         DataTypes.ReserveData memory reserveData = cachedPool.getReserveData(input.asset);
@@ -163,7 +148,7 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
         (,,, uint256 decimals,) = cachedPool.getConfiguration(input.asset).getParamsMemory();
 
         bytes memory encodedCall = abi.encodeWithSelector(
-            IInitializableAToken.initialize.selector,
+            IInitializableRToken.initialize.selector,
             cachedPool,
             input.treasury,
             input.asset,
@@ -174,36 +159,9 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
             input.params
         );
 
-        _upgradeTokenImplementation(reserveData.aTokenAddress, input.implementation, encodedCall);
+        _upgradeTokenImplementation(reserveData.rTokenAddress, input.implementation, encodedCall);
 
-        emit ATokenUpgraded(input.asset, reserveData.aTokenAddress, input.implementation);
-    }
-
-    /**
-     * @dev Updates the stable debt token implementation for the reserve
-     *
-     */
-    function updateStableDebtToken(UpdateDebtTokenInput calldata input) external onlyProxyAdminOwner {
-        ILendingPool cachedPool = pool;
-
-        DataTypes.ReserveData memory reserveData = cachedPool.getReserveData(input.asset);
-
-        (,,, uint256 decimals,) = cachedPool.getConfiguration(input.asset).getParamsMemory();
-
-        bytes memory encodedCall = abi.encodeWithSelector(
-            IInitializableDebtToken.initialize.selector,
-            cachedPool,
-            input.asset,
-            input.incentivesController,
-            decimals,
-            input.name,
-            input.symbol,
-            input.params
-        );
-
-        _upgradeTokenImplementation(reserveData.stableDebtTokenAddress, input.implementation, encodedCall);
-
-        emit StableDebtTokenUpgraded(input.asset, reserveData.stableDebtTokenAddress, input.implementation);
+        emit RTokenUpgraded(input.asset, reserveData.rTokenAddress, input.implementation);
     }
 
     /**
@@ -236,18 +194,16 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
     /**
      * @dev Enables borrowing on a reserve
      * @param asset The address of the underlying asset of the reserve
-     * @param stableBorrowRateEnabled True if stable borrow rate needs to be enabled by default on this reserve
      *
      */
-    function enableBorrowingOnReserve(address asset, bool stableBorrowRateEnabled) external onlyPoolAdmin {
+    function enableBorrowingOnReserve(address asset) external onlyPoolAdmin {
         DataTypes.ReserveConfigurationMap memory currentConfig = pool.getConfiguration(asset);
 
         currentConfig.setBorrowingEnabled(true);
-        currentConfig.setStableRateBorrowingEnabled(stableBorrowRateEnabled);
 
         pool.setConfiguration(asset, currentConfig.data);
 
-        emit BorrowingEnabledOnReserve(asset, stableBorrowRateEnabled);
+        emit BorrowingEnabledOnReserve(asset);
     }
 
     /**
@@ -313,36 +269,6 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
         pool.setConfiguration(asset, currentConfig.data);
 
         emit CollateralConfigurationChanged(asset, ltv, liquidationThreshold, liquidationBonus);
-    }
-
-    /**
-     * @dev Enable stable rate borrowing on a reserve
-     * @param asset The address of the underlying asset of the reserve
-     *
-     */
-    function enableReserveStableRate(address asset) external onlyPoolAdmin {
-        DataTypes.ReserveConfigurationMap memory currentConfig = pool.getConfiguration(asset);
-
-        currentConfig.setStableRateBorrowingEnabled(true);
-
-        pool.setConfiguration(asset, currentConfig.data);
-
-        emit StableRateEnabledOnReserve(asset);
-    }
-
-    /**
-     * @dev Disable stable rate borrowing on a reserve
-     * @param asset The address of the underlying asset of the reserve
-     *
-     */
-    function disableReserveStableRate(address asset) external onlyPoolAdmin {
-        DataTypes.ReserveConfigurationMap memory currentConfig = pool.getConfiguration(asset);
-
-        currentConfig.setStableRateBorrowingEnabled(false);
-
-        pool.setConfiguration(asset, currentConfig.data);
-
-        emit StableRateDisabledOnReserve(asset);
     }
 
     /**
@@ -460,19 +386,14 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
     function _upgradeTokenImplementation(address proxyAddress, address implementation, bytes memory initParams)
         internal
     {
-        TransparentUpgradeableProxy proxy = TransparentUpgradeableProxy(payable(proxyAddress));
-
-        // Get the proxy admin
         ProxyAdmin _proxyAdmin = ProxyAdmin(proxyAdmin);
-
-        // Upgrade and call
-        _proxyAdmin.upgradeAndCall(proxy, implementation, initParams);
+        _proxyAdmin.upgradeAndCall(ITransparentUpgradeableProxy(proxyAddress), implementation, initParams);
     }
 
     function _checkNoLiquidity(address asset) internal view {
         DataTypes.ReserveData memory reserveData = pool.getReserveData(asset);
 
-        uint256 availableLiquidity = IERC20(asset).balanceOf(reserveData.aTokenAddress);
+        uint256 availableLiquidity = IERC20(asset).balanceOf(reserveData.rTokenAddress);
 
         require(availableLiquidity == 0 && reserveData.currentLiquidityRate == 0, Errors.LPC_RESERVE_LIQUIDITY_NOT_0);
     }

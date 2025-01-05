@@ -18,24 +18,22 @@ interface ILendingPoolCollateralManager {
      * @param debtToCover The debt amount of borrowed `asset` the liquidator wants to cover
      * @param liquidatedCollateralAmount The amount of collateral received by the liiquidator
      * @param liquidator The address of the liquidator
-     * @param receiveAToken `true` if the liquidators wants to receive the collateral aTokens, `false` if he wants
+     * @param receiveRToken `true` if the liquidators wants to receive the collateral rTokens, `false` if he wants
      * to receive the underlying collateral asset directly
-     * @param stableDebtBurned The amount of stable debt burned
      * @param variableDebtBurned The amount of variable debt burned
-     * @param collateralATokenBurned The amount of collateral aTokens burned
+     * @param collateralRTokenBurned The amount of collateral rTokens burned
      *
      */
     event LiquidationCall(
-        address indexed collateralAsset,
-        address indexed debtAsset,
-        address indexed user,
+        address collateralAsset,
+        address debtAsset,
+        address user,
         uint256 debtToCover,
         uint256 liquidatedCollateralAmount,
         address liquidator,
-        bool receiveAToken,
-        uint256 stableDebtBurned,
+        bool receiveRToken,
         uint256 variableDebtBurned,
-        uint256 collateralATokenBurned
+        uint256 collateralRTokenBurned
     );
 
     /**
@@ -61,9 +59,9 @@ interface ILendingPoolCollateralManager {
      * @param principal The address of the principal reserve
      * @param user The address of the borrower
      * @param debtToCover The amount of principal that the liquidator wants to repay
-     * @param receiveAToken true if the liquidators wants to receive the aTokens, false if
+     * @param receiveRToken true if the liquidators wants to receive the rTokens, false if
      * he wants to receive the underlying asset directly
-     * @param sendToChainId the chain id to send the collateral to if receiveAToken is `false`
+     * @param sendToChainId the chain id to send the collateral to if receiveRToken is `false`
      *
      */
     function liquidationCall(
@@ -72,7 +70,7 @@ interface ILendingPoolCollateralManager {
         address principal,
         address user,
         uint256 debtToCover,
-        bool receiveAToken,
+        bool receiveRToken,
         uint256 sendToChainId
     ) external returns (uint256, string memory);
 }

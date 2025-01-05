@@ -6,12 +6,12 @@ import {IAaveIncentivesController} from "./IAaveIncentivesController.sol";
 import {ILendingPoolAddressesProvider} from "./ILendingPoolAddressesProvider.sol";
 
 /**
- * @title IInitializableAToken
- * @notice Interface for the initialize function on AToken
+ * @title IInitializableRToken
+ * @notice Interface for the initialize function on RToken
  * @author Aave
  *
  */
-interface IInitializableAToken {
+interface IInitializableRToken {
     /**
      * @dev Emitted when an aToken is initialized
      * @param underlyingAsset The address of the underlying asset
@@ -19,8 +19,8 @@ interface IInitializableAToken {
      * @param treasury The address of the treasury
      * @param incentivesController The address of the incentives controller for this aToken
      * @param aTokenDecimals the decimals of the underlying
-     * @param aTokenName the name of the aToken
-     * @param aTokenSymbol the symbol of the aToken
+     * @param rTokenName the name of the aToken
+     * @param rTokenSymbol the symbol of the aToken
      * @param params A set of encoded parameters for additional initialization
      *
      */
@@ -30,8 +30,8 @@ interface IInitializableAToken {
         address treasury,
         address incentivesController,
         uint8 aTokenDecimals,
-        string aTokenName,
-        string aTokenSymbol,
+        string rTokenName,
+        string rTokenSymbol,
         bytes params
     );
 
@@ -43,8 +43,10 @@ interface IInitializableAToken {
      * @param incentivesController The smart contract managing potential incentives distribution
      * @param addressesProvider The addresses provider
      * @param aTokenDecimals The decimals of the aToken, same as the underlying asset's
-     * @param aTokenName The name of the aToken
-     * @param aTokenSymbol The symbol of the aToken
+     * @param rTokenName The name of the aToken
+     * @param rTokenSymbol The symbol of the aToken
+     * @param params A set of encoded parameters for additional initialization
+     * @param eventValidator The address of the event validator
      */
     function initialize(
         ILendingPool pool,
@@ -53,8 +55,9 @@ interface IInitializableAToken {
         IAaveIncentivesController incentivesController,
         ILendingPoolAddressesProvider addressesProvider,
         uint8 aTokenDecimals,
-        string calldata aTokenName,
-        string calldata aTokenSymbol,
-        bytes calldata params
+        string calldata rTokenName,
+        string calldata rTokenSymbol,
+        bytes calldata params,
+        address eventValidator
     ) external;
 }

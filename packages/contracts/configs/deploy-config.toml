@@ -9,8 +9,8 @@ name = "TestSuperchainERC20"
 symbol = "TSU"
 decimals = 18
 
-[aTokenImpl]
-salt = "ethers phoenix aTokenImpl"
+[rTokenImpl]
+salt = "ethers phoenix rTokenImpl"
 
 [stableDebtTokenImpl]
 salt = "ethers phoenix stableDebtTokenImpl"
@@ -33,6 +33,10 @@ owner_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 name = "SuperTestSuperchainERC20"
 symbol = "STSU"
 decimals = 18
+# ToDo:Add correct lz addresses
+lzEndpoint = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+lzDelegate = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+
 
 [lending_pool_impl]
 salt = "ethers phoenix laimpl"
@@ -74,4 +78,11 @@ symbol = "SDTUSDC"
 
 [router]
 salt = "ethers phoenix router"
+
+[forks]
+chain_a_rpc_url = "https://opt-mainnet.g.alchemy.com/v2/jqIGxmWLI8n0ZxqcXmOxubAMpP-_YlhK"
+chain_a_chain_id = 10
+chain_a_cross_l2_prover_address="0x1CCb363c18484A568DCB0Ec37fE5ad716C1D6e77"
+
+
 
