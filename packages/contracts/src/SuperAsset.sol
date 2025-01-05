@@ -17,12 +17,12 @@ contract SuperAsset is OFT, SuperchainERC20 {
     string _symbol;
     uint8 _decimals;
 
-    constructor(address _underlying, address _lzEndpoint, address _delegate, string memory name, string memory symbol)
+    constructor(address _underlying, address _lzEndpoint, address _delegate, string memory name_, string memory symbol_)
         OFT(_lzEndpoint, _delegate, IERC20Metadata(_underlying).decimals())
     {
         underlying = _underlying;
-        _name = name;
-        _symbol = symbol;
+        _name = name_;
+        _symbol = symbol_;
         _decimals = IERC20Metadata(_underlying).decimals();
     }
 
