@@ -109,6 +109,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         _addressesProvider = provider;
         _flashLoanPremiumTotal = 9;
         _maxNumberOfReserves = 128;
+        pool_type = provider.getPoolType();
     }
 
     /**
@@ -136,7 +137,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
 
         //If pool is on op_superchain,
         // wrap them into superAsset with lendingPool as receiver
-        if (reserve.pool_type == 1) {
+        if (pool_type == 1) {
             IERC20(asset).approve(reserve.superAsset, amount);
             ISuperAsset(reserve.superAsset).deposit(address(this), amount);
         }
@@ -224,6 +225,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         } else {
             paybackAmount = debt;
             // TODO: send the remaining RVault tokens on the debtChain back to the user on this chain.
+            IRVaultAsset(rVaultAsset).bridge(sender, block.chainid, amount - paybackAmount);
         }
 
         _updateStates(reserve, asset, paybackAmount, 0, UPDATE_RATES_AND_STATES_MASK);

@@ -31,6 +31,7 @@ contract Router is Initializable, SuperPausable {
     ILendingPoolAddressesProvider public addressesProvider;
     address public relayer;
     EventValidator public eventValidator;
+    uint8 pool_type;
 
     modifier onlyRelayer() {
         _onlyRelayer();
@@ -61,6 +62,7 @@ contract Router is Initializable, SuperPausable {
         lendingPool = ILendingPool(_lendingPool);
         addressesProvider = ILendingPoolAddressesProvider(_addressesProvider);
         eventValidator = EventValidator(_eventValidator);
+        pool_type = lendingPool.pool_type();
     }
 
     function dispatch(
@@ -164,7 +166,7 @@ contract Router is Initializable, SuperPausable {
             DataTypes.ReserveData memory reserve = lendingPool.getReserveData(rVaultAsset);
 
             IERC20(asset).safeTransferFrom(sender, address(this), amount);
-            if (reserve.pool_type == 1) {
+            if (pool_type == 1) {
                 IERC20(asset).approve(reserve.superAsset, amount);
                 ISuperAsset(reserve.superAsset).deposit(rVaultAsset, amount);
             } else {

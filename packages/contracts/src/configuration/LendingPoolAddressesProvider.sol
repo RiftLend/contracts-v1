@@ -254,8 +254,8 @@ contract LendingPoolAddressesProvider is SuperOwnable {
         emit RelayerUpdated(relayer);
     }
 
-    function getRVaultAsset() external view returns (bytes32, address) {
-        return (LENDING_POOL, _addresses[RVAULT_ASSET]);
+    function getPoolType() external view returns (uint8) {
+        return LENDING_POOL == keccak256("OpSuperchain_LENDING_POOL") ? 1 : 2;
     }
 
     /**

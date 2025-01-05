@@ -300,4 +300,6 @@ interface ILendingPool {
         bytes calldata params,
         uint16 referralCode
     ) external;
+
+    function pool_type() external view returns (uint8);
 }

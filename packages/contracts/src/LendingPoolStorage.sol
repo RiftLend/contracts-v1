@@ -60,4 +60,6 @@ contract LendingPoolStorage {
      * @notice Maximum number of reserves that can be supported by the protocol.
      */
     uint256 internal _maxNumberOfReserves;
+
+    uint8 pool_type;
 }

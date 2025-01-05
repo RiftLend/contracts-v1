@@ -180,10 +180,7 @@ library ValidationLogic {
      * @param amountSent The amount sent for the repayment. Can be an actual value or uint(-1)
      * @param debt The borrow balance of the user
      */
-    function validateRepay(DataTypes.ReserveData storage reserve, uint256 amountSent, uint256 debt)
-        external
-        view
-    {
+    function validateRepay(DataTypes.ReserveData storage reserve, uint256 amountSent, uint256 debt) external view {
         require(reserve.configuration.getActive(), Errors.VL_NO_ACTIVE_RESERVE);
 
         require(amountSent > 0, Errors.VL_INVALID_AMOUNT);

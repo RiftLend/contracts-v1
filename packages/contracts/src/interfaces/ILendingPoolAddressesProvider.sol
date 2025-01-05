@@ -89,6 +89,7 @@ interface ILendingPoolAddressesProvider {
     function setRouter(address router) external;
 
     function getSuperAssetAdapter() external view returns (address);
+    function getPoolType() external view returns (uint8);
 
     function setSuperAssetAdapter(address _superAssetAdapter) external;
 }

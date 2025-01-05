@@ -191,12 +191,7 @@ contract RVaultAsset is SuperOwnable, OFT {
         IERC20(underlying).safeTransfer(_recipient, _amount);
     }
 
-    function _bridgeCrossCluster(
-        uint256 tokensToSend,
-        address receiverOfUnderlying,
-        address, /*_underlyingAsset*/ // TODO: Remove this
-        uint256 toChainId
-    ) internal {
+    function _bridgeCrossCluster(uint256 tokensToSend, address receiverOfUnderlying, uint256 toChainId) internal {
         if (pool_type == 1) {
             bytes memory compose_message = OFTLogic.encodeMessage(receiverOfUnderlying, tokensToSend);
 
@@ -213,16 +208,28 @@ contract RVaultAsset is SuperOwnable, OFT {
             (MessagingReceipt memory msgReceipt,) = superAssetAdapter.send(sendParam, fee, payable(address(this)));
             if (msgReceipt.guid == 0 && msgReceipt.nonce == 0) revert OftSendFailed();
         } else {
+            // Now there can be two cases , arb-eth cluster to superchain
+            // or abrb-eth cluster to arb-eth
+            // TODO: u have to check if toChainId this is going to superchain / normal and then pass superAssetAdapter / address(this)
+
             bytes memory compose_message = OFTLogic.encodeMessage(receiverOfUnderlying, tokensToSend);
+
             SendParam memory sendParam = SendParam(
                 uint32(toChainId),
-                bytes32(uint256(uint160(address(superAssetAdapter)))), // TODO: u have to check if toChainId this is going to superchain / normal and then pass superAssetAdapter / address(this)
+                bytes32(uint256(uint160(address(0)))),
                 tokensToSend,
                 tokensToSend, // No Slippage
                 "", // No options
                 compose_message,
                 "" // empty oftCmd
             );
+            // decide recipient
+            if (chainId_cluster_type[toChainId] == DataTypes.Chain_Cluster_Types.SUPER_CHAIN) {
+                sendParam.to = bytes32(uint256(uint160(address(superAssetAdapter))));
+            } else {
+                sendParam.to = bytes32(uint256(uint160(address(this))));
+            }
+
             MessagingFee memory fee = quoteSend(sendParam, false);
             _send(sendParam, fee, payable(address(this)));
         }
@@ -285,7 +292,7 @@ contract RVaultAsset is SuperOwnable, OFT {
         }
     }
 
-    function _bridgeIntraCluster(
+    function bridgeUsingSuperTokenBridge(
         uint256 amount,
         address receiverOfUnderlying,
         address _underlyingAsset,
@@ -301,14 +308,19 @@ contract RVaultAsset is SuperOwnable, OFT {
     }
 
     function bridge(address receiverOfUnderlying, uint256 toChainId, uint256 amount) public onlyRouterOrSelf {
-        if (chainId_cluster_type[toChainId] == DataTypes.Chain_Cluster_Types.CROSS) {
-            _bridgeCrossCluster(amount, receiverOfUnderlying, underlying, toChainId);
-        } else if (chainId_cluster_type[toChainId] == DataTypes.Chain_Cluster_Types.INTRA) {
-            if (isSuperTokenBridgeEnabled) {
-                _bridgeIntraCluster(amount, receiverOfUnderlying, underlying, toChainId);
+        DataTypes.Chain_Cluster_Types sourceType = chainId_cluster_type[block.chainid];
+        DataTypes.Chain_Cluster_Types destinationType = chainId_cluster_type[toChainId];
+        DataTypes.Chain_Cluster_Types super_chain_type = DataTypes.Chain_Cluster_Types.SUPER_CHAIN;
+        DataTypes.Chain_Cluster_Types other_cluster_type = DataTypes.Chain_Cluster_Types.OTHER;
+
+        if (sourceType == super_chain_type) {
+            if (destinationType == super_chain_type && isSuperTokenBridgeEnabled) {
+                bridgeUsingSuperTokenBridge(amount, receiverOfUnderlying, underlying, toChainId);
             } else {
-                _bridgeCrossCluster(amount, receiverOfUnderlying, underlying, toChainId);
+                _bridgeCrossCluster(amount, receiverOfUnderlying, toChainId);
             }
+        } else if (sourceType == other_cluster_type && destinationType == other_cluster_type) {
+            _bridgeCrossCluster(amount, receiverOfUnderlying, toChainId);
         } else {
             revert NonConfiguredCluster(toChainId);
         }

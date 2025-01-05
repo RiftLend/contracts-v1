@@ -13,7 +13,7 @@ library DataTypes {
         address variableDebtTokenAddress;
         address interestRateStrategyAddress;
         uint8 id;
-        uint8 pool_type; // TODO: Put this in LendingPoolStorage instead.
+        //uint8 pool_type; // TODO: Put this in LendingPoolStorage instead.
         address superAsset;
     }
 
@@ -42,8 +42,8 @@ library DataTypes {
 
     enum Chain_Cluster_Types {
         NONE,
-        CROSS,
-        INTRA
+        SUPER_CHAIN,
+        OTHER
     }
 
     enum INTRA_CLUSTER_SERVICE_CHOICE {
