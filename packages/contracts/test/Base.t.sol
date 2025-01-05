@@ -1,32 +1,32 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.8.25;
 
-import {ILendingPoolAddressesProvider} from "../../src/interfaces/ILendingPoolAddressesProvider.sol";
-import {ILendingPoolConfigurator} from "../../src/interfaces/ILendingPoolConfigurator.sol";
-import {ICrossL2Prover} from "../../src/interfaces/ICrossL2Prover.sol";
-import {ISuperAsset} from "../../src/interfaces/ISuperAsset.sol";
-import {IAaveIncentivesController} from "../../src/interfaces/IAaveIncentivesController.sol";
-import {ILendingPool} from "../../src/interfaces/ILendingPool.sol";
-import {IRVaultAsset} from "../../src/interfaces/IRVaultAsset.sol";
+import {ILendingPoolAddressesProvider} from "../src/interfaces/ILendingPoolAddressesProvider.sol";
+import {ILendingPoolConfigurator} from "../src/interfaces/ILendingPoolConfigurator.sol";
+import {ICrossL2Prover} from "../src/interfaces/ICrossL2Prover.sol";
+import {ISuperAsset} from "../src/interfaces/ISuperAsset.sol";
+import {IAaveIncentivesController} from "../src/interfaces/IAaveIncentivesController.sol";
+import {ILendingPool} from "../src/interfaces/ILendingPool.sol";
+import {IRVaultAsset} from "../src/interfaces/IRVaultAsset.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IncentivesController} from "../utils/IncentivesController.sol";
+import {IncentivesController} from "./utils/IncentivesController.sol";
 
-import {Test} from "../../lib/forge-std/src/Test.sol";
-import {console} from "../../lib/forge-std/src/console.sol";
-import {TestERC20} from "../utils/TestERC20.sol";
-import {SuperAsset} from "../../src/SuperAsset.sol";
-import {RToken} from "../../src/tokenization/RToken.sol";
-import {RVaultAsset} from "../../src/RVaultAsset.sol";
-import {VariableDebtToken} from "../../src/tokenization/VariableDebtToken.sol";
-import {LendingPool} from "../../src/LendingPool.sol";
-import {LendingPoolAddressesProvider} from "../../src/configuration/LendingPoolAddressesProvider.sol";
-import {LendingPoolConfigurator} from "../../src/LendingPoolConfigurator.sol";
-import {DefaultReserveInterestRateStrategy} from "../../src/DefaultReserveInterestRateStrategy.sol";
+import {Test} from "../lib/forge-std/src/Test.sol";
+import {console} from "../lib/forge-std/src/console.sol";
+import {TestERC20} from "./utils/TestERC20.sol";
+import {SuperAsset} from "../src/SuperAsset.sol";
+import {RToken} from "../src/tokenization/RToken.sol";
+import {RVaultAsset} from "../src/RVaultAsset.sol";
+import {VariableDebtToken} from "../src/tokenization/VariableDebtToken.sol";
+import {LendingPool} from "../src/LendingPool.sol";
+import {LendingPoolAddressesProvider} from "../src/configuration/LendingPoolAddressesProvider.sol";
+import {LendingPoolConfigurator} from "../src/LendingPoolConfigurator.sol";
+import {DefaultReserveInterestRateStrategy} from "../src/DefaultReserveInterestRateStrategy.sol";
 import {ProxyAdmin} from "src/interop-std/src/utils/SuperProxyAdmin.sol";
 import {OFT} from "@layerzerolabs/oft-evm/contracts/OFT.sol";
-import {MockLayerZeroEndpointV2} from "../utils/MockLayerZeroEndpointV2.sol";
-import {Router} from "../../src/Router.sol";
-import {EventValidator} from "../../src/libraries/EventValidator.sol";
+import {MockLayerZeroEndpointV2} from "./utils/MockLayerZeroEndpointV2.sol";
+import {Router} from "../src/Router.sol";
+import {EventValidator} from "../src/libraries/EventValidator.sol";
 
 contract Base is Test {
     //////////////////////////
@@ -91,7 +91,6 @@ contract Base is Test {
     LendingPoolAddressesProvider lpAddressProvider;
     MockLayerZeroEndpointV2 lzEndpoint;
     Router router;
-    address rVaultAsset;
 
     function setUp() public {
         // ############## Load deploy config ##############
@@ -180,9 +179,9 @@ contract Base is Test {
         // ################ Deploy RVaultAsset ################
         vm.prank(owner);
 
-        rVaultAsset = address(
+        address rVaultAsset = address(
             new RVaultAsset{salt: "rVaultAssetImpl"}(
-                address(underlyingAsset),
+                address(superAsset),
                 ILendingPoolAddressesProvider(address(lpAddressProvider)),
                 address(lzEndpoint),
                 _delegate,
@@ -283,5 +282,45 @@ contract Base is Test {
         input[0].salt = "salt";
         vm.prank(poolAdmin1);
         proxyConfigurator.batchInitReserve(input);
+
+        // ################ Set RVaultAsset for underlying ################
+        vm.prank(poolAdmin1);
+        proxyConfigurator.setRvaultAssetForUnderlying(address(underlyingAsset), address(rVaultAsset));
     }
+
+    //  // Function to initialize the reserve
+    //     function initializeReserve(
+    //         RToken rTokenImpl,
+    //         string memory rTokenName,
+    //         string memory rTokenSymbol,
+    //         VariableDebtToken variableDebtTokenImpl,
+    //         string memory variableDebtTokenName,
+    //         string memory variableDebtTokenSymbol,
+    //         address strategy,
+    //         address treasury,
+    //         address incentivesController,
+    //         SuperAsset superAsset,
+    //         address rVaultAsset,
+    //         uint8 underlyingAssetDecimals,
+    //         string memory underlyingAssetName
+    //     ) internal {
+    //         ILendingPoolConfigurator.InitReserveInput[] memory input = new ILendingPoolConfigurator.InitReserveInput[](1);
+    //         input[0].rTokenImpl = address(rTokenImpl);
+    //         input[0].rTokenName = rTokenName;
+    //         input[0].rTokenSymbol = rTokenSymbol;
+    //         input[0].variableDebtTokenImpl = address(variableDebtTokenImpl);
+    //         input[0].variableDebtTokenName = variableDebtTokenName;
+    //         input[0].variableDebtTokenSymbol = variableDebtTokenSymbol;
+    //         input[0].interestRateStrategyAddress = strategy;
+    //         input[0].treasury = treasury;
+    //         input[0].incentivesController = incentivesController;
+    //         input[0].superAsset = address(superAsset);
+    //         input[0].underlyingAsset = address(rVaultAsset);
+    //         input[0].underlyingAssetDecimals = underlyingAssetDecimals;
+    //         input[0].underlyingAssetName = underlyingAssetName;
+    //         input[0].params = "v";
+    //         input[0].salt = "salt";
+    //         vm.prank(poolAdmin1);
+    //         proxyConfigurator.batchInitReserve(input);
+    //     }
 }

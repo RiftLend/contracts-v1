@@ -10,6 +10,7 @@ import {IRVaultAsset} from "./interfaces/IRVaultAsset.sol";
 import {IVariableDebtToken} from "./interfaces/IVariableDebtToken.sol";
 import {ISuperchainTokenBridge} from "./interfaces/ISuperchainTokenBridge.sol";
 import {ILendingPoolAddressesProvider} from "./interfaces/ILendingPoolAddressesProvider.sol";
+import {ILendingPool} from "./interfaces/ILendingPool.sol";
 
 import {Initializable} from "@solady/utils/Initializable.sol";
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
@@ -62,7 +63,7 @@ contract Router is Initializable, SuperPausable {
         lendingPool = ILendingPool(_lendingPool);
         addressesProvider = ILendingPoolAddressesProvider(_addressesProvider);
         eventValidator = EventValidator(_eventValidator);
-        pool_type = lendingPool.pool_type();
+        pool_type = ILendingPool(lendingPool).pool_type();
     }
 
     function dispatch(

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.8.25;
 
-import "./Base.t.sol";
+import "../Base.t.sol";
 
 contract LendingPoolTest is Base {
     // Test deposit of underlying tokens on superchain
     //  the Lending pool will take the underlying , wrap into rVaultAsset and then deposit into rToken
-    function testDeposit() public {
+    function test_lp_Deposit() public {
         // ########### Prepare deposit params
         uint256[1] memory amounts;
         amounts[0] = 10 ether;
@@ -25,14 +25,6 @@ contract LendingPoolTest is Base {
 
         // ########### Deposit through router ###########
 
-        // vm.prank(onBehalfOf);
-        // router.deposit( asset, amounts, onBehalfOf, referralCode,chainIds);
-
-        // ############ get emitted VM logs ####
-        //  getRecordedVmLogs()
-        // ....................
-        // Prepare deposit params extracted from event emission
-
         vm.prank(address(router));
         proxyLp.deposit(onBehalfOf, address(underlyingAsset), amounts[0], onBehalfOf, referralCode);
 
@@ -41,11 +33,9 @@ contract LendingPoolTest is Base {
         console.log(rVaultAsset);
         assertEq(IERC20(rVaultAsset).balanceOf(rToken), amounts[0]);
     }
-    
-        // TODO:test is the userconfig for the rVaultAsset correct?
-        // TODO:test does the rVaultAsset have the correct underlying?
-        // TODO:test does the rVaultAsset correctly mint and burn ... with the token type like superasset / underlying?
-        // assertEq(underlyingAsset.balanceOf(onBehalfOf), 90 ether);
-            
-  
+
+    // TODO:test is the userconfig for the rVaultAsset correct?
+    // TODO:test does the rVaultAsset have the correct underlying?
+    // TODO:test does the rVaultAsset correctly mint and burn ... with the token type like superasset / underlying?
+    // assertEq(underlyingAsset.balanceOf(onBehalfOf), 90 ether);
 }

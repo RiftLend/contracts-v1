@@ -219,6 +219,8 @@ interface ILendingPool {
 
     function setUserUseReserveAsCollateral(address sender, address asset, bool useAsCollateral) external;
 
+    function setRvaultAssetForUnderlying(address asset, address rVaultAsset) external;
+
     function liquidationCall(
         address sender,
         address collateralAsset,

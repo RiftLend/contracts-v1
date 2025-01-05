@@ -76,8 +76,6 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
     }
 
     function _initReserve(ILendingPool _pool, InitReserveInput calldata input) internal {
-        // TODO: deploy rvaultAsset ...
-
         address RTokenProxyAddress = _initTokenWithProxy(
             input.rTokenImpl,
             abi.encodeWithSelector(
@@ -359,6 +357,11 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
     function setReserveInterestRateStrategyAddress(address asset, address rateStrategyAddress) external onlyPoolAdmin {
         pool.setReserveInterestRateStrategyAddress(asset, rateStrategyAddress);
         emit ReserveInterestRateStrategyChanged(asset, rateStrategyAddress);
+    }
+
+    function setRvaultAssetForUnderlying(address asset, address rVaultAsset) external onlyPoolAdmin {
+        pool.setRvaultAssetForUnderlying(asset, rVaultAsset);
+        emit RvaultAssetForUnderlyingChanged(asset, rVaultAsset);
     }
 
     function _initTokenWithProxy(address implementation, bytes memory initParams, bytes32 _salt)

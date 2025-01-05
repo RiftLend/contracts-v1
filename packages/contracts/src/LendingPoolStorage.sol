@@ -61,5 +61,5 @@ contract LendingPoolStorage {
      */
     uint256 internal _maxNumberOfReserves;
 
-    uint8 pool_type;
+    uint8 public pool_type;
 }

@@ -133,6 +133,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         ValidationLogic.validateDeposit(reserve, amount);
 
         // transfer user's tokens to the contract
+
         IERC20(asset).safeTransferFrom(sender, address(this), amount);
 
         //If pool is on op_superchain,
@@ -140,10 +141,12 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         if (pool_type == 1) {
             IERC20(asset).approve(reserve.superAsset, amount);
             ISuperAsset(reserve.superAsset).deposit(address(this), amount);
+            IERC20(reserve.superAsset).approve(rVaultAsset, amount);
+        } else {
+            IERC20(asset).approve(rVaultAsset, amount);
         }
 
         IRVaultAsset(rVaultAsset).mint(amount, rToken);
-
         // We now mint RTokens to the user as a receipt of their deposit
         (bool isFirstDeposit, uint256 mintMode, uint256 amountScaled) =
             IRToken(rToken).mint(onBehalfOf, amount, reserve.liquidityIndex);
@@ -681,6 +684,17 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     }
 
     /**
+     * @dev Sets the address of the rVault asset for an underlying asset
+     * - Only callable by the LendingPoolConfigurator contract
+     * @param asset The address of the underlying asset of the reserve
+     * @param rVaultAsset The address of the rVault asset
+     *
+     */
+    function setRvaultAssetForUnderlying(address asset, address rVaultAsset) external onlyLendingPoolConfigurator {
+        _rVaultAsset[asset] = rVaultAsset;
+    }
+
+    /**
      * @dev Sets the configuration bitmap of the reserve as a whole
      * - Only callable by the LendingPoolConfigurator contract
      * @param asset The address of the underlying asset of the reserve
@@ -811,7 +825,8 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     }
 
     function getRVaultAssetOrRevert(address asset) public view returns (address rVaultAsset) {
-        if ((rVaultAsset = _rVaultAsset[asset]) == address(0)) revert rVaultAssetNotFoundForAsset(asset);
+        rVaultAsset = _rVaultAsset[asset];
+        if (rVaultAsset == address(0)) revert rVaultAssetNotFoundForAsset(asset);
     }
 
     /**

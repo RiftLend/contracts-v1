@@ -126,11 +126,11 @@ contract RVaultAsset is SuperOwnable, OFT {
         string memory name_,
         string memory symbol_,
         uint8 decimals_
-    ) OFT(lzEndpoint_, delegate_) {
+    ) OFT(lzEndpoint_, delegate_, decimals_) {
         underlying = underlying_;
-        (, pool_type,) = TokensLogic.getPoolTokenInformation(provider_);
-        if (pool_type == 1) underlying_of_superAsset = provider_.getSuperAsset();
         provider = provider_;
+        pool_type = ILendingPoolAddressesProvider(provider).getPoolType();
+        if (pool_type == 1) underlying_of_superAsset = provider.getSuperAsset();
 
         _name = name_;
         _symbol = symbol_;

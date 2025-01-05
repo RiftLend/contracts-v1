@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 
 import {ERC20} from "@solady/tokens/ERC20.sol";
 import {OFTCore} from "./OFTCore.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts-v5/token/ERC20/extensions/IERC20Metadata.sol";
 
 /**
  * @title OFT Contract
@@ -15,7 +16,7 @@ abstract contract OFT is OFTCore, ERC20 {
      * @param _lzEndpoint The LayerZero endpoint address.
      * @param _delegate The delegate capable of making OApp configurations inside of the endpoint.
      */
-    constructor(address _lzEndpoint, address _delegate) OFTCore(decimals(), _lzEndpoint, _delegate) {}
+    constructor(address _lzEndpoint, address _delegate, uint8 _decimals) OFTCore(_decimals, _lzEndpoint, _delegate) {}
 
     /**
      * @dev Retrieves the address of the underlying ERC20 implementation.

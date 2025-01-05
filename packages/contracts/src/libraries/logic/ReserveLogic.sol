@@ -142,13 +142,14 @@ library ReserveLogic {
      * @dev Initializes a reserve
      * @param reserve The reserve object
      * @param rTokenAddress The address of the overlying atoken contract
+     * @param superAsset The address of the SuperchainAsset contract
+     * @param variableDebtTokenAddress The address of the VariableDebtToken contract
      * @param interestRateStrategyAddress The address of the interest rate strategy contract
-     *
      */
     function init(
         DataTypes.ReserveData storage reserve,
         address rTokenAddress,
-        address,
+        address superAsset,
         address variableDebtTokenAddress,
         address interestRateStrategyAddress
     ) external {
@@ -159,6 +160,7 @@ library ReserveLogic {
         reserve.rTokenAddress = rTokenAddress;
         reserve.variableDebtTokenAddress = variableDebtTokenAddress;
         reserve.interestRateStrategyAddress = interestRateStrategyAddress;
+        reserve.superAsset = superAsset;
     }
 
     struct UpdateInterestRatesLocalVars {
