@@ -181,7 +181,7 @@ event ReserveUsedAsCollateral(address user, address asset, bool useAsCollateral)
 
 event SetUserUseReserveAsCollateralCrossChain(uint256 chainId, address user, address asset, bool useAsCollateral);
 
-event InitiateFlashLoanCrossChain(
+event CrossChainInitiateFlashloan(
     uint256 chainId,
     address sender,
     address receiverAddress,

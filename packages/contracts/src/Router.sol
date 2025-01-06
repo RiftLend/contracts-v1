@@ -238,7 +238,7 @@ contract Router is Initializable, SuperPausable {
             (, address asset, uint256 amount) = abi.decode(_data[96:160], (address, address, uint256));
             lendingPool.updateStates(asset, 0, amount, UPDATE_RATES_AND_STATES_MASK);
         }
-        if (selector == InitiateFlashLoanCrossChain.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
+        if (selector == CrossChainInitiateFlashloan.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
             (
                 address sender,
                 address receiverAddress,
@@ -410,7 +410,7 @@ contract Router is Initializable, SuperPausable {
         uint16[] calldata referralCode
     ) external whenNotPaused {
         for (uint256 i = 0; i < chainIds.length; i++) {
-            emit InitiateFlashLoanCrossChain(
+            emit CrossChainInitiateFlashloan(
                 chainIds[i],
                 msg.sender,
                 receiverAddress,

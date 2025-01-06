@@ -314,7 +314,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         address rVaultAsset = getRVaultAssetOrRevert(debtAsset);
 
         DataTypes.ReserveData storage reserve = _reserves[rVaultAsset];
-        
+
         IERC20(debtAsset).safeTransferFrom(sender, address(this), debtToCover);
         if (pool_type == 1) {
             IERC20(debtAsset).approve(reserve.superAsset, debtToCover);
@@ -387,7 +387,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     ) external onlyRouter {
         FlashLoanLocalVars memory vars;
 
-        ValidationLogic.validateFlashloan(assets, amounts);
+        ValidationLogic.validateFlashloan(modes, assets, amounts);
 
         address[] memory rTokenAddresses = new address[](assets.length);
         uint256[] memory premiums = new uint256[](assets.length);
@@ -395,7 +395,9 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         vars.receiver = IFlashLoanReceiver(receiverAddress);
 
         for (vars.i = 0; vars.i < assets.length; vars.i++) {
-            rTokenAddresses[vars.i] = _reserves[assets[vars.i]].rTokenAddress;
+            address rVaultAsset = getRVaultAssetOrRevert(assets[vars.i]);
+
+            rTokenAddresses[vars.i] = _reserves[rVaultAsset].rTokenAddress;
 
             premiums[vars.i] = (amounts[vars.i] * _flashLoanPremiumTotal) / 10000;
 
@@ -411,7 +413,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
 
         bool borrowExecuted = false;
         for (vars.i = 0; vars.i < assets.length; vars.i++) {
-            vars.currentAsset = assets[vars.i];
+            vars.currentAsset = getRVaultAssetOrRevert(assets[vars.i]);
             vars.currentAmount = amounts[vars.i];
             vars.currentPremium = premiums[vars.i];
             vars.currentrTokenAddress = rTokenAddresses[vars.i];
@@ -429,7 +431,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
                 IERC20(vars.currentAsset).safeTransferFrom(
                     receiverAddress, address(this), vars.currentAmountPlusPremium
                 );
-                ISuperAsset(vars.currentAsset).mint(vars.currentrTokenAddress, vars.currentAmountPlusPremium);
+                IRVaultAsset(vars.currentAsset).mint(vars.currentAmountPlusPremium, vars.currentrTokenAddress);
             } else {
                 // If the user chose to not return the funds, the system checks if there is enough collateral and
                 // eventually opens a debt position

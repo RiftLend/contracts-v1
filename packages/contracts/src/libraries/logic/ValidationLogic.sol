@@ -265,8 +265,13 @@ library ValidationLogic {
      * @param amounts The amounts for each asset being borrowed
      *
      */
-    function validateFlashloan(address[] memory assets, uint256[] memory amounts) internal pure {
-        require(assets.length == amounts.length, Errors.VL_INCONSISTENT_FLASHLOAN_PARAMS);
+    function validateFlashloan(uint256[] memory modes, address[] memory assets, uint256[] memory amounts)
+        internal
+        pure
+    {
+        require(
+            assets.length == amounts.length && modes.length == amounts.length, Errors.VL_INCONSISTENT_FLASHLOAN_PARAMS
+        );
     }
 
     /**
