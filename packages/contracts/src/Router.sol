@@ -308,6 +308,8 @@ contract Router is Initializable, SuperPausable {
         }
     }
 
+
+    // Frontend would need to calculate how much to borrow on each chain where the user has collateral ...
     /**
      * @dev Allows users to borrow across multiple chains, provided they have enough collateral
      * @param asset The address of the underlying asset to borrow
