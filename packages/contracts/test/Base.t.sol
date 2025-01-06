@@ -179,8 +179,8 @@ contract Base is Test {
         // ################ Deploy RVaultAsset ################
         vm.prank(owner);
 
-        address rVaultAsset = address(
-            new RVaultAsset{salt: "rVaultAssetImpl"}(
+        address rVaultAsset1 = address(
+            new RVaultAsset{salt: "rVaultAsset1Impl"}(
                 address(superAsset),
                 ILendingPoolAddressesProvider(address(lpAddressProvider)),
                 address(lzEndpoint),
@@ -191,19 +191,46 @@ contract Base is Test {
             )
         );
 
+        address rVaultAsset2 = address(
+            new RVaultAsset{salt: "rVaultAsset1Impl"}(
+                address(underlyingAsset),
+                ILendingPoolAddressesProvider(address(lpAddressProvider)),
+                address(lzEndpoint),
+                _delegate,
+                rVaultAssetTokenName,
+                rVaultAssetTokenSymbol,
+                underlyingAssetDecimals
+            )
+        );
         // ################ Deploy incentives controller ################
         vm.prank(owner);
         incentivesController = address(new IncentivesController{salt: "incentivesController"}());
 
         // ################ Deploy RToken ################
         vm.prank(owner);
-        RToken rTokenImpl = new RToken{salt: "rTokenImpl"}();
+        RToken rTokenImpl1 = new RToken{salt: "rTokenImpl1"}();
 
         vm.prank(owner);
-        rTokenImpl.initialize(
+        RToken rTokenImpl2 = new RToken{salt: "rTokenImpl2"}();
+
+        vm.prank(owner);
+        rTokenImpl1.initialize(
             ILendingPool(address(proxyLp)),
             treasury,
-            address(rVaultAsset),
+            address(rVaultAsset1),
+            IAaveIncentivesController(incentivesController),
+            ILendingPoolAddressesProvider(address(lpAddressProvider)),
+            underlyingAsset.decimals(),
+            underlyingAsset.name(),
+            underlyingAsset.symbol(),
+            bytes(""),
+            address(eventValidator)
+        );
+        vm.prank(owner);
+        rTokenImpl2.initialize(
+            ILendingPool(address(proxyLp)),
+            treasury,
+            address(rVaultAsset2),
             IAaveIncentivesController(incentivesController),
             ILendingPoolAddressesProvider(address(lpAddressProvider)),
             underlyingAsset.decimals(),
@@ -234,8 +261,6 @@ contract Base is Test {
         lpAddressProvider.setRelayer(relayer);
         vm.prank(owner);
         lpAddressProvider.setRouter(address(router));
-        vm.prank(owner);
-        lpAddressProvider.setRVaultAsset(rVaultAsset);
 
         // ################ Deploy LendingPoolConfigurator ################
         lpConfigurator = new LendingPoolConfigurator();
@@ -248,7 +273,7 @@ contract Base is Test {
 
         // ################ Activate Reserves ################
         vm.prank(poolAdmin1);
-        proxyConfigurator.activateReserve(address(rVaultAsset));
+        proxyConfigurator.activateReserve(address(rVaultAsset1));
 
         // ################ Deploy DefaultReserveInterestRateStrategy ################
         address strategy = address(
@@ -265,7 +290,6 @@ contract Base is Test {
         // ################ Initialize reserve ################
 
         ILendingPoolConfigurator.InitReserveInput[] memory input = new ILendingPoolConfigurator.InitReserveInput[](1);
-        input[0].rTokenImpl = address(rTokenImpl);
         input[0].rTokenName = rTokenName;
         input[0].rTokenSymbol = rTokenSymbol;
         input[0].variableDebtTokenImpl = address(variableDebtTokenImpl);
@@ -275,17 +299,23 @@ contract Base is Test {
         input[0].treasury = treasury;
         input[0].incentivesController = incentivesController;
         input[0].superAsset = address(superAsset);
-        input[0].underlyingAsset = address(rVaultAsset);
+        input[0].underlyingAsset = address(rVaultAsset1);
         input[0].underlyingAssetDecimals = underlyingAssetDecimals;
         input[0].underlyingAssetName = underlyingAssetName;
         input[0].params = "v";
         input[0].salt = "salt";
+        input[0].rTokenImpl = address(rTokenImpl1);
+
+        vm.prank(poolAdmin1);
+        proxyConfigurator.batchInitReserve(input);
+
+        input[0].rTokenImpl = address(rTokenImpl2);
         vm.prank(poolAdmin1);
         proxyConfigurator.batchInitReserve(input);
 
         // ################ Set RVaultAsset for underlying ################
         vm.prank(poolAdmin1);
-        proxyConfigurator.setRvaultAssetForUnderlying(address(underlyingAsset), address(rVaultAsset));
+        proxyConfigurator.setRvaultAssetForUnderlying(address(underlyingAsset), address(rVaultAsset1));
     }
 
     //  // Function to initialize the reserve
@@ -300,7 +330,7 @@ contract Base is Test {
     //         address treasury,
     //         address incentivesController,
     //         SuperAsset superAsset,
-    //         address rVaultAsset,
+    //         address rVaultAsset1,
     //         uint8 underlyingAssetDecimals,
     //         string memory underlyingAssetName
     //     ) internal {
@@ -315,7 +345,7 @@ contract Base is Test {
     //         input[0].treasury = treasury;
     //         input[0].incentivesController = incentivesController;
     //         input[0].superAsset = address(superAsset);
-    //         input[0].underlyingAsset = address(rVaultAsset);
+    //         input[0].underlyingAsset = address(rVaultAsset1);
     //         input[0].underlyingAssetDecimals = underlyingAssetDecimals;
     //         input[0].underlyingAssetName = underlyingAssetName;
     //         input[0].params = "v";

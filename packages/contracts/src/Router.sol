@@ -376,7 +376,6 @@ contract Router is Initializable, SuperPausable {
      * @param debtAsset The address of the underlying borrowed asset to be repaid with the liquidation
      * @param user The address of the borrower getting liquidated
      * @param debtToCover The debt amount of borrowed `asset` the liquidator wants to cover, from each chain
-     * @param totalDebtToCover The total debt amount of borrowed `asset` the liquidator wants to cover
      * @param chainIds Array of chain IDs where the liquidation should be executed
      * @param receiveRToken `true` if the liquidators wants to receive the collateral rTokens, `false` if he wants
      * @param sendToChainId the chain id to send the collateral to if receiveRToken is `false`
@@ -388,22 +387,12 @@ contract Router is Initializable, SuperPausable {
         address debtAsset,
         address user,
         uint256[] calldata debtToCover,
-        uint256 totalDebtToCover,
         uint256[] calldata chainIds,
         bool receiveRToken,
         uint256 sendToChainId
     ) external whenNotPaused {
         // DataTypes.ReserveData memory reserve = lendingPool.getReserveData(debtAsset);
-        IERC20(debtAsset).safeTransferFrom(msg.sender, address(this), totalDebtToCover);
-        address superAsset = addressesProvider.getSuperAsset();
-
-        ISuperAsset(superAsset).mint(address(this), totalDebtToCover);
         for (uint256 i = 0; i < chainIds.length; i++) {
-            if (chainIds[i] != block.chainid) {
-                ISuperchainTokenBridge(Predeploys.SUPERCHAIN_TOKEN_BRIDGE).sendERC20(
-                    superAsset, address(this), debtToCover[i], chainIds[i]
-                );
-            }
             emit CrossChainLiquidationCall(
                 chainIds[i], msg.sender, collateralAsset, debtAsset, user, debtToCover[i], receiveRToken, sendToChainId
             );

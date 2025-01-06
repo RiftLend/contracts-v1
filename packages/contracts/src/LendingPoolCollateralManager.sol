@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
 import {IRToken} from "./interfaces/IRToken.sol";
+import {IRVaultAsset} from "./interfaces/IRVaultAsset.sol";
 import {IVariableDebtToken} from "./interfaces/IVariableDebtToken.sol";
 import {IPriceOracleGetter} from "./interfaces/IPriceOracleGetter.sol";
 import {ILendingPoolCollateralManager} from "./interfaces/ILendingPoolCollateralManager.sol";
@@ -107,7 +108,8 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
             DataTypes.Action_type.LIQUIDATION
         );
 
-        vars.userVariableDebt = Helpers.getUserCurrentDebt(user, debtReserve);
+        // Use local balance for variable debt token for debt reserve
+        vars.userVariableDebt = IERC20(debtReserve.variableDebtTokenAddress).balanceOf(user);
 
         (vars.errorCode, vars.errorMsg) = ValidationLogic.validateLiquidationCall(
             collateralReserve, debtReserve, userConfig, vars.healthFactor, vars.userVariableDebt
@@ -145,7 +147,6 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
 
         ReserveLogic.updateState(debtReserve);
 
-        // uint256 stableDebtBurned = 0;
         uint256 variableDebtBurned = 0;
 
         if (vars.userVariableDebt >= vars.actualDebtToLiquidate) {
@@ -167,7 +168,9 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
 
         uint256 collateralRTokenBurned = 0;
         if (receiveRToken) {
-            vars.liquidatorPreviousRTokenBalance = IERC20(vars.collateralRToken).balanceOf(sender);
+            vars.liquidatorPreviousRTokenBalance = GenericLogic.getActionBasedUserBalance(
+                sender, address(vars.collateralRToken), DataTypes.Action_type.LIQUIDATION
+            );
             vars.collateralRToken.transferOnLiquidation(user, sender, vars.maxCollateralToLiquidate);
 
             if (vars.liquidatorPreviousRTokenBalance == 0) {
@@ -188,15 +191,21 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
 
         // If the collateral being liquidated is equal to the user balance,
         // we set the currency as not being used as collateral anymore
+
         if (vars.maxCollateralToLiquidate == vars.userCollateralBalance) {
             userConfig.setUsingAsCollateral(collateralReserve.id, false);
             emit ReserveUsedAsCollateralDisabled(collateralAsset, user);
         }
-        address superAsset = _addressesProvider.getSuperAsset();
 
-        ISuperAsset(superAsset).transfer(debtReserve.rTokenAddress, vars.actualDebtToLiquidate);
+        // pay debt amount
+        IERC20(debtAsset).transfer(debtReserve.rTokenAddress, vars.actualDebtToLiquidate);
+
+        // refund excess debt asset
         if (debtToCover > vars.actualDebtToLiquidate) {
-            ISuperAsset(superAsset).transfer(sender, debtToCover - vars.actualDebtToLiquidate);
+            uint256 refundAmount = debtToCover - vars.actualDebtToLiquidate;
+            IRVaultAsset(debtAsset).withdraw(refundAmount, address(this), address(this));
+            if (pool_type == 1) ISuperAsset(debtReserve.superAsset).withdraw(sender, refundAmount);
+            else IERC20(IRVaultAsset(debtAsset).asset()).transfer(sender, refundAmount);
         }
 
         emit LiquidationCall(

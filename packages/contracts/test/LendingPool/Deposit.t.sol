@@ -4,8 +4,6 @@ pragma solidity 0.8.25;
 import "../Base.t.sol";
 
 contract LendingPoolTest is Base {
-    // Test deposit of underlying tokens on superchain
-    //  the Lending pool will take the underlying , wrap into rVaultAsset and then deposit into rToken
     function test_lp_Deposit() public {
         // ########### Prepare deposit params
         uint256[1] memory amounts;
@@ -32,10 +30,9 @@ contract LendingPoolTest is Base {
 
         console.log(rVaultAsset);
         assertEq(IERC20(rVaultAsset).balanceOf(rToken), amounts[0]);
-    }
 
-    // TODO:test is the userconfig for the rVaultAsset correct?
-    // TODO:test does the rVaultAsset have the correct underlying?
-    // TODO:test does the rVaultAsset correctly mint and burn ... with the token type like superasset / underlying?
-    // assertEq(underlyingAsset.balanceOf(onBehalfOf), 90 ether);
+        // TODO:test is the userconfig for the rVaultAsset correct?
+        // TODO:test does the rVaultAsset have the correct underlying?
+        // TODO:test does the rVaultAsset correctly mint and burn ... with the token type like superasset / underlying?
+    }
 }

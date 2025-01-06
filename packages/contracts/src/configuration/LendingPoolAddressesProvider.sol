@@ -24,7 +24,6 @@ contract LendingPoolAddressesProvider is SuperOwnable {
     mapping(bytes32 => address) private _addresses;
     address private _proxyAdmin;
     bytes32 immutable LENDING_POOL; // naming will be like `"OpSuperchain_LENDING_POOL"` or `"EthArb_LENDING_POOL"`
-    bytes32 private constant RVAULT_ASSET = "RVAULT_ASSET";
     bytes32 private constant UNDERLYING = "UNDERLYING";
     bytes32 private constant SUPER_ASSET = "SUPER_ASSET";
     bytes32 private constant SUPER_ASSET_ADAPTER = "SUPER_ASSET_ADAPTER";
@@ -114,12 +113,6 @@ contract LendingPoolAddressesProvider is SuperOwnable {
      */
     function getLendingPool() external view returns (address) {
         return getAddress(LENDING_POOL);
-    }
-
-    // Set RVaultAsset addresses
-    function setRVaultAsset(address rVaultAsset) external onlyOwner {
-        _addresses[RVAULT_ASSET] = rVaultAsset;
-        emit RVaultAssetUpdated(rVaultAsset);
     }
 
     function setUnderlying(address underlying) external onlyOwner {

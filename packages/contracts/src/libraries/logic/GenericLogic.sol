@@ -179,7 +179,7 @@ library GenericLogic {
             }
 
             if (userConfig.isBorrowing(vars.i)) {
-                uint256 user_vdebt_balance = getActionBasedUserBalance(user, currentReserve.rTokenAddress, action_type);
+                uint256 user_vdebt_balance = IERC20(currentReserve.variableDebtTokenAddress).balanceOf(user);
 
                 vars.compoundedBorrowBalance = vars.compoundedBorrowBalance + user_vdebt_balance;
 
@@ -242,15 +242,15 @@ library GenericLogic {
         return availableBorrowsETH;
     }
 
-    function getActionBasedUserBalance(address user, address rTokenAddress, DataTypes.Action_type action_type)
+    function getActionBasedUserBalance(address user, address tokenAddress, DataTypes.Action_type action_type)
         public
         view
         returns (uint256)
     {
         if (action_type == DataTypes.Action_type.LIQUIDATION) {
-            return IRToken(rTokenAddress).crossChainUserBalance(user);
+            return IRToken(tokenAddress).crossChainUserBalance(user);
         } else {
-            return IRToken(rTokenAddress).balanceOf(user);
+            return IRToken(tokenAddress).balanceOf(user);
         }
     }
 }

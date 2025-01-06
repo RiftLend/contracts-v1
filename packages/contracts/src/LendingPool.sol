@@ -310,28 +310,26 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         address collateralManager = _addressesProvider.getLendingPoolCollateralManager();
 
         // Getting liquidation debt amount in rVaultAsset for universality
-        //TODO:superForgerer read about liquidation , possibilities of debtAsset
+
         address rVaultAsset = getRVaultAssetOrRevert(debtAsset);
 
         DataTypes.ReserveData storage reserve = _reserves[rVaultAsset];
-        address rToken = reserve.rTokenAddress;
-        // Transfer the asset of worth `amount` directly to the rToken contract
+        
+        IERC20(debtAsset).safeTransferFrom(sender, address(this), debtToCover);
+        if (pool_type == 1) {
+            IERC20(debtAsset).approve(reserve.superAsset, debtToCover);
+            ISuperAsset(reserve.superAsset).deposit(address(this), debtToCover);
+            IERC20(reserve.superAsset).approve(rVaultAsset, debtToCover);
+        }
+        IRVaultAsset(rVaultAsset).mint(debtToCover, address(this));
 
-        IERC20(debtAsset).safeTransferFrom(sender, address(rToken), debtToCover);
-
-        // unchecked {
-        //     if (pool_type == 1)
-        //         // tokenType == 1 means it is either SuperAsset or Underlying
-        //         IRVaultAsset(rVaultAsset).mint(address(rToken), debtToCover);
-        // }
-
-        //solium-disable-next-line
+        //solium-disable-next-lines
         (bool success, bytes memory result) = collateralManager.delegatecall(
             abi.encodeWithSignature(
                 "liquidationCall(address,address,address,address,uint256,bool,uint256)",
                 sender,
                 collateralAsset,
-                debtAsset,
+                rVaultAsset,
                 user,
                 debtToCover,
                 receiverToken,
