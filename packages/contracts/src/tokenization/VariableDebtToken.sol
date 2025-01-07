@@ -84,7 +84,7 @@ contract VariableDebtToken is DebtTokenBase, IVariableDebtToken {
             return 0;
         }
 
-        return scaledBalance.rayMul(_pool.getReserveNormalizedVariableDebt());
+        return scaledBalance.rayMul(_pool.getReserveNormalizedVariableDebt(_underlyingAsset));
     }
 
     /**
@@ -179,7 +179,7 @@ contract VariableDebtToken is DebtTokenBase, IVariableDebtToken {
      *
      */
     function totalSupply() public view virtual override returns (uint256) {
-        return super.totalSupply().rayMul(_pool.getReserveNormalizedVariableDebt());
+        return super.totalSupply().rayMul(_pool.getReserveNormalizedVariableDebt(_underlyingAsset));
     }
 
     /**

@@ -61,7 +61,6 @@ interface ILendingPoolCollateralManager {
      * @param debtToCover The amount of principal that the liquidator wants to repay
      * @param receiveRToken true if the liquidators wants to receive the rTokens, false if
      * he wants to receive the underlying asset directly
-     * @param sendToChainId the chain id to send the collateral to if receiveRToken is `false`
      *
      */
     function liquidationCall(
@@ -70,7 +69,6 @@ interface ILendingPoolCollateralManager {
         address principal,
         address user,
         uint256 debtToCover,
-        bool receiveRToken,
-        uint256 sendToChainId
+        bool receiveRToken
     ) external returns (uint256, string memory);
 }

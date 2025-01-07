@@ -152,8 +152,7 @@ event CrossChainLiquidationCall(
     address debtAsset,
     address user,
     uint256 debtToCover,
-    bool receiveRToken,
-    uint256 sendToChainId
+    bool receiveRToken
 );
 
 // Add new event for cross-chain borrows
@@ -266,7 +265,7 @@ interface ILendingPool {
 
     function getReserveNormalizedIncome(address asset) external view returns (uint256);
 
-    function getReserveNormalizedVariableDebt() external view returns (uint256);
+    function getReserveNormalizedVariableDebt(address asset) external view returns (uint256);
 
     function getReserveData(address asset) external view returns (DataTypes.ReserveData memory);
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.25;
+pragma solidity 0.8.25;
 
 /// @title ISuperchainAsset Interface
 /// @notice Interface for interacting with the SuperchainAsset contract

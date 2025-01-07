@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.25;
+pragma solidity 0.8.25;
 
 import {Predeploys} from "./libraries/Predeploys.sol";
 import {SuperchainERC20} from "./SuperchainERC20.sol";

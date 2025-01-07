@@ -1,38 +1,108 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.8.25;
 
-import "../Base.t.sol";
+import '../Base.t.sol';
+import {DataTypes} from '../../src/libraries/types/DataTypes.sol';
+import {UserConfiguration} from '../../src/libraries/configuration/UserConfiguration.sol';
 
 contract LendingPoolTest is Base {
-    function test_lp_Deposit() public {
-        // ########### Prepare deposit params
-        uint256[1] memory amounts;
-        amounts[0] = 10 ether;
-        address onBehalfOf = user1;
-        uint16 referralCode = 0;
-        uint256[1] memory chainIds;
-        chainIds[0] = 1;
+  using UserConfiguration for DataTypes.UserConfigurationMap;
 
-        (address rVaultAsset) = proxyLp.getRVaultAssetOrRevert(address(underlyingAsset));
+  function test_lp_Deposit() public {
+    // ########### Prepare deposit params
+    uint256[1] memory amounts;
+    amounts[0] = 10 ether;
+    address onBehalfOf = user1;
+    uint16 referralCode = 0;
+    uint256[1] memory chainIds;
+    chainIds[0] = 1;
 
-        // ########### Approve rVault's underlying deposit params
-        vm.prank(onBehalfOf);
-        IERC20(underlyingAsset).approve(address(proxyLp), amounts[0]);
-        // check allowance given
-        IERC20(underlyingAsset).allowance(onBehalfOf, address(proxyLp));
+    address rVaultAsset = proxyLp.getRVaultAssetOrRevert(
+      address(underlyingAsset)
+    );
+    
+      vm.prank(user1);
+      IERC20(underlyingAsset).approve(address(proxyLp), amounts[0]);    
+    //   router.deposit()
+    // ########### Deposit through router ###########
 
-        // ########### Deposit through router ###########
+    vm.prank(address(router));
+    proxyLp.deposit(
+      onBehalfOf,
+      address(underlyingAsset),
+      amounts[0],
+      onBehalfOf,
+      referralCode
+    );
+    DataTypes.ReserveData memory reserveData = proxyLp.getReserveData(
+      rVaultAsset
+    );
+    address rToken = reserveData.rTokenAddress;
 
-        vm.prank(address(router));
-        proxyLp.deposit(onBehalfOf, address(underlyingAsset), amounts[0], onBehalfOf, referralCode);
+    console.log(rVaultAsset);
+    assertEq(IERC20(rVaultAsset).balanceOf(rToken), amounts[0]);
 
-        address rToken = proxyLp.getReserveData(rVaultAsset).rTokenAddress;
+    // TODO:test is the userconfig for the rVaultAsset correct?
+    DataTypes.UserConfigurationMap memory userConfig = proxyLp
+      .getUserConfiguration(onBehalfOf);
+    assert(userConfig.isUsingAsCollateralOrBorrowing(reserveData.id) == true);
+  }
 
-        console.log(rVaultAsset);
-        assertEq(IERC20(rVaultAsset).balanceOf(rToken), amounts[0]);
+  /// @dev tests that the rVaultAsset has the correct underlying
+  /// @dev for rVaultAsset1 the underlying is superasset
+  /// @dev for rVaultAsset1 the underlying is superasset
+  function test_lp_RVaultUnderlyingIsCorrect() public {
+    // for rVaultAsset1 the underlying is superasset
+    assertEq(IRVaultAsset(rVaultAsset1).asset(), address(superAsset));
+    // for rVaultAsset1 the underlying is superasset
+    assertEq(IRVaultAsset(rVaultAsset2).asset(), address(underlyingAsset));
+  }
 
-        // TODO:test is the userconfig for the rVaultAsset correct?
-        // TODO:test does the rVaultAsset have the correct underlying?
-        // TODO:test does the rVaultAsset correctly mint and burn ... with the token type like superasset / underlying?
-    }
+  /// @dev tests that the rVaultAsset correctly mint and burn ... with the token type like superasset / underlying?
+  /// @dev for rVaultAsset1 the underlying is superasset
+  /// @dev for rVaultAsset2 the underlying is superasset
+  function test_lp_RVaultMintBurn() public {
+    // for rVaultAsset1 the underlying is superasset
+    vm.prank(user1);
+    IERC20(address(underlyingAsset)).approve(address(superAsset), 10 ether);
+    vm.prank(user1);
+    superAsset.deposit(user1, 10 ether);
+
+    uint256 user1SuperAssetBalanceBefore = IERC20(address(superAsset))
+      .balanceOf(user1);
+
+    vm.prank(user1);
+    IERC20(address(superAsset)).approve(address(rVaultAsset1), 10 ether);
+    vm.prank(user1);
+    IRVaultAsset(rVaultAsset1).mint(10 ether, user1);
+
+    uint256 user1SuperAssetBalanceAfter = IERC20(address(superAsset)).balanceOf(
+      user1
+    );
+
+    assert(IERC20(rVaultAsset1).balanceOf(user1) == 10 ether);
+    assert(
+      user1SuperAssetBalanceAfter == user1SuperAssetBalanceBefore - 10 ether
+    );
+
+    // for rVaultAsset2 the underlying is superasset
+
+    uint256 user1UnderlyingBalanceBefore = IERC20(underlyingAsset).balanceOf(
+      user1
+    );
+    vm.prank(user1);
+    IERC20(underlyingAsset).approve(address(rVaultAsset2), 10 ether);
+    vm.prank(user1);
+    IRVaultAsset(rVaultAsset2).mint(10 ether, user1);
+
+    uint256 user1UnderlyingBalanceAfter = IERC20(address(underlyingAsset))
+      .balanceOf(user1);
+
+    assert(IERC20(rVaultAsset2).balanceOf(user1) == 10 ether);
+    assert(
+      user1UnderlyingBalanceAfter == user1UnderlyingBalanceBefore - 10 ether
+    );
+  }
+
+  // TODO:test does the rVaultAsset correctly mint and burn ... with the token type like superasset / underlying?
 }

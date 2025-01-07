@@ -73,27 +73,25 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
     /**
      * @dev Function to liquidate a position if its Health Factor drops below 1
      * - The caller (liquidator) covers `debtToCover` amount of debt of the user getting liquidated, and receives
-     *   a proportionally amount of the `collateralAsset` plus a bonus to cover market risk
+     *   a proportionally amount of the `collateralRAsset` plus a bonus to cover market risk
      * @param sender The address of the sender
-     * @param collateralAsset The address of the underlying asset used as collateral, to receive as result of the liquidation
-     * @param debtAsset The address of the underlying borrowed asset to be repaid with the liquidation
+     * @param collateralRAsset The address of the underlying asset used as collateral, to receive as result of the liquidation
+     * @param debtRAsset The address of the underlying borrowed asset to be repaid with the liquidation
      * @param user The address of the borrower getting liquidated
      * @param debtToCover The debt amount of borrowed `asset` the liquidator wants to cover
      * @param receiveRToken `true` if the liquidators wants to receive the collateral RTokens, `false` if he wants
      * to receive the underlying collateral asset directly
-     * @param sendToChainId the chain id to send the collateral to if receiveRToken is `false`
      */
     function liquidationCall(
         address sender,
-        address collateralAsset,
-        address debtAsset,
+        address collateralRAsset,
+        address debtRAsset,
         address user,
         uint256 debtToCover,
-        bool receiveRToken,
-        uint256 sendToChainId
+        bool receiveRToken
     ) external override returns (uint256, string memory) {
-        DataTypes.ReserveData storage collateralReserve = _reserves[collateralAsset];
-        DataTypes.ReserveData storage debtReserve = _reserves[debtAsset];
+        DataTypes.ReserveData storage collateralReserve = _reserves[collateralRAsset];
+        DataTypes.ReserveData storage debtReserve = _reserves[debtRAsset];
         DataTypes.UserConfigurationMap storage userConfig = _usersConfig[user];
 
         LiquidationCallLocalVars memory vars;
@@ -131,8 +129,8 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
         (vars.maxCollateralToLiquidate, vars.debtAmountNeeded) = _calculateAvailableCollateralToLiquidate(
             collateralReserve,
             debtReserve,
-            collateralAsset,
-            debtAsset,
+            collateralRAsset,
+            debtRAsset,
             vars.actualDebtToLiquidate,
             vars.userCollateralBalance
         );
@@ -163,7 +161,7 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
         }
 
         ReserveLogic.updateInterestRates(
-            debtReserve, debtAsset, debtReserve.rTokenAddress, vars.actualDebtToLiquidate, 0
+            debtReserve, debtRAsset, debtReserve.rTokenAddress, vars.actualDebtToLiquidate, 0
         );
 
         uint256 collateralRTokenBurned = 0;
@@ -176,16 +174,16 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
             if (vars.liquidatorPreviousRTokenBalance == 0) {
                 DataTypes.UserConfigurationMap storage liquidatorConfig = _usersConfig[sender];
                 liquidatorConfig.setUsingAsCollateral(collateralReserve.id, true);
-                emit ReserveUsedAsCollateralEnabled(collateralAsset, sender);
+                emit ReserveUsedAsCollateralEnabled(collateralRAsset, sender);
             }
         } else {
             collateralReserve.updateState();
             collateralReserve.updateInterestRates(
-                collateralAsset, address(vars.collateralRToken), 0, vars.maxCollateralToLiquidate
+                collateralRAsset, address(vars.collateralRToken), 0, vars.maxCollateralToLiquidate
             );
 
             (, collateralRTokenBurned) = vars.collateralRToken.burn(
-                user, sender, sendToChainId, vars.maxCollateralToLiquidate, collateralReserve.liquidityIndex
+                user, sender, block.chainid, vars.maxCollateralToLiquidate, collateralReserve.liquidityIndex
             );
         }
 
@@ -194,23 +192,23 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
 
         if (vars.maxCollateralToLiquidate == vars.userCollateralBalance) {
             userConfig.setUsingAsCollateral(collateralReserve.id, false);
-            emit ReserveUsedAsCollateralDisabled(collateralAsset, user);
+            emit ReserveUsedAsCollateralDisabled(collateralRAsset, user);
         }
 
         // pay debt amount
-        IERC20(debtAsset).transfer(debtReserve.rTokenAddress, vars.actualDebtToLiquidate);
+        IERC20(debtRAsset).transfer(debtReserve.rTokenAddress, vars.actualDebtToLiquidate);
 
         // refund excess debt asset
         if (debtToCover > vars.actualDebtToLiquidate) {
             uint256 refundAmount = debtToCover - vars.actualDebtToLiquidate;
-            IRVaultAsset(debtAsset).withdraw(refundAmount, address(this), address(this));
+            IRVaultAsset(debtRAsset).withdraw(refundAmount, address(this), address(this));
             if (pool_type == 1) ISuperAsset(debtReserve.superAsset).withdraw(sender, refundAmount);
-            else IERC20(IRVaultAsset(debtAsset).asset()).transfer(sender, refundAmount);
+            else IERC20(IRVaultAsset(debtRAsset).asset()).transfer(sender, refundAmount);
         }
 
         emit LiquidationCall(
-            collateralAsset,
-            debtAsset,
+            collateralRAsset,
+            debtRAsset,
             user,
             vars.actualDebtToLiquidate,
             vars.maxCollateralToLiquidate,

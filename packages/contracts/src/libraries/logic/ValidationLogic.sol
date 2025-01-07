@@ -126,8 +126,6 @@ library ValidationLogic {
      * @param oracle The price oracle
      */
     function validateBorrow(
-        address, //_asset
-        address, //superAddress
         DataTypes.ReserveData storage reserve,
         address userAddress,
         uint256 amount,

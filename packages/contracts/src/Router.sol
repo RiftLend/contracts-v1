@@ -219,11 +219,10 @@ contract Router is Initializable, SuperPausable {
                 address debtAsset,
                 address user,
                 uint256 debtToCover,
-                bool receiveRToken,
-                uint256 sendToChainId
-            ) = abi.decode(_data[64:], (address, address, address, address, uint256, bool, uint256));
+                bool receiveRToken
+            ) = abi.decode(_data[64:], (address, address, address, address, uint256, bool));
             lendingPool.liquidationCall(
-                sender, collateralAsset, debtAsset, user, debtToCover, receiveRToken, sendToChainId
+                sender, collateralAsset, debtAsset, user, debtToCover, receiveRToken, block.chainid
             );
         }
 
@@ -308,7 +307,6 @@ contract Router is Initializable, SuperPausable {
         }
     }
 
-
     // Frontend would need to calculate how much to borrow on each chain where the user has collateral ...
     /**
      * @dev Allows users to borrow across multiple chains, provided they have enough collateral
@@ -380,7 +378,6 @@ contract Router is Initializable, SuperPausable {
      * @param debtToCover The debt amount of borrowed `asset` the liquidator wants to cover, from each chain
      * @param chainIds Array of chain IDs where the liquidation should be executed
      * @param receiveRToken `true` if the liquidators wants to receive the collateral rTokens, `false` if he wants
-     * @param sendToChainId the chain id to send the collateral to if receiveRToken is `false`
      * to receive the underlying collateral asset directly
      *
      */
@@ -390,13 +387,12 @@ contract Router is Initializable, SuperPausable {
         address user,
         uint256[] calldata debtToCover,
         uint256[] calldata chainIds,
-        bool receiveRToken,
-        uint256 sendToChainId
+        bool receiveRToken
     ) external whenNotPaused {
         // DataTypes.ReserveData memory reserve = lendingPool.getReserveData(debtAsset);
         for (uint256 i = 0; i < chainIds.length; i++) {
             emit CrossChainLiquidationCall(
-                chainIds[i], msg.sender, collateralAsset, debtAsset, user, debtToCover[i], receiveRToken, sendToChainId
+                chainIds[i], msg.sender, collateralAsset, debtAsset, user, debtToCover[i], receiveRToken
             );
         }
     }

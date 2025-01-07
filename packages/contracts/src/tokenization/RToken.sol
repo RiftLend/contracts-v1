@@ -1,14 +1,6 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.8.25;
 
-import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
-import {WadRayMath} from "../libraries/math/WadRayMath.sol";
-import {Errors} from "../libraries/helpers/Errors.sol";
-import {Initializable} from "@solady/utils/Initializable.sol";
-import {SuperPausable} from "../interop-std/src/utils/SuperPausable.sol";
-import {EventValidator, ValidationMode, Identifier} from "../libraries/EventValidator.sol";
-import {Predeploys} from "../libraries/Predeploys.sol";
-
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
 import {ILendingPool} from "../interfaces/ILendingPool.sol";
 import {IRToken} from "../interfaces/IRToken.sol";
@@ -18,6 +10,14 @@ import {ILendingPoolAddressesProvider} from "../interfaces/ILendingPoolAddresses
 import {ISuperAsset} from "../interfaces/ISuperAsset.sol";
 import {ISuperchainTokenBridge} from "../interfaces/ISuperchainTokenBridge.sol";
 import {IRVaultAsset} from "../interfaces/IRVaultAsset.sol";
+
+import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
+import {WadRayMath} from "../libraries/math/WadRayMath.sol";
+import {Errors} from "../libraries/helpers/Errors.sol";
+import {Initializable} from "@solady/utils/Initializable.sol";
+import {SuperPausable} from "../interop-std/src/utils/SuperPausable.sol";
+import {EventValidator, ValidationMode, Identifier} from "../libraries/EventValidator.sol";
+import {Predeploys} from "../libraries/Predeploys.sol";
 
 /**
  * @title Aave ERC20 RToken
@@ -438,10 +438,9 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
      *
      */
     function _transfer(address from, address to, uint256 amount, bool validate) internal {
-        address underlyingAsset = _underlyingAsset;
         ILendingPool pool = _pool;
 
-        uint256 index = pool.getReserveNormalizedIncome(underlyingAsset);
+        uint256 index = pool.getReserveNormalizedIncome(_underlyingAsset);
 
         uint256 fromBalanceBefore = super.balanceOf(from).rayMul(index);
         uint256 toBalanceBefore = super.balanceOf(to).rayMul(index);
@@ -449,7 +448,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         super._transfer(from, to, amount.rayDiv(index));
 
         if (validate) {
-            pool.finalizeTransfer(underlyingAsset, from, to, amount, fromBalanceBefore, toBalanceBefore);
+            pool.finalizeTransfer(_underlyingAsset, from, to, amount, fromBalanceBefore, toBalanceBefore);
         }
 
         emit BalanceTransfer(from, to, amount, index);

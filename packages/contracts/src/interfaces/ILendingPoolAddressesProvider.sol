@@ -80,8 +80,6 @@ interface ILendingPoolAddressesProvider {
 
     function setRVaultAsset(address) external;
 
-    function getRVaultAsset() external view returns (bytes32, address);
-
     function setSuperAsset(address) external;
 
     function getSuperAsset() external view returns (address);
