@@ -137,6 +137,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
 
         //If pool is on op_superchain,
         // wrap them into superAsset with lendingPool as receiver
+
         if (pool_type == 1) ISuperAsset(reserve.superAsset).deposit(address(this), amount);
         else IERC20(asset).approve(rVaultAsset, amount);
         IRVaultAsset(rVaultAsset).mint(amount, rToken);
@@ -649,11 +650,11 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         require(asset.code.length > 0, Errors.LP_NOT_CONTRACT);
         _reserves[asset].init(rTokenAddress, superAsset, variableDebtAddress, interestRateStrategyAddress);
         // TODO: check this
+        IERC20(IRVaultAsset(asset).asset()).approve(asset, type(uint256).max);
         if (pool_type == 1) {
-            IERC20(IRVaultAsset(asset).asset()).approve(asset, type(uint256).max);
-        } else {
-            IERC20(IRVaultAsset(asset).asset()).approve(asset, type(uint256).max);
+            IERC20(ISuperAsset(superAsset).underlying()).approve(superAsset, type(uint256).max);
         }
+
         _addReserveToList(asset);
     }
 

@@ -127,8 +127,8 @@ contract Base is Test {
         string memory underlyingAssetSymbol = "USDC";
         string memory rTokenName1 = "rTUSDC1";
         string memory rTokenSymbol1 = "rTUSDC1";
-        string memory rTokenName2 = "rTUSDC2";
-        string memory rTokenSymbol2 = "rTUSDC2";
+        // string memory rTokenName2 = "rTUSDC2";
+        // string memory rTokenSymbol2 = "rTUSDC2";
 
         string memory rVaultAssetTokenName1 = "rVaultAsset-TUSDC1";
         string memory rVaultAssetTokenSymbol1 = "rVaultAsset-rTUSDC1";
@@ -218,7 +218,6 @@ contract Base is Test {
         vm.prank(owner);
         RToken rTokenImpl1 = new RToken{salt: "rTokenImpl1"}();
 
-
         vm.prank(owner);
         rTokenImpl1.initialize(
             ILendingPool(address(proxyLp)),
@@ -232,7 +231,6 @@ contract Base is Test {
             bytes(""),
             address(eventValidator)
         );
-    
 
         // ################ Deploy VariableDebtToken ################
         vm.prank(owner);
@@ -280,10 +278,10 @@ contract Base is Test {
             )
         );
         vm.label(strategy, "DefaultReserveInterestRateStrategy");
-    // ################ Set RVaultAsset for underlying ################
+        // ################ Set RVaultAsset for underlying ################
         vm.prank(poolAdmin1);
         proxyConfigurator.setRvaultAssetForUnderlying(address(underlyingAsset), address(rVaultAsset1));
-    
+
         // ################ Initialize reserve ################
 
         ILendingPoolConfigurator.InitReserveInput[] memory input = new ILendingPoolConfigurator.InitReserveInput[](1);
@@ -304,7 +302,6 @@ contract Base is Test {
         input[0].rTokenImpl = address(rTokenImpl1);
 
         vm.prank(poolAdmin1);
-        proxyConfigurator.batchInitReserve(input);    
+        proxyConfigurator.batchInitReserve(input);
     }
-
 }
