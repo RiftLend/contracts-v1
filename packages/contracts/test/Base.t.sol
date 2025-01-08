@@ -69,6 +69,8 @@ contract Base is Test {
     address owner = makeAddr("owner");
     address poolAdmin1 = makeAddr("poolAdmin1");
     address user1 = makeAddr("user1");
+    address user2 = makeAddr("user2");
+
     address relayer = makeAddr("relayer");
     address emergencyAdmin = makeAddr("emergencyAdmin");
     address alice = makeAddr("alice");
@@ -83,6 +85,8 @@ contract Base is Test {
     LendingPool proxyLp;
     LendingPool implementationLp;
     SuperAsset superAsset;
+    SuperAsset superAssetWeth;
+
     address superProxyAdmin;
     TestERC20 INR;
     TestERC20 underlyingAsset;
@@ -93,8 +97,10 @@ contract Base is Test {
     Router router;
     address rVaultAsset1;
     address rVaultAsset2;
+    address current_wethAddress;
+    function setUp() public virtual {
 
-    function setUp() public {
+        // vm.chainId(1);
         // ############## Load deploy config ##############
         string memory deployConfigPath = vm.envOr("DEPLOY_CONFIG_PATH", string("/configs/deploy-config.toml"));
         string memory filePath = string.concat(vm.projectRoot(), deployConfigPath);
@@ -105,7 +111,7 @@ contract Base is Test {
         uint256 chain_a_id = vm.parseTomlUint(deployConfig, ".forks.chain_a_chain_id");
         address chain_a_cross_l2_prover_address =
             vm.parseTomlAddress(deployConfig, ".forks.chain_a_cross_l2_prover_address");
-
+        current_wethAddress = vm.parseTomlAddress(deployConfig, ".forks.chain_a_weth");
         treasury = vm.parseTomlAddress(deployConfig, ".treasury.address");
 
         // ############## Create Fork to test ##############
@@ -145,9 +151,6 @@ contract Base is Test {
         vm.prank(owner);
         underlyingAsset = new TestERC20(underlyingAssetName, underlyingAssetSymbol, underlyingAssetDecimals);
         vm.label(address(underlyingAsset), "underlyingAsset");
-        // ################ Mint underlying tokens to users ################
-        vm.prank(owner);
-        underlyingAsset.mint(user1, 1000000 ether);
 
         // ################ Deploy LendingPoolAddressesProvider ################
         bytes32 lp_type = keccak256("OpSuperchain_LENDING_POOL");
@@ -182,6 +185,11 @@ contract Base is Test {
         superAsset = new SuperAsset(
             address(underlyingAsset), address(lzEndpoint), _delegate, superAssetTokenName, superAsseTokenSymbol
         );
+        vm.prank(owner);
+        superAssetWeth = new SuperAsset(
+            address(current_wethAddress), address(lzEndpoint), _delegate, superAssetTokenName, superAsseTokenSymbol
+        );
+
         vm.label(address(superAsset), "superAsset");
 
         // ################ Deploy RVaultAsset ################

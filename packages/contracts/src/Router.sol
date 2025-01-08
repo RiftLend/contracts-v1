@@ -20,6 +20,7 @@ import {SuperPausable} from "./interop-std/src/utils/SuperPausable.sol";
 import {Predeploys} from "./libraries/Predeploys.sol";
 import {EventValidator, ValidationMode, Identifier} from "./libraries/EventValidator.sol";
 import {DataTypes} from "./libraries/types/DataTypes.sol";
+import {console} from "forge-std/console.sol";
 
 contract Router is Initializable, SuperPausable {
     using SafeERC20 for IERC20;
@@ -95,10 +96,12 @@ contract Router is Initializable, SuperPausable {
             (, address asset, uint256 amount, address onBehalfOf,, uint256 mintMode, uint256 amountScaled) =
                 abi.decode(_data[64:], (address, address, uint256, address, uint16, uint256, uint256));
             DataTypes.ReserveData memory reserve = lendingPool.getReserveData(asset);
-            // TODO: @superForgererkhatab
             IRToken(reserve.rTokenAddress).updateCrossChainBalance(onBehalfOf, amountScaled, mintMode);
             lendingPool.updateStates(asset, amount, 0, UPDATE_RATES_AND_STATES_MASK);
         }
+        console.log(selector == CrossChainDeposit.selector);
+        (uint256 chainId)=abi.decode(_data[32:64], (uint256));
+        
         if (selector == CrossChainDeposit.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
             (address sender, address asset, uint256 amount, address onBehalfOf, uint16 referralCode) =
                 abi.decode(_data[96:], (address, address, uint256, address, uint16));

@@ -49,7 +49,7 @@ contract RVaultAsset is SuperOwnable, OFT {
     uint256 public WITHDRAW_COOL_DOWN_PERIOD = 1 days;
     /// @dev is chainId intra cluter or inter-cluster
 
-    mapping(uint256 => DataTypes.Chain_Cluster_Types) public chainId_cluster_type;
+    mapping(uint256 => DataTypes.Chain_Cluster_Types) public chainIdToClusterType;
 
     /// @dev true - superchain , false - OFT
 
@@ -228,7 +228,7 @@ contract RVaultAsset is SuperOwnable, OFT {
             // TODO: u have to check if toChainId this is going to superchain / normal and then pass superAssetAdapter / address(this)
 
             // decide recipient
-            if (chainId_cluster_type[toChainId] == DataTypes.Chain_Cluster_Types.SUPER_CHAIN) {
+            if (chainIdToClusterType[toChainId] == DataTypes.Chain_Cluster_Types.SUPER_CHAIN) {
                 sendParam.to = bytes32(uint256(uint160(address(superAssetAdapter))));
             } else {
                 sendParam.to = bytes32(uint256(uint160(address(this))));
@@ -312,8 +312,8 @@ contract RVaultAsset is SuperOwnable, OFT {
     }
 
     function bridge(address receiverOfUnderlying, uint256 toChainId, uint256 amount) public onlyRouterOrSelf {
-        DataTypes.Chain_Cluster_Types sourceType = chainId_cluster_type[block.chainid];
-        DataTypes.Chain_Cluster_Types destinationType = chainId_cluster_type[toChainId];
+        DataTypes.Chain_Cluster_Types sourceType = chainIdToClusterType[block.chainid];
+        DataTypes.Chain_Cluster_Types destinationType = chainIdToClusterType[toChainId];
         DataTypes.Chain_Cluster_Types super_chain_type = DataTypes.Chain_Cluster_Types.SUPER_CHAIN;
         DataTypes.Chain_Cluster_Types other_cluster_type = DataTypes.Chain_Cluster_Types.OTHER;
 
@@ -344,7 +344,7 @@ contract RVaultAsset is SuperOwnable, OFT {
     /// @param chainId The chainId for which to set the cluster type
     /// @param cluster_type The cluster type to set (INTER or INTRA)
     function setChainClusterType(uint256 chainId, DataTypes.Chain_Cluster_Types cluster_type) public onlySuperAdmin {
-        chainId_cluster_type[chainId] = cluster_type;
+        chainIdToClusterType[chainId] = cluster_type;
     }
 
     /// @notice Sets the withdrawal cooldown period

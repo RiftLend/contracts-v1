@@ -9,7 +9,7 @@ import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.
 import {OFT} from "./libraries/helpers/layerzero/OFT.sol";
 import {ERC20} from "@solady/tokens/ERC20.sol";
 
-contract SuperAsset is OFT, SuperchainERC20 {
+contract SuperAsset is  SuperchainERC20 {
     using SafeERC20 for IERC20;
 
     address public underlying;
