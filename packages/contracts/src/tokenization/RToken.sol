@@ -142,7 +142,6 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         }
     }
 
-
     function _dispatch(Identifier calldata _identifier, bytes calldata _data) internal {
         bytes32 selector = abi.decode(_data[:32], (bytes32));
         if (selector == CrossChainMint.selector && _identifier.chainId != block.chainid) {
@@ -150,7 +149,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
             _totalCrossChainSupply += amount;
             crossChainUserBalance[user] += amount;
         }
-        // TODO: burn 
+        // TODO: burn
         if (selector == CrossChainBurn.selector && _identifier.chainId != block.chainid) {
             (address user, uint256 amount) = abi.decode(_data[32:], (address, uint256));
             _totalCrossChainSupply -= amount;
