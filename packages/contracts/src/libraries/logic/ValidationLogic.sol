@@ -115,7 +115,6 @@ library ValidationLogic {
 
     /**
      * @dev Validates a borrow action
-     * param _asset The address of the asset to borrow
      * @param reserve The reserve state from which the user is borrowing
      * @param userAddress The address of the user
      * @param amount The amount to be borrowed

@@ -145,14 +145,17 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     function _dispatch(Identifier calldata _identifier, bytes calldata _data) internal {
         bytes32 selector = abi.decode(_data[:32], (bytes32));
         if (selector == CrossChainMint.selector && _identifier.chainId != block.chainid) {
-            (address user, uint256 amount,) = abi.decode(_data[32:], (address, uint256, uint256));
+            (address user, uint256 amount) = abi.decode(_data[32:], (address, uint256));
             _totalCrossChainSupply += amount;
             crossChainUserBalance[user] += amount;
         }
-        if (selector == Mint.selector) {
+        // TODO: burn
+        if (selector == CrossChainBurn.selector && _identifier.chainId != block.chainid) {
             (address user, uint256 amount) = abi.decode(_data[32:], (address, uint256));
-            crossChainUserBalance[user] += amount;
+            _totalCrossChainSupply -= amount;
+            crossChainUserBalance[user] -= amount;
         }
+        // TODO: transfer
     }
 
     /**
@@ -197,6 +200,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
 
         emit Transfer(user, address(0), amount);
         emit Burn(user, receiverOfUnderlying, amount, index);
+        emit CrossChainBurn(user, amountScaled);
         return (2, amountScaled);
     }
 
@@ -222,6 +226,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
 
         emit Transfer(address(0), user, amount);
         emit Mint(user, amount, index);
+        emit CrossChainMint(user, amount.rayDiv(index));
 
         return (previousBalance == 0, 1, amountScaled);
     }

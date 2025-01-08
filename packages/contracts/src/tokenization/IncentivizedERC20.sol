@@ -22,6 +22,8 @@ abstract contract IncentivizedERC20 is Context, IERC20, IERC20Metadata {
     string private _name;
     string private _symbol;
     uint8 private _decimals;
+    // TODO: add this here
+    // mapping(address => uint256) public crossChainUserBalance;
 
     constructor(string memory __name, string memory __symbol, uint8 __decimals) {
         _name = __name;
@@ -161,6 +163,10 @@ abstract contract IncentivizedERC20 is Context, IERC20, IERC20Metadata {
         uint256 oldRecipientBalance = _balances[recipient];
         _balances[recipient] = oldRecipientBalance + amount;
 
+        // TODO: add this here
+        // crossChainUserBalance[sender] -= amount;
+        // crossChainUserBalance[recipient] += amount;
+
         if (address(_getIncentivesController()) != address(0)) {
             uint256 currentTotalSupply = _totalSupply;
             _getIncentivesController().handleAction(sender, currentTotalSupply, oldSenderBalance);
@@ -178,6 +184,8 @@ abstract contract IncentivizedERC20 is Context, IERC20, IERC20Metadata {
         uint256 oldTotalSupply = _totalSupply;
         _totalSupply = oldTotalSupply + amount;
         _totalCrossChainSupply += amount;
+        // TODO: add this here
+        // crossChainUserBalance[account] += amount;
 
         uint256 oldAccountBalance = _balances[account];
         _balances[account] = oldAccountBalance + amount;
@@ -195,6 +203,8 @@ abstract contract IncentivizedERC20 is Context, IERC20, IERC20Metadata {
         uint256 oldTotalSupply = _totalSupply;
         _totalSupply = oldTotalSupply - amount;
         _totalCrossChainSupply -= amount;
+        // TODO: add this here
+        // crossChainUserBalance[account] -= amount;
 
         uint256 oldAccountBalance = _balances[account];
         _balances[account] = oldAccountBalance - amount;

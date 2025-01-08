@@ -736,14 +736,12 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         uint16 referralCode;
         bool releaseUnderlying;
     }
-    // ToDO: check this
 
     function _executeBorrow(ExecuteBorrowParams memory vars) internal {
         DataTypes.ReserveData storage reserve = _reserves[vars.rVaultAsset];
         DataTypes.UserConfigurationMap storage userConfig = _usersConfig[vars.onBehalfOf];
 
         address oracle = _addressesProvider.getPriceOracle();
-        // ToDo: Ensure rigourous testing of this scenario where decimals differ (oracle returns answers with diferrent decimals etc.)
         uint256 amountInETH = (IPriceOracleGetter(oracle).getAssetPrice(vars.asset) * vars.amount)
             / 10 ** reserve.configuration.getDecimals();
 
@@ -782,7 +780,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         }
 
         emit Borrow(
-            vars.asset,
+            vars.rVaultAsset,
             vars.amount,
             vars.user,
             vars.onBehalfOf,
