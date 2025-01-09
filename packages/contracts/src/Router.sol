@@ -99,9 +99,6 @@ contract Router is Initializable, SuperPausable {
             IRToken(reserve.rTokenAddress).updateCrossChainBalance(onBehalfOf, amountScaled, mintMode);
             lendingPool.updateStates(asset, amount, 0, UPDATE_RATES_AND_STATES_MASK);
         }
-        console.log(selector == CrossChainDeposit.selector);
-        (uint256 chainId)=abi.decode(_data[32:64], (uint256));
-        
         if (selector == CrossChainDeposit.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
             (address sender, address asset, uint256 amount, address onBehalfOf, uint16 referralCode) =
                 abi.decode(_data[96:], (address, address, uint256, address, uint16));

@@ -47,10 +47,6 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     IAaveIncentivesController internal _incentivesController;
     ILendingPoolAddressesProvider internal _addressesProvider;
     EventValidator internal _eventValidator;
-    // Syncing the cross chain balancs of users.
-    mapping(address => uint256) public crossChainUserBalance;
-
-    event CrossChainMint(address user, uint256 amount, uint256 index);
 
     modifier onlyLendingPool() {
         require(_msgSender() == address(_pool), Errors.CT_CALLER_MUST_BE_LENDING_POOL);
@@ -156,6 +152,12 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
             crossChainUserBalance[user] -= amount;
         }
         // TODO: transfer
+        if (selector == BalanceTransfer.selector && _identifier.chainId != block.chainid) {
+            (address from, address to, uint256 amount,) = abi.decode(_data[32:], (address, address, uint256, uint256));
+            // _totalCrossChainSupply -= amount;
+            crossChainUserBalance[from] -= amount;
+            crossChainUserBalance[to] -= amount;
+        }
     }
 
     /**
@@ -175,6 +177,10 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
             _totalCrossChainSupply -= amountScaled;
             crossChainUserBalance[user] -= amountScaled;
         }
+    }
+
+    function getCrossChainUserBalance(address user) external view returns (uint256) {
+        return crossChainUserBalance[user];
     }
 
     /**
@@ -226,7 +232,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
 
         emit Transfer(address(0), user, amount);
         emit Mint(user, amount, index);
-        emit CrossChainMint(user, amount.rayDiv(index));
+        emit CrossChainMint(user, amountScaled);
 
         return (previousBalance == 0, 1, amountScaled);
     }
@@ -257,7 +263,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
 
         emit Transfer(address(0), treasury, amount);
         emit Mint(treasury, amount, index);
-        emit CrossChainMint(treasury, amount.rayDiv(index), index);
+        emit CrossChainMint(treasury, amount.rayDiv(index));
 
         return (1, amount.rayDiv(index));
     }

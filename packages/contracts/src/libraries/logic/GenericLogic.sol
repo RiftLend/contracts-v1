@@ -248,7 +248,7 @@ library GenericLogic {
         returns (uint256)
     {
         if (action_type == DataTypes.Action_type.LIQUIDATION) {
-            return IRToken(tokenAddress).crossChainUserBalance(user);
+            return IRToken(tokenAddress).getCrossChainUserBalance(user);
         } else {
             return IRToken(tokenAddress).balanceOf(user);
         }

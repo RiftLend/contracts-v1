@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.25;
-import { IERC20Metadata, IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+
+import {IERC20Metadata, IERC20} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 import {Base} from "../Base.t.sol";
 
@@ -11,10 +12,10 @@ contract SuperAssetTest is Base {
     // Test state variables
     uint256 constant INITIAL_BALANCE = 1000 ether;
     uint256 constant DEPOSIT_AMOUNT = 100 ether;
-    
+
     function setUp() public override {
         super.setUp();
-        
+
         // Fund users with underlying token
         deal(address(superAsset.underlying()), user1, INITIAL_BALANCE);
         deal(address(superAsset.underlying()), user2, INITIAL_BALANCE);
@@ -23,28 +24,23 @@ contract SuperAssetTest is Base {
         vm.startPrank(user1);
         IERC20(superAsset.underlying()).approve(address(superAsset), type(uint256).max);
         vm.stopPrank();
-        
+
         vm.startPrank(user2);
         IERC20(superAsset.underlying()).approve(address(superAsset), type(uint256).max);
         vm.stopPrank();
     }
 
- 
     /// @notice Test that depositing tokens into the superasset
     ///         correctly increases the user's balance and reduces
     ///         the user's underlying token balance
     function test_superAssetDeposit() public {
         uint256 beforeBalance = IERC20(superAsset.underlying()).balanceOf(user1);
-        
+
         vm.startPrank(user1);
         superAsset.deposit(user1, DEPOSIT_AMOUNT);
         vm.stopPrank();
-        
-        assertEq(
-            superAsset.balanceOf(user1),
-            DEPOSIT_AMOUNT,
-            "Deposit should have increased user's balance"
-        );
+
+        assertEq(superAsset.balanceOf(user1), DEPOSIT_AMOUNT, "Deposit should have increased user's balance");
         assertEq(
             IERC20(superAsset.underlying()).balanceOf(user1),
             beforeBalance - DEPOSIT_AMOUNT,
@@ -57,11 +53,11 @@ contract SuperAssetTest is Base {
     ///         balance and reduces the user's underlying token balance
     function test_superAssetDepositToOtherAccount() public {
         uint256 beforeBalance = IERC20(superAsset.underlying()).balanceOf(user1);
-        
+
         vm.startPrank(user1);
         superAsset.deposit(user2, DEPOSIT_AMOUNT);
         vm.stopPrank();
-        
+
         assertEq(superAsset.balanceOf(user2), DEPOSIT_AMOUNT, "Deposit should have increased other account's balance");
         assertEq(superAsset.balanceOf(user1), 0, "Deposit should not have increased user's balance");
         assertEq(
@@ -78,13 +74,13 @@ contract SuperAssetTest is Base {
         // First deposit
         vm.startPrank(user1);
         superAsset.deposit(user1, DEPOSIT_AMOUNT);
-        
+
         uint256 beforeBalance = IERC20(superAsset.underlying()).balanceOf(user1);
-        
+
         // Then withdraw
         superAsset.withdraw(user1, DEPOSIT_AMOUNT);
         vm.stopPrank();
-        
+
         assertEq(superAsset.balanceOf(user1), 0, "Withdraw should have reduced user's balance");
         assertEq(
             IERC20(superAsset.underlying()).balanceOf(user1),
@@ -100,13 +96,13 @@ contract SuperAssetTest is Base {
         // First deposit
         vm.startPrank(user1);
         superAsset.deposit(user1, DEPOSIT_AMOUNT);
-        
+
         uint256 beforeBalance = IERC20(superAsset.underlying()).balanceOf(user2);
-        
+
         // Withdraw to user2
         superAsset.withdraw(user2, DEPOSIT_AMOUNT);
         vm.stopPrank();
-        
+
         assertEq(superAsset.balanceOf(user1), 0, "Withdraw should have reduced user's balance");
         assertEq(
             IERC20(superAsset.underlying()).balanceOf(user2),
@@ -138,13 +134,12 @@ contract SuperAssetTest is Base {
     /// @notice Test that the superasset receives native tokens and
     ///         updates the user's balance accordingly
     function test_superAssetReceiveNativeToken() public {
-        
-        uint256 sendAmount = 1 ether;        
-        vm.deal(user1, sendAmount);        
+        uint256 sendAmount = 1 ether;
+        vm.deal(user1, sendAmount);
         vm.startPrank(user1);
         (bool success,) = address(superAssetWeth).call{value: sendAmount}("");
         vm.stopPrank();
-        
+
         assertTrue(success);
         assertEq(superAssetWeth.balanceOf(user1), sendAmount);
     }
@@ -154,16 +149,12 @@ contract SuperAssetTest is Base {
     function test_superAssetFuzzDeposit(uint256 amount) public {
         // Bound the amount to something reasonable
         amount = bound(amount, 1, INITIAL_BALANCE);
-        
+
         vm.startPrank(user1);
         superAsset.deposit(user1, amount);
         vm.stopPrank();
-        
-        assertEq(
-            superAsset.balanceOf(user1),
-            amount,
-            "Deposit should have increased user's balance"
-        );
+
+        assertEq(superAsset.balanceOf(user1), amount, "Deposit should have increased user's balance");
     }
 
     /// @notice Test that the superasset's withdraw function behaves correctly
@@ -172,19 +163,14 @@ contract SuperAssetTest is Base {
         // Bound the amounts to something reasonable
         depositAmount = bound(depositAmount, 1, INITIAL_BALANCE);
         withdrawAmount = bound(withdrawAmount, 1, depositAmount);
-        
+
         vm.startPrank(user1);
         superAsset.deposit(user1, depositAmount);
         superAsset.withdraw(user1, withdrawAmount);
         vm.stopPrank();
-        
+
         assertEq(
-            superAsset.balanceOf(user1),
-            depositAmount - withdrawAmount,
-            "Withdraw should have reduced user's balance"
+            superAsset.balanceOf(user1), depositAmount - withdrawAmount, "Withdraw should have reduced user's balance"
         );
     }
-
-   
 }
-

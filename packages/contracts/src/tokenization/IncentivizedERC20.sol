@@ -22,8 +22,8 @@ abstract contract IncentivizedERC20 is Context, IERC20, IERC20Metadata {
     string private _name;
     string private _symbol;
     uint8 private _decimals;
-    // TODO: add this here
-    // mapping(address => uint256) public crossChainUserBalance;
+    //TODO: add this here
+    mapping(address => uint256) public crossChainUserBalance;
 
     constructor(string memory __name, string memory __symbol, uint8 __decimals) {
         _name = __name;

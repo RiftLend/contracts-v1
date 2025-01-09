@@ -42,7 +42,7 @@ contract SuperAsset is SuperchainERC20 {
         // TODO: cross check weth contracts on all chains we deploy to
         // (sepolia, base, arbitrum, optimism, mainnet, inkchain, unichain, celo)
         if (WETH == underlying) {
-            (bool success, ) = WETH.call(abi.encodeWithSignature("withdraw(uint256)", _amount));
+            (bool success,) = WETH.call(abi.encodeWithSignature("withdraw(uint256)", _amount));
             require(success, "Withdraw failed");
         } else {
             IERC20(underlying).safeTransfer(_to, _amount);

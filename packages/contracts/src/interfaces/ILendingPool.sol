@@ -303,5 +303,4 @@ interface ILendingPool {
     ) external;
 
     function pool_type() external view returns (uint8);
-    
 }

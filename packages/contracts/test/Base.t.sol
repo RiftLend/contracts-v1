@@ -98,8 +98,8 @@ contract Base is Test {
     address rVaultAsset1;
     address rVaultAsset2;
     address current_wethAddress;
-    function setUp() public virtual {
 
+    function setUp() public virtual {
         // vm.chainId(1);
         // ############## Load deploy config ##############
         string memory deployConfigPath = vm.envOr("DEPLOY_CONFIG_PATH", string("/configs/deploy-config.toml"));
@@ -182,13 +182,11 @@ contract Base is Test {
 
         // ################ Deploy SuperAsset ################
         vm.prank(owner);
-        superAsset = new SuperAsset(
-            address(underlyingAsset), address(lzEndpoint), _delegate, superAssetTokenName, superAsseTokenSymbol
-        );
+        superAsset =
+            new SuperAsset(address(underlyingAsset), superAssetTokenName, superAsseTokenSymbol, current_wethAddress);
         vm.prank(owner);
-        superAssetWeth = new SuperAsset(
-            address(current_wethAddress), address(lzEndpoint), _delegate, superAssetTokenName, superAsseTokenSymbol
-        );
+        superAssetWeth =
+            new SuperAsset(address(current_wethAddress), superAssetTokenName, superAsseTokenSymbol, current_wethAddress);
 
         vm.label(address(superAsset), "superAsset");
 

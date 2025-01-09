@@ -87,6 +87,7 @@ contract RVaultAsset is SuperOwnable, OFT {
     error OftSendFailed();
     error onlySuperAssetAdapterOrLzEndpointCall();
     error onlyRouterOrSelfCall();
+    error withdrawCoolDownPeriodNotElapsed();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           Modifiers                        */
@@ -151,6 +152,7 @@ contract RVaultAsset is SuperOwnable, OFT {
         balances[receiver] += assets;
         super._mint(receiver, assets);
         IERC20(underlying).safeTransferFrom(msg.sender, address(this), assets);
+
         if (!isRVaultAssetHolder[receiver]) {
             isRVaultAssetHolder[receiver] = true;
             rVaultAssetHolder[totalRVaultAssetHolders++] = receiver;
@@ -164,6 +166,24 @@ contract RVaultAsset is SuperOwnable, OFT {
         IERC20(underlying).safeTransferFrom(msg.sender, address(this), amount);
         bridge(receiverOfUnderlying, toChainId, amount);
         if (balances[user] == 0) isRVaultAssetHolder[user] = false;
+    }
+    // Withdraw assets and burn shares (1:1 peg)
+
+    function withdraw(uint256 assets, address receiver, address owner) public returns (uint256 shares) {
+        // Check the cooldown period
+        if (block.timestamp < _lastWithdrawalTime[owner] + WITHDRAW_COOL_DOWN_PERIOD) {
+            revert withdrawCoolDownPeriodNotElapsed();
+        }
+
+        shares = assets; // 1:1 peg
+        if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
+        _burn(owner, shares);
+        // Update the last withdrawal time
+        _lastWithdrawalTime[owner] = block.timestamp;
+        // unwrap underlying from superAsset
+        if (pool_type == 1) ISuperAsset(underlying).withdraw(receiver, shares);
+        else IERC20(underlying).safeTransfer(receiver, shares);
+        return shares;
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -226,7 +246,6 @@ contract RVaultAsset is SuperOwnable, OFT {
                 "" // empty oftCmd
             );
             // TODO: u have to check if toChainId this is going to superchain / normal and then pass superAssetAdapter / address(this)
-
             // decide recipient
             if (chainIdToClusterType[toChainId] == DataTypes.Chain_Cluster_Types.SUPER_CHAIN) {
                 sendParam.to = bytes32(uint256(uint160(address(superAssetAdapter))));
@@ -423,31 +442,6 @@ contract RVaultAsset is SuperOwnable, OFT {
 
     function totalAssets() external view returns (uint256) {
         return IERC20(underlying).balanceOf(address(this));
-    }
-
-    // Withdraw assets and burn shares (1:1 peg)
-    function withdraw(uint256 assets, address receiver, address owner) public returns (uint256 shares) {
-        // Check the cooldown period
-        require(
-            block.timestamp >= _lastWithdrawalTime[owner] + WITHDRAW_COOL_DOWN_PERIOD,
-            "Withdrawal cooldown period not Passed"
-        );
-
-        shares = assets; // 1:1 peg
-        _spendAllowance(owner, msg.sender, assets);
-        _burn(owner, shares);
-        // Update the last withdrawal time
-        _lastWithdrawalTime[owner] = block.timestamp;
-
-        if (pool_type == 1) {
-            // unwrap underlying from superAsset
-            ISuperAsset(underlying_of_superAsset).withdraw(address(this), shares);
-        }
-
-        // Tranfer assets to receiver
-        IERC20(underlying).safeTransfer(receiver, assets);
-
-        return shares;
     }
 
     // Redeem shares and return assets (1:1 peg)

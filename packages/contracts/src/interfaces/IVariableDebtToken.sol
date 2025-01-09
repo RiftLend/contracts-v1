@@ -65,11 +65,11 @@ interface IVariableDebtToken is IScaledBalanceToken, IInitializableDebtToken {
     function updateCrossChainBalance(address user, uint256 amountScaled, uint256 mode) external;
 
     /**
-     * @dev Updates the cross chain balance of user
+     * @dev gets the cross chain balance of user
      * @param user The user address
      * @return The user balance
      */
-    function crossChainUserBalance(address user) external view returns (uint256);
+    function getCrossChainUserBalance(address user) external view returns (uint256);
 
     /**
      * @dev Returns the address of the incentives controller contract
