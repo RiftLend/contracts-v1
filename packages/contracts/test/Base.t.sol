@@ -230,11 +230,16 @@ contract Base is Test {
         superAssetAdapter1 = new SuperAssetAdapter(rVaultAsset1, address(lzEndpoint), address(underlyingAsset));
         superAssetAdapter2 = new SuperAssetAdapter(rVaultAsset2, address(lzEndpoint), address(underlyingAsset));
 
-        // ################ Configuring cluster types
+        // ################ Configuring cluster types and lz peers
         vm.prank(owner);
         IRVaultAsset(rVaultAsset1).setChainClusterType(block.chainid, DataTypes.Chain_Cluster_Types.SUPER_CHAIN);
         vm.prank(owner);
         IRVaultAsset(rVaultAsset2).setChainClusterType(block.chainid, DataTypes.Chain_Cluster_Types.OTHER);
+
+        vm.prank(owner);
+        IRVaultAsset(rVaultAsset1).setChainPeer(uint32(block.chainid), bytes32(bytes20(makeAddr("peer1"))));
+        vm.prank(owner);
+        IRVaultAsset(rVaultAsset2).setChainPeer(uint32(block.chainid), bytes32(bytes20(makeAddr("peer2"))));
 
         // ################ Deploy incentives controller ################
         vm.prank(owner);
