@@ -73,7 +73,7 @@ interface IRVaultAsset {
 
     function setWithdrawCoolDownPeriod(uint256 _newPeriod) external;
 
-    function setIntraClusterServiceType(bool mode) external;
+    function toggleSuperTokenBridgeEnabled(bool mode) external;
 
     function pool_type() external view returns (uint8);
 

@@ -139,7 +139,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         // wrap them into superAsset with lendingPool as receiver
 
         if (pool_type == 1) ISuperAsset(reserve.superAsset).deposit(address(this), amount);
-        else IERC20(asset).approve(rVaultAsset, amount);
+
         IRVaultAsset(rVaultAsset).mint(amount, rToken);
 
         // We now mint RTokens to the user as a receipt of their deposit
@@ -542,7 +542,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
      * @return The reserve's normalized income
      */
     function getReserveNormalizedIncome(address asset) external view virtual returns (uint256) {
-        return _reserves[getRVaultAssetOrRevert(asset)].getNormalizedIncome();
+        return _reserves[asset].getNormalizedIncome();
     }
 
     /**

@@ -281,8 +281,7 @@ contract LendingPoolDeployer is Script {
         string memory symbol = vm.parseTomlString(deployConfig, ".superchain_asset_1.symbol");
 
         uint32 lzEndpoint_eid = 1;
-        address lzEndpoint = address(new MockLayerZeroEndpointV2(lzEndpoint_eid, ownerAddr_));
-        address delegate = address(1);
+        // address lzEndpoint = address(new MockLayerZeroEndpointV2(lzEndpoint_eid, ownerAddr_));
         //Todo: add correct weth address here
         address weth = address(0);
 

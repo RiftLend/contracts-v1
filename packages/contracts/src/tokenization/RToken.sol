@@ -138,11 +138,9 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         }
     }
 
-
     function _dispatch(Identifier calldata _identifier, bytes calldata _data) internal {
         bytes32 selector = abi.decode(_data[:32], (bytes32));
         if (selector == CrossChainMint.selector && _identifier.chainId != block.chainid) {
-            (address user, uint256 amount) = abi.decode(_data[32:], (address, uint256));
             (address user, uint256 amount) = abi.decode(_data[32:], (address, uint256));
             _totalCrossChainSupply += amount;
             crossChainUserBalance[user] += amount;
@@ -150,8 +148,6 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         // TODO: burn
         if (selector == CrossChainBurn.selector && _identifier.chainId != block.chainid) {
             (address user, uint256 amount) = abi.decode(_data[32:], (address, uint256));
-            _totalCrossChainSupply -= amount;
-            crossChainUserBalance[user] -= amount;
             _totalCrossChainSupply -= amount;
             crossChainUserBalance[user] -= amount;
         }
@@ -206,7 +202,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         require(amountScaled != 0, Errors.CT_INVALID_BURN_AMOUNT);
         _burn(user, amountScaled);
 
-        IRVaultAsset(_underlyingAsset).burn(user, receiverOfUnderlying, toChainId, amount);
+        IRVaultAsset(_underlyingAsset).burn(address(this), receiverOfUnderlying, toChainId, amount);
 
         emit Transfer(user, address(0), amount);
         emit Burn(user, receiverOfUnderlying, amount, index);
@@ -402,7 +398,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         onlyLendingPool
         returns (uint256)
     {
-        IRVaultAsset(_underlyingAsset).burn(user, receiverOfUnderlying, toChainId, amount);
+        IRVaultAsset(_underlyingAsset).burn(address(this), receiverOfUnderlying, toChainId, amount);
         return amount;
     }
 

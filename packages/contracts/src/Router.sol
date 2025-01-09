@@ -117,9 +117,9 @@ contract Router is Initializable, SuperPausable {
             lendingPool.updateStates(asset, 0, amount, UPDATE_RATES_AND_STATES_MASK);
         }
         if (selector == CrossChainWithdraw.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
-            (address sender, address asset, uint256 amount, address to) =
-                abi.decode(_data[96:], (address, address, uint256, address));
-            lendingPool.withdraw(sender, asset, amount, to, _identifier.chainId);
+            (address sender, address asset, uint256 amount, address to, uint256 toChainId) =
+                abi.decode(_data[96:], (address, address, uint256, address, uint256));
+            lendingPool.withdraw(sender, asset, amount, to, toChainId);
         }
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/

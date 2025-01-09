@@ -18,6 +18,7 @@ import {SuperOwnable} from "./interop-std/src/auth/SuperOwnable.sol";
 import {DataTypes} from "./libraries/types/DataTypes.sol";
 import {SuperAssetAdapter} from "./SuperAssetAdapter.sol";
 import {OFTLogic} from "./libraries/logic/OFTLogic.sol";
+import {ILendingPool} from "./interfaces/ILendingPool.sol";
 
 contract RVaultAsset is SuperOwnable, OFT {
     using SafeERC20 for IERC20;
@@ -86,7 +87,7 @@ contract RVaultAsset is SuperOwnable, OFT {
     error BridgeCrossClusterFailed();
     error OftSendFailed();
     error onlySuperAssetAdapterOrLzEndpointCall();
-    error onlyRouterOrSelfCall();
+    error onlyRouterCall();
     error withdrawCoolDownPeriodNotElapsed();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -94,12 +95,19 @@ contract RVaultAsset is SuperOwnable, OFT {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     modifier onlySuperAssetAdapter() {
-        if (address(superAssetAdapter) != msg.sender) revert onlySuperAssetAdapterCall();
+        if (address(superAssetAdapter) != msg.sender) {
+            revert onlySuperAssetAdapterCall();
+        }
         _;
     }
 
     modifier onlyRelayer() {
         if (provider.getRelayer() != msg.sender) revert OnlyRelayerCall();
+        _;
+    }
+
+    modifier onlyRouter() {
+        if (provider.getRouter() != msg.sender) revert onlyRouterCall();
         _;
     }
 
@@ -110,10 +118,6 @@ contract RVaultAsset is SuperOwnable, OFT {
         _;
     }
 
-    modifier onlyRouterOrSelf() {
-        if (provider.getRouter() != msg.sender && address(this) != msg.sender) revert onlyRouterOrSelfCall();
-        _;
-    }
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           Constructor                      */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -129,8 +133,9 @@ contract RVaultAsset is SuperOwnable, OFT {
     ) OFT(lzEndpoint_, delegate_, decimals_) {
         underlying = underlying_;
         provider = provider_;
-        pool_type = ILendingPoolAddressesProvider(provider).getPoolType();
-        if (pool_type == 1) underlying_of_superAsset = provider.getSuperAsset();
+        pool_type = provider.getPoolType();
+        // todo:discuss rVault specific underlying asset
+        if (pool_type == 1) underlying_of_superAsset = ISuperAsset(underlying).underlying();
 
         _name = name_;
         _symbol = symbol_;
@@ -161,12 +166,14 @@ contract RVaultAsset is SuperOwnable, OFT {
     }
 
     /// @notice Burn shares and return underlying
-    function burn(address user, address receiverOfUnderlying, uint256 toChainId, uint256 amount) external {
-        super._burn(user, amount);
-        IERC20(underlying).safeTransferFrom(msg.sender, address(this), amount);
-        bridge(receiverOfUnderlying, toChainId, amount);
-        if (balances[user] == 0) isRVaultAssetHolder[user] = false;
+    function burn(address user,address receiverOfUnderlying, uint256 toChainId, uint256 amount) external {
+        if (msg.sender !=user) _spendAllowance(user,msg.sender,amount);
+        _burn(msg.sender, amount);
+        // IERC20(underlying).safeTransfer(msg.sender, address(this), amount);
+        _bridge(receiverOfUnderlying, toChainId, amount);
+        if (balances[msg.sender] == 0) isRVaultAssetHolder[msg.sender] = false;
     }
+
     // Withdraw assets and burn shares (1:1 peg)
 
     function withdraw(uint256 assets, address receiver, address owner) public returns (uint256 shares) {
@@ -206,6 +213,7 @@ contract RVaultAsset is SuperOwnable, OFT {
         require(success, "Bungee Bridging failed");
         emit CrossChainBridgeUnderlyingSent(txData, block.timestamp);
     }
+
     //  @dev On receiving side of the bridgeUnderlying call, this function will be called to send the underlying to desired address
 
     function withdrawTokens(address _recipient, uint256 _amount) external onlySuperAdmin {
@@ -290,7 +298,9 @@ contract RVaultAsset is SuperOwnable, OFT {
         bytes calldata /*_extraData*/
     ) public payable override onlySuperAssetAdapterOrLzEndpoint {
         if (msg.sender == address(endpoint)) {
-            if (_getPeerOrRevert(_origin.srcEid) != _origin.sender) revert OnlyPeer(_origin.srcEid, _origin.sender);
+            if (_getPeerOrRevert(_origin.srcEid) != _origin.sender) {
+                revert OnlyPeer(_origin.srcEid, _origin.sender);
+            }
         }
 
         (address receiverOfUnderlying, uint256 tokensAmount, address oftTxCaller) = OFTLogic.decodeMessage(_message);
@@ -330,7 +340,11 @@ contract RVaultAsset is SuperOwnable, OFT {
         }
     }
 
-    function bridge(address receiverOfUnderlying, uint256 toChainId, uint256 amount) public onlyRouterOrSelf {
+    function bridge(address receiverOfUnderlying, uint256 toChainId, uint256 amount) external onlyRouter {
+        _bridge(receiverOfUnderlying, toChainId, amount);
+    }
+
+    function _bridge(address receiverOfUnderlying, uint256 toChainId, uint256 amount) internal {
         DataTypes.Chain_Cluster_Types sourceType = chainIdToClusterType[block.chainid];
         DataTypes.Chain_Cluster_Types destinationType = chainIdToClusterType[toChainId];
         DataTypes.Chain_Cluster_Types super_chain_type = DataTypes.Chain_Cluster_Types.SUPER_CHAIN;
@@ -355,7 +369,7 @@ contract RVaultAsset is SuperOwnable, OFT {
 
     /// @notice Enables or disables the use of the SuperTokenBridge for intra-cluster token bridging
     /// @param mode True to enable, false to disable
-    function setIntraClusterServiceType(bool mode) public onlySuperAdmin {
+    function toggleSuperTokenBridgeEnabled(bool mode) public onlySuperAdmin {
         isSuperTokenBridgeEnabled = mode;
     }
 
@@ -493,11 +507,6 @@ contract RVaultAsset is SuperOwnable, OFT {
 
     function _setOwner(address newOwner) internal override(Ownable, SuperOwnable) {
         SuperOwnable._setOwner(newOwner);
-    }
-
-    function burn_(address from_, uint256 amount_) internal {
-        balances[from_] -= amount_;
-        super._burn(from_, amount_);
     }
 
     /*..•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
