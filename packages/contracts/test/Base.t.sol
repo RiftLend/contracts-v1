@@ -10,6 +10,7 @@ import {ILendingPool} from "../src/interfaces/ILendingPool.sol";
 import {IRVaultAsset} from "../src/interfaces/IRVaultAsset.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IncentivesController} from "./utils/IncentivesController.sol";
+import {ISuperAssetAdapter} from "../src/interfaces/ISuperAssetAdapter.sol";
 
 import {Test} from "../lib/forge-std/src/Test.sol";
 import {console} from "../lib/forge-std/src/console.sol";
@@ -24,7 +25,7 @@ import {LendingPoolConfigurator} from "../src/LendingPoolConfigurator.sol";
 import {DefaultReserveInterestRateStrategy} from "../src/DefaultReserveInterestRateStrategy.sol";
 import {ProxyAdmin} from "src/interop-std/src/utils/SuperProxyAdmin.sol";
 import {OFT} from "@layerzerolabs/oft-evm/contracts/OFT.sol";
-import {MockLayerZeroEndpointV2} from "./utils/MockLayerZeroEndpointV2.sol";
+import {EndpointV2} from "../src/libraries/helpers/layerzero/EndpointV2.sol";
 import {Router} from "../src/Router.sol";
 import {EventValidator} from "../src/libraries/EventValidator.sol";
 import {DataTypes} from "../src/libraries/types/DataTypes.sol";
@@ -97,7 +98,7 @@ contract Base is Test {
     LendingPoolAddressesProvider lpAddressProvider1;
     LendingPoolAddressesProvider lpAddressProvider2;
 
-    MockLayerZeroEndpointV2 lzEndpoint;
+    EndpointV2 lzEndpoint;
     Router router;
     address rVaultAsset1;
     address rVaultAsset2;
@@ -189,7 +190,7 @@ contract Base is Test {
 
         uint32 lzEndpoint_eid = 1;
         vm.prank(owner);
-        lzEndpoint = new MockLayerZeroEndpointV2(lzEndpoint_eid, owner);
+        lzEndpoint = new EndpointV2(lzEndpoint_eid, owner);
 
         // ################ Deploy SuperAsset ################
         vm.prank(owner);
@@ -227,19 +228,21 @@ contract Base is Test {
             )
         );
 
+
+        // ################ Configuring cluster types and lz peers
+        vm.startPrank(owner);
         superAssetAdapter1 = new SuperAssetAdapter(rVaultAsset1, address(lzEndpoint), address(underlyingAsset));
         superAssetAdapter2 = new SuperAssetAdapter(rVaultAsset2, address(lzEndpoint), address(underlyingAsset));
 
-        // ################ Configuring cluster types and lz peers
-        vm.prank(owner);
         IRVaultAsset(rVaultAsset1).setChainClusterType(block.chainid, DataTypes.Chain_Cluster_Types.SUPER_CHAIN);
-        vm.prank(owner);
         IRVaultAsset(rVaultAsset2).setChainClusterType(block.chainid, DataTypes.Chain_Cluster_Types.OTHER);
-
-        vm.prank(owner);
+        // TODO:add correct peers here
         IRVaultAsset(rVaultAsset1).setChainPeer(uint32(block.chainid), bytes32(bytes20(makeAddr("peer1"))));
-        vm.prank(owner);
         IRVaultAsset(rVaultAsset2).setChainPeer(uint32(block.chainid), bytes32(bytes20(makeAddr("peer2"))));
+
+        superAssetAdapter1.setChainPeer(uint32(block.chainid), bytes32(bytes20(makeAddr("peer1"))));
+        superAssetAdapter2.setChainPeer(uint32(block.chainid), bytes32(bytes20(makeAddr("peer2"))));
+        vm.stopPrank();
 
         // ################ Deploy incentives controller ################
         vm.prank(owner);
