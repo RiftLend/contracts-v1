@@ -2,13 +2,13 @@
 
 pragma solidity ^0.8.20;
 
-import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-import { IMessageLib, MessageLibType } from "./IMessageLib.sol";
-import { IMessageLibManager, SetConfigParam } from "./IMessageLibManager.sol";
-import { Errors } from "./Errors.sol";
-import { BlockedMessageLib } from "./BlockedMessageLib.sol";
+import {IMessageLib, MessageLibType} from "./IMessageLib.sol";
+import {IMessageLibManager, SetConfigParam} from "./IMessageLibManager.sol";
+import {Errors} from "./Errors.sol";
+import {BlockedMessageLib} from "./BlockedMessageLib.sol";
 
 abstract contract MessageLibManager is Ownable, IMessageLibManager {
     address private constant DEFAULT_LIB = address(0);
@@ -105,11 +105,11 @@ abstract contract MessageLibManager is Ownable, IMessageLibManager {
     /// @dev called when the endpoint checks if the msgLib attempting to verify the msg is the configured msgLib of the Oapp
     /// @dev this check provides the ability for Oapp to lock in a trusted msgLib
     /// @dev it will fist check if the msgLib is the currently configured one. then check if the msgLib is the one in grace period of msgLib versioning upgrade
-    function isValidReceiveLibrary(
-        address _receiver,
-        uint32 _srcEid,
-        address _actualReceiveLib
-    ) public view returns (bool) {
+    function isValidReceiveLibrary(address _receiver, uint32 _srcEid, address _actualReceiveLib)
+        public
+        view
+        returns (bool)
+    {
         // early return true if the _actualReceiveLib is the currently configured one
         (address expectedReceiveLib, bool isDefault) = getReceiveLibrary(_receiver, _srcEid);
         if (_actualReceiveLib == expectedReceiveLib) {
@@ -119,9 +119,8 @@ abstract contract MessageLibManager is Ownable, IMessageLibManager {
         // check the timeout condition otherwise
         // if the Oapp is using defaultReceiveLibrary, use the default Timeout config
         // otherwise, use the Timeout configured by the Oapp
-        Timeout memory timeout = isDefault
-            ? defaultReceiveLibraryTimeout[_srcEid]
-            : receiveLibraryTimeout[_receiver][_srcEid];
+        Timeout memory timeout =
+            isDefault ? defaultReceiveLibraryTimeout[_srcEid] : receiveLibraryTimeout[_receiver][_srcEid];
 
         // requires the _actualReceiveLib to be the same as the one in grace period and the grace period has not expired
         // block.number is uint256 so timeout.expiry must > 0, which implies a non-ZERO value
@@ -154,10 +153,13 @@ abstract contract MessageLibManager is Ownable, IMessageLibManager {
     /// @dev can set to the blockedLibrary, which is a registered library
     /// @dev the msgLib must enable the support before they can be registered to the endpoint as the default
     /// @dev only owner
-    function setDefaultSendLibrary(
-        uint32 _eid,
-        address _newLib
-    ) external onlyOwner onlyRegistered(_newLib) isSendLib(_newLib) onlySupportedEid(_newLib, _eid) {
+    function setDefaultSendLibrary(uint32 _eid, address _newLib)
+        external
+        onlyOwner
+        onlyRegistered(_newLib)
+        isSendLib(_newLib)
+        onlySupportedEid(_newLib, _eid)
+    {
         // must provide a different value
         if (defaultSendLibrary[_eid] == _newLib) revert Errors.LZ_SameValue();
         defaultSendLibrary[_eid] = _newLib;
@@ -168,11 +170,13 @@ abstract contract MessageLibManager is Ownable, IMessageLibManager {
     /// @dev must be a registered library (including blockLibrary) with the eid support enabled
     /// @dev in version migration, it can add a grace period to the old library. if the grace period is 0, it will delete the timeout configuration.
     /// @dev only owner
-    function setDefaultReceiveLibrary(
-        uint32 _eid,
-        address _newLib,
-        uint256 _gracePeriod
-    ) external onlyOwner onlyRegistered(_newLib) isReceiveLib(_newLib) onlySupportedEid(_newLib, _eid) {
+    function setDefaultReceiveLibrary(uint32 _eid, address _newLib, uint256 _gracePeriod)
+        external
+        onlyOwner
+        onlyRegistered(_newLib)
+        isReceiveLib(_newLib)
+        onlySupportedEid(_newLib, _eid)
+    {
         address oldLib = defaultReceiveLibrary[_eid];
         // must provide a different value
         if (oldLib == _newLib) revert Errors.LZ_SameValue();
@@ -197,11 +201,13 @@ abstract contract MessageLibManager is Ownable, IMessageLibManager {
     /// @dev must be a registered library (including blockLibrary) with the eid support enabled
     /// @dev can used to (1) extend the current configuration (2) force remove the current configuration (3) change to a new configuration
     /// @param _expiry the block number when lib expires
-    function setDefaultReceiveLibraryTimeout(
-        uint32 _eid,
-        address _lib,
-        uint256 _expiry
-    ) external onlyRegistered(_lib) isReceiveLib(_lib) onlySupportedEid(_lib, _eid) onlyOwner {
+    function setDefaultReceiveLibraryTimeout(uint32 _eid, address _lib, uint256 _expiry)
+        external
+        onlyRegistered(_lib)
+        isReceiveLib(_lib)
+        onlySupportedEid(_lib, _eid)
+        onlyOwner
+    {
         if (_expiry == 0) {
             // force remove the current configuration
             delete defaultReceiveLibraryTimeout[_eid];
@@ -224,11 +230,12 @@ abstract contract MessageLibManager is Ownable, IMessageLibManager {
     /// @dev Oapp setting the sendLibrary
     /// @dev must be a registered library (including blockLibrary) with the eid support enabled
     /// @dev authenticated by the Oapp
-    function setSendLibrary(
-        address _oapp,
-        uint32 _eid,
-        address _newLib
-    ) external onlyRegisteredOrDefault(_newLib) isSendLib(_newLib) onlySupportedEid(_newLib, _eid) {
+    function setSendLibrary(address _oapp, uint32 _eid, address _newLib)
+        external
+        onlyRegisteredOrDefault(_newLib)
+        isSendLib(_newLib)
+        onlySupportedEid(_newLib, _eid)
+    {
         _assertAuthorized(_oapp);
 
         // must provide a different value
@@ -242,12 +249,12 @@ abstract contract MessageLibManager is Ownable, IMessageLibManager {
     /// @dev in version migration, it can add a grace period to the old library. if the grace period is 0, it will delete the timeout configuration.
     /// @dev authenticated by the Oapp
     /// @param _gracePeriod the number of blocks from now until oldLib expires
-    function setReceiveLibrary(
-        address _oapp,
-        uint32 _eid,
-        address _newLib,
-        uint256 _gracePeriod
-    ) external onlyRegisteredOrDefault(_newLib) isReceiveLib(_newLib) onlySupportedEid(_newLib, _eid) {
+    function setReceiveLibrary(address _oapp, uint32 _eid, address _newLib, uint256 _gracePeriod)
+        external
+        onlyRegisteredOrDefault(_newLib)
+        isReceiveLib(_newLib)
+        onlySupportedEid(_newLib, _eid)
+    {
         _assertAuthorized(_oapp);
 
         address oldLib = receiveLibrary[_oapp][_eid];
@@ -263,7 +270,7 @@ abstract contract MessageLibManager is Ownable, IMessageLibManager {
             if (oldLib == DEFAULT_LIB || _newLib == DEFAULT_LIB) revert Errors.LZ_OnlyNonDefaultLib();
 
             // write to storage
-            Timeout memory timeout = Timeout({ lib: oldLib, expiry: block.number + _gracePeriod });
+            Timeout memory timeout = Timeout({lib: oldLib, expiry: block.number + _gracePeriod});
             receiveLibraryTimeout[_oapp][_eid] = timeout;
             emit ReceiveLibraryTimeoutSet(_oapp, _eid, oldLib, timeout.expiry);
         } else {
@@ -276,12 +283,12 @@ abstract contract MessageLibManager is Ownable, IMessageLibManager {
     /// @dev must be a registered library (including blockLibrary) with the eid support enabled
     /// @dev can used to (1) extend the current configuration (2)  force remove the current configuration (3) change to a new configuration
     /// @param _expiry the block number when lib expires
-    function setReceiveLibraryTimeout(
-        address _oapp,
-        uint32 _eid,
-        address _lib,
-        uint256 _expiry
-    ) external onlyRegistered(_lib) isReceiveLib(_lib) onlySupportedEid(_lib, _eid) {
+    function setReceiveLibraryTimeout(address _oapp, uint32 _eid, address _lib, uint256 _expiry)
+        external
+        onlyRegistered(_lib)
+        isReceiveLib(_lib)
+        onlySupportedEid(_lib, _eid)
+    {
         _assertAuthorized(_oapp);
 
         (, bool isDefault) = getReceiveLibrary(_oapp, _eid);
@@ -311,12 +318,12 @@ abstract contract MessageLibManager is Ownable, IMessageLibManager {
     }
 
     /// @dev a view function to query the current configuration of the OApp
-    function getConfig(
-        address _oapp,
-        address _lib,
-        uint32 _eid,
-        uint32 _configType
-    ) external view onlyRegistered(_lib) returns (bytes memory config) {
+    function getConfig(address _oapp, address _lib, uint32 _eid, uint32 _configType)
+        external
+        view
+        onlyRegistered(_lib)
+        returns (bytes memory config)
+    {
         return IMessageLib(_lib).getConfig(_eid, _oapp, _configType);
     }
 

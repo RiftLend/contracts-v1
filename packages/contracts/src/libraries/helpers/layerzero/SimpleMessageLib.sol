@@ -2,17 +2,17 @@
 
 pragma solidity ^0.8.20;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { ERC165 } from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-import { IMessageLib, MessageLibType } from "./IMessageLib.sol";
-import { Packet } from "./ISendLib.sol";
-import { ILayerZeroEndpointV2, MessagingFee, Origin } from "./ILayerZeroEndpointV2.sol";
-import { Errors } from "./Errors.sol";
-import { PacketV1Codec } from "./PacketV1Codec.sol";
-import { Transfer } from "./Transfer.sol";
+import {IMessageLib, MessageLibType} from "./IMessageLib.sol";
+import {Packet} from "./ISendLib.sol";
+import {ILayerZeroEndpointV2, MessagingFee, Origin} from "./ILayerZeroEndpointV2.sol";
+import {Errors} from "./Errors.sol";
+import {PacketV1Codec} from "./PacketV1Codec.sol";
+import {Transfer} from "./Transfer.sol";
 
 contract SimpleMessageLib is Ownable, ERC165 {
     using SafeERC20 for IERC20;
@@ -68,11 +68,11 @@ contract SimpleMessageLib is Ownable, ERC165 {
     }
 
     // ------------------ onlyEndpoint ------------------
-    function send(
-        Packet calldata _packet,
-        bytes memory _options,
-        bool _payInLzToken
-    ) external onlyEndpoint returns (MessagingFee memory fee, bytes memory encodedPacket, bytes memory options) {
+    function send(Packet calldata _packet, bytes memory _options, bool _payInLzToken)
+        external
+        onlyEndpoint
+        returns (MessagingFee memory fee, bytes memory encodedPacket, bytes memory options)
+    {
         encodedPacket = PacketV1Codec.encode(_packet);
 
         options = _options.length == 0 ? defaultOption : _options;
@@ -118,11 +118,11 @@ contract SimpleMessageLib is Ownable, ERC165 {
     }
 
     // ------------------ View ------------------
-    function quote(
-        Packet calldata /*_packet*/,
-        bytes calldata /*_options*/,
-        bool _payInLzToken
-    ) external view returns (MessagingFee memory) {
+    function quote(Packet calldata, /*_packet*/ bytes calldata, /*_options*/ bool _payInLzToken)
+        external
+        view
+        returns (MessagingFee memory)
+    {
         return MessagingFee(nativeFee, _payInLzToken ? lzTokenFee : 0);
     }
 

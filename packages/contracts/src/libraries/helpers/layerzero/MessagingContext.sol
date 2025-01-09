@@ -2,8 +2,8 @@
 
 pragma solidity ^0.8.20;
 
-import { IMessagingContext } from "./IMessagingContext.sol";
-import { Errors } from "./Errors.sol";
+import {IMessagingContext} from "./IMessagingContext.sol";
+import {Errors} from "./Errors.sol";
 
 /// this contract acts as a non-reentrancy guard and a source of messaging context
 /// the context includes the remote eid and the sender address

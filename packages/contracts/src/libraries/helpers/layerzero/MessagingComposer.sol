@@ -2,16 +2,17 @@
 
 pragma solidity ^0.8.20;
 
-import { IMessagingComposer } from "./IMessagingComposer.sol";
-import { ILayerZeroComposer } from "./ILayerZeroComposer.sol";
-import { Errors } from "./Errors.sol";
+import {IMessagingComposer} from "./IMessagingComposer.sol";
+import {ILayerZeroComposer} from "./ILayerZeroComposer.sol";
+import {Errors} from "./Errors.sol";
 
 abstract contract MessagingComposer is IMessagingComposer {
     bytes32 private constant NO_MESSAGE_HASH = bytes32(0);
     bytes32 private constant RECEIVED_MESSAGE_HASH = bytes32(uint256(1));
 
-    mapping(address from => mapping(address to => mapping(bytes32 guid => mapping(uint16 index => bytes32 messageHash))))
-        public composeQueue;
+    mapping(
+        address from => mapping(address to => mapping(bytes32 guid => mapping(uint16 index => bytes32 messageHash)))
+    ) public composeQueue;
 
     /// @dev the Oapp sends the lzCompose message to the endpoint
     /// @dev the composer MUST assert the sender because anyone can send compose msg with this function
@@ -54,7 +55,7 @@ abstract contract MessagingComposer is IMessagingComposer {
         // even though the sender(composing Oapp) is implicitly fully trusted by the composer.
         // eg. sender may not even realize it has such a bug
         composeQueue[_from][_to][_guid][_index] = RECEIVED_MESSAGE_HASH;
-        ILayerZeroComposer(_to).lzCompose{ value: msg.value }(_from, _guid, _message, msg.sender, _extraData);
+        ILayerZeroComposer(_to).lzCompose{value: msg.value}(_from, _guid, _message, msg.sender, _extraData);
         emit ComposeDelivered(_from, _to, _guid, _index);
     }
 

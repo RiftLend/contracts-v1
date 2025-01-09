@@ -2,89 +2,77 @@
 
 pragma solidity ^0.8.22;
 
-import {ILendingPoolAddressesProvider} from './interfaces/ILendingPoolAddressesProvider.sol';
-import {IRVaultAsset} from './interfaces/IRVaultAsset.sol';
+import {ILendingPoolAddressesProvider} from "./interfaces/ILendingPoolAddressesProvider.sol";
+import {IRVaultAsset} from "./interfaces/IRVaultAsset.sol";
 
-import {Origin, MessagingReceipt} from './libraries/helpers/layerzero/ILayerZeroEndpointV2.sol';
-import {OFTReceipt} from '@layerzerolabs/oft-evm/contracts/interfaces/IOFT.sol';
-import {OFTAdapter} from './libraries/helpers/layerzero/OFTAdapter.sol';
-import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
-import {OFTLogic} from './libraries/logic/OFTLogic.sol';
+import {Origin, MessagingReceipt} from "./libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
+import {OFTReceipt} from "@layerzerolabs/oft-evm/contracts/interfaces/IOFT.sol";
+import {OFTAdapter} from "./libraries/helpers/layerzero/OFTAdapter.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {OFTLogic} from "./libraries/logic/OFTLogic.sol";
 
 contract SuperAssetAdapter is OFTAdapter {
-  /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-  /*                  State Variables                           */
-  /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                  State Variables                           */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-  mapping(address => address) public underlyingToPoolAddressProvider;
-  address public underlyingAsset;
-  address public rVaultAsset;
-  address admin;
+    mapping(address => address) public underlyingToPoolAddressProvider;
+    address public underlyingAsset;
+    address public rVaultAsset;
+    address admin;
 
-  /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-  /*                  Errors                                    */
-  /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                  Errors                                    */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-  error InvalidPool();
+    error InvalidPool();
 
-  /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-  /*                  Constructor                               */
-  /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                  Constructor                               */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-  constructor(
-    address _rVaultAsset,
-    address _lzEndpoint,
-    address _underlyingAsset
-  ) OFTAdapter(_underlyingAsset, _lzEndpoint, msg.sender) {
-    underlyingAsset = _underlyingAsset;
-    rVaultAsset = _rVaultAsset;
-    admin = msg.sender;
-  }
+    constructor(address _rVaultAsset, address _lzEndpoint, address _underlyingAsset)
+        OFTAdapter(_underlyingAsset, _lzEndpoint, msg.sender)
+    {
+        underlyingAsset = _underlyingAsset;
+        rVaultAsset = _rVaultAsset;
+        admin = msg.sender;
+    }
 
-  error onlyAdminCall();
+    error onlyAdminCall();
 
-  modifier onlyAdmin() {
-    if (msg.sender != admin) revert onlyAdminCall();
-    _;
-  }
+    modifier onlyAdmin() {
+        if (msg.sender != admin) revert onlyAdminCall();
+        _;
+    }
 
-  /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-  /*                  External Functions                        */
-  /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                  External Functions                        */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-  function lzReceive(
-    Origin memory _origin,
-    bytes32 _guid,
-    bytes calldata _message,
-    bytes calldata _extraData
-  ) external payable {
-    // Ensures that only the endpoint can attempt to lzReceive() messages to this OApp.
-    if (address(endpoint) != msg.sender) revert OnlyEndpoint(msg.sender);
+    function lzReceive(Origin memory _origin, bytes32 _guid, bytes calldata _message, bytes calldata _extraData)
+        external
+        payable
+    {
+        // Ensures that only the endpoint can attempt to lzReceive() messages to this OApp.
+        if (address(endpoint) != msg.sender) revert OnlyEndpoint(msg.sender);
 
-    // Ensure that the sender matches the expected peer for the source endpoint.
-    if (_getPeerOrRevert(_origin.srcEid) != _origin.sender)
-      revert OnlyPeer(_origin.srcEid, _origin.sender);
+        // Ensure that the sender matches the expected peer for the source endpoint.
+        if (_getPeerOrRevert(_origin.srcEid) != _origin.sender) {
+            revert OnlyPeer(_origin.srcEid, _origin.sender);
+        }
 
-    (, uint256 amount, ) = OFTLogic.decodeMessage(_message);
-    _credit(rVaultAsset, amount, 0);
-    IRVaultAsset(rVaultAsset).lzReceive(
-      _origin,
-      _guid,
-      _message,
-      address(0),
-      _extraData
-    );
-  }
+        (, uint256 amount,) = OFTLogic.decodeMessage(_message);
+        _credit(rVaultAsset, amount, 0);
+        IRVaultAsset(rVaultAsset).lzReceive(_origin, _guid, _message, address(0), _extraData);
+    }
 
-  function setUnderlyingToPoolAddressProvider(
-    address asset,
-    address poolAddressProvider
-  ) external onlyAdmin {
-    underlyingToPoolAddressProvider[asset] = poolAddressProvider;
-  }
+    function setUnderlyingToPoolAddressProvider(address asset, address poolAddressProvider) external onlyAdmin {
+        underlyingToPoolAddressProvider[asset] = poolAddressProvider;
+    }
 
-  function setChainPeer(uint32 _eid, bytes32 _peer) public onlyAdmin {
-    peers[_eid] = _peer;
-    emit PeerSet(_eid, _peer);
-  }
+    function setChainPeer(uint32 _eid, bytes32 _peer) public onlyAdmin {
+        peers[_eid] = _peer;
+        emit PeerSet(_eid, _peer);
+    }
 }

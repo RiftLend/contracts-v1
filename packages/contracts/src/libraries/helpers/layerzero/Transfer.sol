@@ -2,8 +2,8 @@
 
 pragma solidity ^0.8.20;
 
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 library Transfer {
     using SafeERC20 for IERC20;
@@ -15,7 +15,7 @@ library Transfer {
 
     function native(address _to, uint256 _value) internal {
         if (_to == ADDRESS_ZERO) revert Transfer_ToAddressIsZero();
-        (bool success, ) = _to.call{ value: _value }("");
+        (bool success,) = _to.call{value: _value}("");
         if (!success) revert Transfer_NativeFailed(_to, _value);
     }
 

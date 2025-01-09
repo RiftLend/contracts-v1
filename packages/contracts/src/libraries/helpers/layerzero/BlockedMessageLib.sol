@@ -2,10 +2,10 @@
 
 pragma solidity ^0.8.20;
 
-import { ERC165 } from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
-import { IMessageLib, MessageLibType } from "./IMessageLib.sol";
-import { Errors } from "./Errors.sol";
+import {IMessageLib, MessageLibType} from "./IMessageLib.sol";
+import {Errors} from "./Errors.sol";
 
 contract BlockedMessageLib is ERC165 {
     function supportsInterface(bytes4 interfaceId) public view override returns (bool) {

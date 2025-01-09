@@ -30,10 +30,7 @@ library Errors {
     error LZ_SendReentrancy();
     error LZ_NotImplemented();
     error LZ_InsufficientFee(
-        uint256 requiredNative,
-        uint256 suppliedNative,
-        uint256 requiredLzToken,
-        uint256 suppliedLzToken
+        uint256 requiredNative, uint256 suppliedNative, uint256 requiredLzToken, uint256 suppliedLzToken
     );
     error LZ_ZeroLzTokenFee();
 }

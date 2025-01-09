@@ -38,5 +38,4 @@ interface ISuperAssetAdapter is ILayerZeroEndpointV2 {
      */
     function quoteSend(SendParam calldata _sendParam, bool _payInLzToken) external view returns (MessagingFee memory);
     function setPeer(uint32 _eid, bytes32 _peer) external;
-
 }

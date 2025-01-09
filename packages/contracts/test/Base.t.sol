@@ -120,6 +120,7 @@ contract Base is Test {
             vm.parseTomlAddress(deployConfig, ".forks.chain_a_cross_l2_prover_address");
         current_wethAddress = vm.parseTomlAddress(deployConfig, ".forks.chain_a_weth");
         treasury = vm.parseTomlAddress(deployConfig, ".treasury.address");
+        address chainALzEndpointV2 = vm.parseTomlAddress(deployConfig, ".forks.chain_a_lz_endpoint_v2");
 
         // ############## Create Fork to test ##############
         // uint256 _forkId = vm.createSelectFork(chain_a_rpc);
@@ -188,9 +189,7 @@ contract Base is Test {
 
         // ################ Deploy LayerZeroEndpoint ################
 
-        uint32 lzEndpoint_eid = 1;
-        vm.prank(owner);
-        lzEndpoint = new EndpointV2(lzEndpoint_eid, owner);
+        lzEndpoint = EndpointV2(chainALzEndpointV2);
 
         // ################ Deploy SuperAsset ################
         vm.prank(owner);
@@ -227,7 +226,6 @@ contract Base is Test {
                 underlyingAssetDecimals
             )
         );
-
 
         // ################ Configuring cluster types and lz peers
         vm.startPrank(owner);

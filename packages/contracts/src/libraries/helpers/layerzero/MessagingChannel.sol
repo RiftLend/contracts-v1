@@ -2,9 +2,9 @@
 
 pragma solidity ^0.8.20;
 
-import { IMessagingChannel } from "./IMessagingChannel.sol";
-import { Errors } from "./Errors.sol";
-import { GUID } from "./GUID.sol";
+import {IMessagingChannel} from "./IMessagingChannel.sol";
+import {Errors} from "./Errors.sol";
+import {GUID} from "./GUID.sol";
 
 abstract contract MessagingChannel is IMessagingChannel {
     bytes32 public constant EMPTY_PAYLOAD_HASH = bytes32(0);
@@ -13,10 +13,12 @@ abstract contract MessagingChannel is IMessagingChannel {
     // The universally unique id (UUID) of this deployed Endpoint
     uint32 public immutable eid;
 
-    mapping(address receiver => mapping(uint32 srcEid => mapping(bytes32 sender => uint64 nonce)))
-        public lazyInboundNonce;
-    mapping(address receiver => mapping(uint32 srcEid => mapping(bytes32 sender => mapping(uint64 inboundNonce => bytes32 payloadHash))))
-        public inboundPayloadHash;
+    mapping(address receiver => mapping(uint32 srcEid => mapping(bytes32 sender => uint64 nonce))) public
+        lazyInboundNonce;
+    mapping(
+        address receiver
+            => mapping(uint32 srcEid => mapping(bytes32 sender => mapping(uint64 inboundNonce => bytes32 payloadHash)))
+    ) public inboundPayloadHash;
     mapping(address sender => mapping(uint32 dstEid => mapping(bytes32 receiver => uint64 nonce))) public outboundNonce;
 
     /// @param _eid is the universally unique id (UUID) of this deployed Endpoint
@@ -34,13 +36,9 @@ abstract contract MessagingChannel is IMessagingChannel {
     /// @dev inbound won't update the nonce eagerly to allow unordered verification
     /// @dev instead, it will update the nonce lazily when the message is received
     /// @dev messages can only be cleared in order to preserve censorship-resistance
-    function _inbound(
-        address _receiver,
-        uint32 _srcEid,
-        bytes32 _sender,
-        uint64 _nonce,
-        bytes32 _payloadHash
-    ) internal {
+    function _inbound(address _receiver, uint32 _srcEid, bytes32 _sender, uint64 _nonce, bytes32 _payloadHash)
+        internal
+    {
         if (_payloadHash == EMPTY_PAYLOAD_HASH) revert Errors.LZ_InvalidPayloadHash();
         inboundPayloadHash[_receiver][_srcEid][_sender][_nonce] = _payloadHash;
     }
@@ -64,12 +62,11 @@ abstract contract MessagingChannel is IMessagingChannel {
     }
 
     /// @dev checks if the storage slot is not initialized. Assumes computationally infeasible that payload can hash to 0
-    function _hasPayloadHash(
-        address _receiver,
-        uint32 _srcEid,
-        bytes32 _sender,
-        uint64 _nonce
-    ) internal view returns (bool) {
+    function _hasPayloadHash(address _receiver, uint32 _srcEid, bytes32 _sender, uint64 _nonce)
+        internal
+        view
+        returns (bool)
+    {
         return inboundPayloadHash[_receiver][_srcEid][_sender][_nonce] != EMPTY_PAYLOAD_HASH;
     }
 
@@ -97,8 +94,9 @@ abstract contract MessagingChannel is IMessagingChannel {
 
         bytes32 curPayloadHash = inboundPayloadHash[_oapp][_srcEid][_sender][_nonce];
         if (curPayloadHash != _payloadHash) revert Errors.LZ_PayloadHashNotFound(curPayloadHash, _payloadHash);
-        if (_nonce <= lazyInboundNonce[_oapp][_srcEid][_sender] && curPayloadHash == EMPTY_PAYLOAD_HASH)
+        if (_nonce <= lazyInboundNonce[_oapp][_srcEid][_sender] && curPayloadHash == EMPTY_PAYLOAD_HASH) {
             revert Errors.LZ_InvalidNonce(_nonce);
+        }
         // set it to nil
         inboundPayloadHash[_oapp][_srcEid][_sender][_nonce] = NIL_PAYLOAD_HASH;
         emit PacketNilified(_srcEid, _sender, _oapp, _nonce, _payloadHash);
@@ -114,8 +112,9 @@ abstract contract MessagingChannel is IMessagingChannel {
 
         bytes32 curPayloadHash = inboundPayloadHash[_oapp][_srcEid][_sender][_nonce];
         if (curPayloadHash != _payloadHash) revert Errors.LZ_PayloadHashNotFound(curPayloadHash, _payloadHash);
-        if (curPayloadHash == EMPTY_PAYLOAD_HASH || _nonce > lazyInboundNonce[_oapp][_srcEid][_sender])
+        if (curPayloadHash == EMPTY_PAYLOAD_HASH || _nonce > lazyInboundNonce[_oapp][_srcEid][_sender]) {
             revert Errors.LZ_InvalidNonce(_nonce);
+        }
         delete inboundPayloadHash[_oapp][_srcEid][_sender][_nonce];
         emit PacketBurnt(_srcEid, _sender, _oapp, _nonce, _payloadHash);
     }
@@ -123,13 +122,10 @@ abstract contract MessagingChannel is IMessagingChannel {
     /// @dev calling this function will clear the stored message and increment the lazyInboundNonce to the provided nonce
     /// @dev if a lot of messages are queued, the messages can be cleared with a smaller step size to prevent OOG
     /// @dev NOTE: this function does not change inboundNonce, it only changes the lazyInboundNonce up to the provided nonce
-    function _clearPayload(
-        address _receiver,
-        uint32 _srcEid,
-        bytes32 _sender,
-        uint64 _nonce,
-        bytes memory _payload
-    ) internal returns (bytes32 actualHash) {
+    function _clearPayload(address _receiver, uint32 _srcEid, bytes32 _sender, uint64 _nonce, bytes memory _payload)
+        internal
+        returns (bytes32 actualHash)
+    {
         uint64 currentNonce = lazyInboundNonce[_receiver][_srcEid][_sender];
         if (_nonce > currentNonce) {
             unchecked {

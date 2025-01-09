@@ -13,8 +13,6 @@ contract RVaultAssetTest is Base {
 
     event Transfer(address indexed from, address indexed to, uint256 value);
 
-   
-
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           Bridging Tests                   */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
