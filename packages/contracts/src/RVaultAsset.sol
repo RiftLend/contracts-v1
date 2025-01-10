@@ -209,7 +209,8 @@ contract RVaultAsset is SuperOwnable, OFT {
         address superAssetAdapter = provider.getSuperAssetAdapter();
 
         if (pool_type == 1) {
-            ISuperAsset(underlying).withdraw(superAssetAdapter, tokensToSend);
+            ISuperAsset(underlying).withdraw(address(this), tokensToSend);
+            IERC20(ISuperAsset(underlying).underlying()).approve(superAssetAdapter, tokensToSend);
 
             bytes memory compose_message = OFTLogic.encodeMessage(receiverOfUnderlying, tokensToSend);
 
@@ -245,6 +246,9 @@ contract RVaultAsset is SuperOwnable, OFT {
             // decide recipient
             if (chainIdToClusterType[toChainId] == DataTypes.Chain_Cluster_Types.SUPER_CHAIN) {
                 sendParam.to = bytes32(uint256(uint160(superAssetAdapter)));
+            ISuperAsset(underlying).withdraw(address(this), tokensToSend);
+            IERC20(ISuperAsset(underlying).underlying()).approve(superAssetAdapter, tokensToSend);
+
             } else {
                 sendParam.to = bytes32(uint256(uint160(address(this))));
             }
