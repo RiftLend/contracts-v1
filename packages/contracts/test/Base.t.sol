@@ -11,7 +11,7 @@ import {IRVaultAsset} from "../src/interfaces/IRVaultAsset.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IncentivesController} from "./utils/IncentivesController.sol";
 import {ISuperAssetAdapter} from "../src/interfaces/ISuperAssetAdapter.sol";
-import {MessagingFee} from "../src/libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
+import {MessagingFee, MessagingReceipt} from "../src/libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
 import {SendParam, OFTReceipt} from "../src/libraries/helpers/layerzero/IOFT.sol";
 
 import {Test} from "../lib/forge-std/src/Test.sol";
@@ -192,7 +192,7 @@ contract Base is Test {
         // ################ Deploy LayerZeroEndpoint ################
 
         lzEndpoint = EndpointV2(chainALzEndpointV2);
-        
+
         // ################ Deploy SuperAsset ################
         vm.prank(owner);
         superAsset =
@@ -244,11 +244,16 @@ contract Base is Test {
         superAssetAdapter2.setChainPeer(uint32(block.chainid), bytes32(bytes20(makeAddr("peer2"))));
         vm.stopPrank();
 
-        MessagingFee memory mfee=MessagingFee(0,0);
+        MessagingFee memory mfee = MessagingFee(0, 0);
         vm.mockCall(
-        address(superAssetAdapter1),
-        abi.encodeWithSelector(ISuperAssetAdapter.quoteSend.selector),
-        abi.encode(mfee)        
+            address(superAssetAdapter1), abi.encodeWithSelector(ISuperAssetAdapter.quoteSend.selector), abi.encode(mfee)
+        );
+
+        MessagingReceipt memory msgReceipt = MessagingReceipt(bytes32(uint256(1)), uint64(1), mfee);
+        vm.mockCall(
+            address(superAssetAdapter1),
+            abi.encodeWithSelector(ISuperAssetAdapter.send.selector),
+            abi.encode(msgReceipt)
         );
 
         // ################ Deploy incentives controller ################

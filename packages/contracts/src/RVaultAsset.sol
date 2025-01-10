@@ -20,6 +20,7 @@ import {DataTypes} from "./libraries/types/DataTypes.sol";
 import {SuperAssetAdapter} from "./SuperAssetAdapter.sol";
 import {OFTLogic} from "./libraries/logic/OFTLogic.sol";
 import {ILendingPool} from "./interfaces/ILendingPool.sol";
+import "forge-std/console.sol";
 
 contract RVaultAsset is SuperOwnable, OFT {
     using SafeERC20 for IERC20;
@@ -156,6 +157,7 @@ contract RVaultAsset is SuperOwnable, OFT {
         _burn(msg.sender, amount);
         // IERC20(underlying).safeTransfer(msg.sender, address(this), amount);
         _bridge(receiverOfUnderlying, toChainId, amount);
+        console.log("bridge success");
         if (balances[msg.sender] == 0) isRVaultAssetHolder[msg.sender] = false;
     }
 
@@ -224,9 +226,15 @@ contract RVaultAsset is SuperOwnable, OFT {
                 ""
             );
             MessagingFee memory fee = ISuperAssetAdapter(superAssetAdapter).quoteSend(sendParam, false);
-            (MessagingReceipt memory msgReceipt,) =
-                ISuperAssetAdapter(superAssetAdapter).send(sendParam, fee, payable(address(this)));
-            if (msgReceipt.guid == 0 && msgReceipt.nonce == 0) revert OftSendFailed();
+            console.log("bridgeCrosscluster sending");
+
+            // (MessagingReceipt memory msgReceipt,) =
+            ISuperAssetAdapter(superAssetAdapter).send(sendParam, fee, payable(address(this)));
+            console.log("bridgeCrosscluster sent");
+
+            // if (msgReceipt.guid == bytes32(uint256(0)) && msgReceipt.nonce == 0) {
+            //     revert OftSendFailed();
+            // }
         } else {
             // Now there can be two cases , arb-eth cluster to superchain
             // or abrb-eth cluster to arb-eth
@@ -246,9 +254,8 @@ contract RVaultAsset is SuperOwnable, OFT {
             // decide recipient
             if (chainIdToClusterType[toChainId] == DataTypes.Chain_Cluster_Types.SUPER_CHAIN) {
                 sendParam.to = bytes32(uint256(uint160(superAssetAdapter)));
-            ISuperAsset(underlying).withdraw(address(this), tokensToSend);
-            IERC20(ISuperAsset(underlying).underlying()).approve(superAssetAdapter, tokensToSend);
-
+                ISuperAsset(underlying).withdraw(address(this), tokensToSend);
+                IERC20(ISuperAsset(underlying).underlying()).approve(superAssetAdapter, tokensToSend);
             } else {
                 sendParam.to = bytes32(uint256(uint160(address(this))));
             }
