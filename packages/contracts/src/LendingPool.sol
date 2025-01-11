@@ -222,14 +222,13 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             paybackAmount = amount;
         } else {
             paybackAmount = debt;
+            // TODO: umar as we are sending them the asset back in the same chain why are we bridging
             IRVaultAsset(rVaultAsset).bridge(sender, block.chainid, amount - paybackAmount);
         }
 
         _updateStates(reserve, asset, paybackAmount, 0, UPDATE_RATES_AND_STATES_MASK);
 
-        uint256 mode;
-        uint256 amountBurned;
-        (mode, amountBurned) = IVariableDebtToken(reserve.variableDebtTokenAddress).burn(
+        (uint256 mode, uint256 amountBurned) = IVariableDebtToken(reserve.variableDebtTokenAddress).burn(
             onBehalfOf, paybackAmount, reserve.variableBorrowIndex
         );
 
@@ -239,8 +238,8 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             _usersConfig[onBehalfOf].setBorrowing(reserve.id, false);
         }
 
-        IERC20(rVaultAsset).safeTransfer(address(rToken), amount);
-        IRToken(rToken).handleRepayment(onBehalfOf, paybackAmount);
+        IERC20(rVaultAsset).safeTransfer(address(rToken), paybackAmount);
+        IRToken(rToken).handleRepayment(onBehalfOf, paybackAmount); // TODO check handleRepayment function ...
 
         emit Repay(asset, paybackAmount, onBehalfOf, sender, mode, amountBurned);
     }

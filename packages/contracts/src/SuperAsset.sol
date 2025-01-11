@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.8.25;
 
-import {SuperchainERC20} from "./SuperchainERC20.sol";
+import {SuperchainERC20} from "src/SuperchainERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
 import {ERC20} from "@solady/tokens/ERC20.sol";
 
