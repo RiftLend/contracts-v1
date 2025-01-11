@@ -19,6 +19,7 @@ contract SuperAssetAdapter is OFTAdapter {
     mapping(address => address) public underlyingToPoolAddressProvider;
     address public underlyingAsset;
     address public rVaultAsset;
+    address admin;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                  Errors                                    */
@@ -35,6 +36,14 @@ contract SuperAssetAdapter is OFTAdapter {
     {
         underlyingAsset = _underlyingAsset;
         rVaultAsset = _rVaultAsset;
+        admin = msg.sender;
+    }
+
+    error onlyAdminCall();
+
+    modifier onlyAdmin() {
+        if (msg.sender != admin) revert onlyAdminCall();
+        _;
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -49,14 +58,21 @@ contract SuperAssetAdapter is OFTAdapter {
         if (address(endpoint) != msg.sender) revert OnlyEndpoint(msg.sender);
 
         // Ensure that the sender matches the expected peer for the source endpoint.
-        if (_getPeerOrRevert(_origin.srcEid) != _origin.sender) revert OnlyPeer(_origin.srcEid, _origin.sender);
+        if (_getPeerOrRevert(_origin.srcEid) != _origin.sender) {
+            revert OnlyPeer(_origin.srcEid, _origin.sender);
+        }
 
         (, uint256 amount,) = OFTLogic.decodeMessage(_message);
         _credit(rVaultAsset, amount, 0);
         IRVaultAsset(rVaultAsset).lzReceive(_origin, _guid, _message, address(0), _extraData);
     }
 
-    function setUnderlyingToPoolAddressProvider(address asset, address poolAddressProvider) external onlyOwner {
+    function setUnderlyingToPoolAddressProvider(address asset, address poolAddressProvider) external onlyAdmin {
         underlyingToPoolAddressProvider[asset] = poolAddressProvider;
+    }
+
+    function setChainPeer(uint32 _eid, bytes32 _peer) public onlyAdmin {
+        peers[_eid] = _peer;
+        emit PeerSet(_eid, _peer);
     }
 }

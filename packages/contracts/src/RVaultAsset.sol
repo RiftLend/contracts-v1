@@ -6,6 +6,7 @@ import {ISuperAsset} from "./interfaces/ISuperAsset.sol";
 import "./interfaces/IRVaultAsset.sol";
 import {ISuperchainTokenBridge} from "./interfaces/ISuperchainTokenBridge.sol";
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
+import {ISuperAssetAdapter} from "./interfaces/ISuperAssetAdapter.sol";
 
 import {Ownable} from "@solady/auth/Ownable.sol";
 import {Predeploys} from "./libraries/Predeploys.sol";
@@ -18,6 +19,8 @@ import {SuperOwnable} from "./interop-std/src/auth/SuperOwnable.sol";
 import {DataTypes} from "./libraries/types/DataTypes.sol";
 import {SuperAssetAdapter} from "./SuperAssetAdapter.sol";
 import {OFTLogic} from "./libraries/logic/OFTLogic.sol";
+import {ILendingPool} from "./interfaces/ILendingPool.sol";
+import "forge-std/console.sol";
 
 contract RVaultAsset is SuperOwnable, OFT {
     using SafeERC20 for IERC20;
@@ -49,7 +52,7 @@ contract RVaultAsset is SuperOwnable, OFT {
     uint256 public WITHDRAW_COOL_DOWN_PERIOD = 1 days;
     /// @dev is chainId intra cluter or inter-cluster
 
-    mapping(uint256 => DataTypes.Chain_Cluster_Types) public chainId_cluster_type;
+    mapping(uint256 => DataTypes.Chain_Cluster_Types) public chainIdToClusterType;
 
     /// @dev true - superchain , false - OFT
 
@@ -60,8 +63,6 @@ contract RVaultAsset is SuperOwnable, OFT {
     /// @dev Only used when pool_type is 1 (OP Superchain). For other clusters, this remains unset.
 
     address public immutable underlying_of_superAsset;
-    /// @dev for saving gas , caching the address
-    SuperAssetAdapter superAssetAdapter;
 
     // For keep record of and distrbuting to all rValtAssetHolders
     // Protection against DOS when there are huge number of rVaultAssetHolders , good to use mappings than arrays
@@ -80,39 +81,28 @@ contract RVaultAsset is SuperOwnable, OFT {
     /*                           Errors                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    error onlySuperAssetAdapterCall();
     error NonConfiguredCluster(uint256 ChainId);
     error OnlyRelayerCall();
     error BridgeCrossClusterFailed();
     error OftSendFailed();
     error onlySuperAssetAdapterOrLzEndpointCall();
-    error onlyRouterOrSelfCall();
+    error onlyRouterCall();
+    error withdrawCoolDownPeriodNotElapsed();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           Modifiers                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-
-    modifier onlySuperAssetAdapter() {
-        if (address(superAssetAdapter) != msg.sender) revert onlySuperAssetAdapterCall();
-        _;
-    }
 
     modifier onlyRelayer() {
         if (provider.getRelayer() != msg.sender) revert OnlyRelayerCall();
         _;
     }
 
-    modifier onlySuperAssetAdapterOrLzEndpoint() {
-        if (address(superAssetAdapter) != msg.sender && address(endpoint) != msg.sender) {
-            revert onlySuperAssetAdapterOrLzEndpointCall();
-        }
+    modifier onlyRouter() {
+        if (provider.getRouter() != msg.sender) revert onlyRouterCall();
         _;
     }
 
-    modifier onlyRouterOrSelf() {
-        if (provider.getRouter() != msg.sender && address(this) != msg.sender) revert onlyRouterOrSelfCall();
-        _;
-    }
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           Constructor                      */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -128,13 +118,15 @@ contract RVaultAsset is SuperOwnable, OFT {
     ) OFT(lzEndpoint_, delegate_, decimals_) {
         underlying = underlying_;
         provider = provider_;
-        pool_type = ILendingPoolAddressesProvider(provider).getPoolType();
-        if (pool_type == 1) underlying_of_superAsset = provider.getSuperAsset();
+        pool_type = provider.getPoolType();
+        // todo:discuss rVault specific underlying asset
+        if (pool_type == 1) {
+            underlying_of_superAsset = ISuperAsset(underlying).underlying();
+        }
 
         _name = name_;
         _symbol = symbol_;
         _decimals = decimals_;
-        superAssetAdapter = SuperAssetAdapter(provider.getSuperAssetAdapter());
 
         _initializeSuperOwner(uint64(block.chainid), msg.sender);
     }
@@ -151,6 +143,7 @@ contract RVaultAsset is SuperOwnable, OFT {
         balances[receiver] += assets;
         super._mint(receiver, assets);
         IERC20(underlying).safeTransferFrom(msg.sender, address(this), assets);
+
         if (!isRVaultAssetHolder[receiver]) {
             isRVaultAssetHolder[receiver] = true;
             rVaultAssetHolder[totalRVaultAssetHolders++] = receiver;
@@ -160,10 +153,31 @@ contract RVaultAsset is SuperOwnable, OFT {
 
     /// @notice Burn shares and return underlying
     function burn(address user, address receiverOfUnderlying, uint256 toChainId, uint256 amount) external {
-        super._burn(user, amount);
-        IERC20(underlying).safeTransferFrom(msg.sender, address(this), amount);
-        bridge(receiverOfUnderlying, toChainId, amount);
-        if (balances[user] == 0) isRVaultAssetHolder[user] = false;
+        if (msg.sender != user) _spendAllowance(user, msg.sender, amount);
+        _burn(msg.sender, amount);
+        // IERC20(underlying).safeTransfer(msg.sender, address(this), amount);
+        _bridge(receiverOfUnderlying, toChainId, amount);
+        console.log("bridge success");
+        if (balances[msg.sender] == 0) isRVaultAssetHolder[msg.sender] = false;
+    }
+
+    // Withdraw assets and burn shares (1:1 peg)
+
+    function withdraw(uint256 assets, address receiver, address owner) public returns (uint256 shares) {
+        // Check the cooldown period
+        if (block.timestamp < _lastWithdrawalTime[owner] + WITHDRAW_COOL_DOWN_PERIOD) {
+            revert withdrawCoolDownPeriodNotElapsed();
+        }
+
+        shares = assets; // 1:1 peg
+        if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
+        _burn(owner, shares);
+        // Update the last withdrawal time
+        _lastWithdrawalTime[owner] = block.timestamp;
+        // unwrap underlying from superAsset
+        if (pool_type == 1) ISuperAsset(underlying).withdraw(receiver, shares);
+        else IERC20(underlying).safeTransfer(receiver, shares);
+        return shares;
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -186,6 +200,7 @@ contract RVaultAsset is SuperOwnable, OFT {
         require(success, "Bungee Bridging failed");
         emit CrossChainBridgeUnderlyingSent(txData, block.timestamp);
     }
+
     //  @dev On receiving side of the bridgeUnderlying call, this function will be called to send the underlying to desired address
 
     function withdrawTokens(address _recipient, uint256 _amount) external onlySuperAdmin {
@@ -193,8 +208,11 @@ contract RVaultAsset is SuperOwnable, OFT {
     }
 
     function _bridgeCrossCluster(uint256 tokensToSend, address receiverOfUnderlying, uint256 toChainId) internal {
+        address superAssetAdapter = provider.getSuperAssetAdapter();
+
         if (pool_type == 1) {
-            ISuperAsset(underlying).withdraw(address(superAssetAdapter), tokensToSend);
+            ISuperAsset(underlying).withdraw(address(this), tokensToSend);
+            IERC20(ISuperAsset(underlying).underlying()).approve(superAssetAdapter, tokensToSend);
 
             bytes memory compose_message = OFTLogic.encodeMessage(receiverOfUnderlying, tokensToSend);
 
@@ -207,9 +225,16 @@ contract RVaultAsset is SuperOwnable, OFT {
                 compose_message, //  composeMsg
                 ""
             );
-            MessagingFee memory fee = superAssetAdapter.quoteSend(sendParam, false);
-            (MessagingReceipt memory msgReceipt,) = superAssetAdapter.send(sendParam, fee, payable(address(this)));
-            if (msgReceipt.guid == 0 && msgReceipt.nonce == 0) revert OftSendFailed();
+            MessagingFee memory fee = ISuperAssetAdapter(superAssetAdapter).quoteSend(sendParam, false);
+            console.log("bridgeCrosscluster sending");
+
+            // (MessagingReceipt memory msgReceipt,) =
+            ISuperAssetAdapter(superAssetAdapter).send(sendParam, fee, payable(address(this)));
+            console.log("bridgeCrosscluster sent");
+
+            // if (msgReceipt.guid == bytes32(uint256(0)) && msgReceipt.nonce == 0) {
+            //     revert OftSendFailed();
+            // }
         } else {
             // Now there can be two cases , arb-eth cluster to superchain
             // or abrb-eth cluster to arb-eth
@@ -226,10 +251,11 @@ contract RVaultAsset is SuperOwnable, OFT {
                 "" // empty oftCmd
             );
             // TODO: u have to check if toChainId this is going to superchain / normal and then pass superAssetAdapter / address(this)
-
             // decide recipient
-            if (chainId_cluster_type[toChainId] == DataTypes.Chain_Cluster_Types.SUPER_CHAIN) {
-                sendParam.to = bytes32(uint256(uint160(address(superAssetAdapter))));
+            if (chainIdToClusterType[toChainId] == DataTypes.Chain_Cluster_Types.SUPER_CHAIN) {
+                sendParam.to = bytes32(uint256(uint160(superAssetAdapter)));
+                ISuperAsset(underlying).withdraw(address(this), tokensToSend);
+                IERC20(ISuperAsset(underlying).underlying()).approve(superAssetAdapter, tokensToSend);
             } else {
                 sendParam.to = bytes32(uint256(uint160(address(this))));
             }
@@ -269,9 +295,17 @@ contract RVaultAsset is SuperOwnable, OFT {
         bytes calldata _message,
         address, /*_executor*/
         bytes calldata /*_extraData*/
-    ) public payable override onlySuperAssetAdapterOrLzEndpoint {
+    ) public payable override {
+        address superAssetAdapter = provider.getSuperAssetAdapter();
+
+        if (superAssetAdapter != msg.sender && address(endpoint) != msg.sender) {
+            revert onlySuperAssetAdapterOrLzEndpointCall();
+        }
+
         if (msg.sender == address(endpoint)) {
-            if (_getPeerOrRevert(_origin.srcEid) != _origin.sender) revert OnlyPeer(_origin.srcEid, _origin.sender);
+            if (_getPeerOrRevert(_origin.srcEid) != _origin.sender) {
+                revert OnlyPeer(_origin.srcEid, _origin.sender);
+            }
         }
 
         (address receiverOfUnderlying, uint256 tokensAmount, address oftTxCaller) = OFTLogic.decodeMessage(_message);
@@ -289,7 +323,7 @@ contract RVaultAsset is SuperOwnable, OFT {
             _mint(oftTxCaller, tokensAmount);
         }
 
-        if (msg.sender == address(superAssetAdapter)) {
+        if (msg.sender == superAssetAdapter) {
             ISuperAsset(underlying).withdraw(receiverOfUnderlying, tokensAmount);
         } else {
             IERC20(underlying).safeTransfer(receiverOfUnderlying, tokensAmount);
@@ -311,9 +345,13 @@ contract RVaultAsset is SuperOwnable, OFT {
         }
     }
 
-    function bridge(address receiverOfUnderlying, uint256 toChainId, uint256 amount) public onlyRouterOrSelf {
-        DataTypes.Chain_Cluster_Types sourceType = chainId_cluster_type[block.chainid];
-        DataTypes.Chain_Cluster_Types destinationType = chainId_cluster_type[toChainId];
+    function bridge(address receiverOfUnderlying, uint256 toChainId, uint256 amount) external onlyRouter {
+        _bridge(receiverOfUnderlying, toChainId, amount);
+    }
+
+    function _bridge(address receiverOfUnderlying, uint256 toChainId, uint256 amount) internal {
+        DataTypes.Chain_Cluster_Types sourceType = chainIdToClusterType[block.chainid];
+        DataTypes.Chain_Cluster_Types destinationType = chainIdToClusterType[toChainId];
         DataTypes.Chain_Cluster_Types super_chain_type = DataTypes.Chain_Cluster_Types.SUPER_CHAIN;
         DataTypes.Chain_Cluster_Types other_cluster_type = DataTypes.Chain_Cluster_Types.OTHER;
 
@@ -336,7 +374,7 @@ contract RVaultAsset is SuperOwnable, OFT {
 
     /// @notice Enables or disables the use of the SuperTokenBridge for intra-cluster token bridging
     /// @param mode True to enable, false to disable
-    function setIntraClusterServiceType(bool mode) public onlySuperAdmin {
+    function toggleSuperTokenBridgeEnabled(bool mode) public onlySuperAdmin {
         isSuperTokenBridgeEnabled = mode;
     }
 
@@ -344,7 +382,11 @@ contract RVaultAsset is SuperOwnable, OFT {
     /// @param chainId The chainId for which to set the cluster type
     /// @param cluster_type The cluster type to set (INTER or INTRA)
     function setChainClusterType(uint256 chainId, DataTypes.Chain_Cluster_Types cluster_type) public onlySuperAdmin {
-        chainId_cluster_type[chainId] = cluster_type;
+        chainIdToClusterType[chainId] = cluster_type;
+    }
+
+    function setChainPeer(uint32 _eid, bytes32 _peer) public onlySuperAdmin {
+        _setPeer(_eid, _peer);
     }
 
     /// @notice Sets the withdrawal cooldown period
@@ -425,31 +467,6 @@ contract RVaultAsset is SuperOwnable, OFT {
         return IERC20(underlying).balanceOf(address(this));
     }
 
-    // Withdraw assets and burn shares (1:1 peg)
-    function withdraw(uint256 assets, address receiver, address owner) public returns (uint256 shares) {
-        // Check the cooldown period
-        require(
-            block.timestamp >= _lastWithdrawalTime[owner] + WITHDRAW_COOL_DOWN_PERIOD,
-            "Withdrawal cooldown period not Passed"
-        );
-
-        shares = assets; // 1:1 peg
-        _spendAllowance(owner, msg.sender, assets);
-        _burn(owner, shares);
-        // Update the last withdrawal time
-        _lastWithdrawalTime[owner] = block.timestamp;
-
-        if (pool_type == 1) {
-            // unwrap underlying from superAsset
-            ISuperAsset(underlying_of_superAsset).withdraw(address(this), shares);
-        }
-
-        // Tranfer assets to receiver
-        IERC20(underlying).safeTransfer(receiver, assets);
-
-        return shares;
-    }
-
     // Redeem shares and return assets (1:1 peg)
     function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets) {
         assets = shares; // 1:1 peg
@@ -499,11 +516,6 @@ contract RVaultAsset is SuperOwnable, OFT {
 
     function _setOwner(address newOwner) internal override(Ownable, SuperOwnable) {
         SuperOwnable._setOwner(newOwner);
-    }
-
-    function burn_(address from_, uint256 amount_) internal {
-        balances[from_] -= amount_;
-        super._burn(from_, amount_);
     }
 
     /*..•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/

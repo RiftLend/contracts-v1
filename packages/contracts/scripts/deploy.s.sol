@@ -279,18 +279,20 @@ contract LendingPoolDeployer is Script {
         address ownerAddr_ = vm.parseTomlAddress(deployConfig, ".superchain_asset_1.owner_address");
         string memory name = vm.parseTomlString(deployConfig, ".superchain_asset_1.name");
         string memory symbol = vm.parseTomlString(deployConfig, ".superchain_asset_1.symbol");
+
         uint32 lzEndpoint_eid = 1;
-        address lzEndpoint = address(new MockLayerZeroEndpointV2(lzEndpoint_eid, ownerAddr_));
-        address delegate = address(1);
+        // address lzEndpoint = address(new MockLayerZeroEndpointV2(lzEndpoint_eid, ownerAddr_));
+        //Todo: add correct weth address here
+        address weth = address(0);
 
         bytes memory initCode =
-            abi.encodePacked(type(SuperAsset).creationCode, abi.encode(underlying, lzEndpoint, delegate, name, symbol));
+            abi.encodePacked(type(SuperAsset).creationCode, abi.encode(underlying, name, symbol, weth));
         address preComputedAddress = vm.computeCreate2Address(_implSalt(salt), keccak256(initCode));
         if (preComputedAddress.code.length > 0) {
             console.log("SuperAsset already deployed at %s", preComputedAddress, "on chain id: ", block.chainid);
             addr_ = preComputedAddress;
         } else {
-            addr_ = address(new SuperAsset{salt: _implSalt(salt)}(underlying, lzEndpoint, delegate, name, symbol));
+            addr_ = address(new SuperAsset{salt: _implSalt(salt)}(underlying, name, symbol, weth));
             console.log("Deployed SuperAsset at address: ", addr_, "on chain id: ", block.chainid);
         }
     }

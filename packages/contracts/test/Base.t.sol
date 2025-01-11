@@ -10,6 +10,9 @@ import {ILendingPool} from "../src/interfaces/ILendingPool.sol";
 import {IRVaultAsset} from "../src/interfaces/IRVaultAsset.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IncentivesController} from "./utils/IncentivesController.sol";
+import {ISuperAssetAdapter} from "../src/interfaces/ISuperAssetAdapter.sol";
+import {MessagingFee, MessagingReceipt} from "../src/libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
+import {SendParam, OFTReceipt} from "../src/libraries/helpers/layerzero/IOFT.sol";
 
 import {Test} from "../lib/forge-std/src/Test.sol";
 import {console} from "../lib/forge-std/src/console.sol";
@@ -24,9 +27,11 @@ import {LendingPoolConfigurator} from "../src/LendingPoolConfigurator.sol";
 import {DefaultReserveInterestRateStrategy} from "../src/DefaultReserveInterestRateStrategy.sol";
 import {ProxyAdmin} from "src/interop-std/src/utils/SuperProxyAdmin.sol";
 import {OFT} from "@layerzerolabs/oft-evm/contracts/OFT.sol";
-import {MockLayerZeroEndpointV2} from "./utils/MockLayerZeroEndpointV2.sol";
+import {EndpointV2} from "../src/libraries/helpers/layerzero/EndpointV2.sol";
 import {Router} from "../src/Router.sol";
 import {EventValidator} from "../src/libraries/EventValidator.sol";
+import {DataTypes} from "../src/libraries/types/DataTypes.sol";
+import {SuperAssetAdapter} from "../src/SuperAssetAdapter.sol";
 
 contract Base is Test {
     //////////////////////////
@@ -69,6 +74,8 @@ contract Base is Test {
     address owner = makeAddr("owner");
     address poolAdmin1 = makeAddr("poolAdmin1");
     address user1 = makeAddr("user1");
+    address user2 = makeAddr("user2");
+
     address relayer = makeAddr("relayer");
     address emergencyAdmin = makeAddr("emergencyAdmin");
     address alice = makeAddr("alice");
@@ -83,18 +90,26 @@ contract Base is Test {
     LendingPool proxyLp;
     LendingPool implementationLp;
     SuperAsset superAsset;
+    SuperAsset superAssetWeth;
+
     address superProxyAdmin;
     TestERC20 INR;
     TestERC20 underlyingAsset;
     LendingPoolConfigurator lpConfigurator;
     LendingPoolConfigurator proxyConfigurator;
-    LendingPoolAddressesProvider lpAddressProvider;
-    MockLayerZeroEndpointV2 lzEndpoint;
+    LendingPoolAddressesProvider lpAddressProvider1;
+    LendingPoolAddressesProvider lpAddressProvider2;
+
+    EndpointV2 lzEndpoint;
     Router router;
     address rVaultAsset1;
     address rVaultAsset2;
+    address current_wethAddress;
+    SuperAssetAdapter superAssetAdapter1;
+    SuperAssetAdapter superAssetAdapter2;
 
-    function setUp() public {
+    function setUp() public virtual {
+        // vm.chainId(1);
         // ############## Load deploy config ##############
         string memory deployConfigPath = vm.envOr("DEPLOY_CONFIG_PATH", string("/configs/deploy-config.toml"));
         string memory filePath = string.concat(vm.projectRoot(), deployConfigPath);
@@ -105,8 +120,9 @@ contract Base is Test {
         uint256 chain_a_id = vm.parseTomlUint(deployConfig, ".forks.chain_a_chain_id");
         address chain_a_cross_l2_prover_address =
             vm.parseTomlAddress(deployConfig, ".forks.chain_a_cross_l2_prover_address");
-
+        current_wethAddress = vm.parseTomlAddress(deployConfig, ".forks.chain_a_weth");
         treasury = vm.parseTomlAddress(deployConfig, ".treasury.address");
+        address chainALzEndpointV2 = vm.parseTomlAddress(deployConfig, ".forks.chain_a_lz_endpoint_v2");
 
         // ############## Create Fork to test ##############
         // uint256 _forkId = vm.createSelectFork(chain_a_rpc);
@@ -145,43 +161,46 @@ contract Base is Test {
         vm.prank(owner);
         underlyingAsset = new TestERC20(underlyingAssetName, underlyingAssetSymbol, underlyingAssetDecimals);
         vm.label(address(underlyingAsset), "underlyingAsset");
-        // ################ Mint underlying tokens to users ################
-        vm.prank(owner);
-        underlyingAsset.mint(user1, 1000000 ether);
 
         // ################ Deploy LendingPoolAddressesProvider ################
         bytes32 lp_type = keccak256("OpSuperchain_LENDING_POOL");
-        lpAddressProvider = new LendingPoolAddressesProvider("TUSDC", owner, superProxyAdmin, lp_type);
+        lpAddressProvider1 = new LendingPoolAddressesProvider("TUSDC", owner, superProxyAdmin, lp_type);
+        lp_type = keccak256("ARB_LENDING_POOL");
+        lpAddressProvider2 = new LendingPoolAddressesProvider("TUSDC", owner, superProxyAdmin, lp_type);
 
         // ################ Deploy LendingPool Implementation ################
         vm.prank(owner);
         implementationLp = new LendingPool();
         vm.prank(owner);
-        implementationLp.initialize(ILendingPoolAddressesProvider(address(lpAddressProvider)));
+        implementationLp.initialize(ILendingPoolAddressesProvider(address(lpAddressProvider1)));
         vm.label(address(implementationLp), "implementationLp");
 
         // ################ Set LendingPoolImpl in LendingPoolAddressesProvider ################
         vm.prank(owner);
-        lpAddressProvider.setLendingPoolImpl(address(implementationLp));
+        lpAddressProvider1.setLendingPoolImpl(address(implementationLp));
 
-        proxyLp = LendingPool(lpAddressProvider.getLendingPool());
+        proxyLp = LendingPool(lpAddressProvider1.getLendingPool());
         vm.label(address(proxyLp), "proxyLp");
 
         // ################ Deploy Router ################
         router = new Router{salt: "router"}();
-        router.initialize(address(proxyLp), address(lpAddressProvider), address(eventValidator));
+        router.initialize(address(proxyLp), address(lpAddressProvider1), address(eventValidator));
+
+        vm.label(address(lpAddressProvider1), "lpAddressProvider1");
+        vm.label(address(lpAddressProvider2), "lpAddressProvider2");
 
         // ################ Deploy LayerZeroEndpoint ################
-        vm.label(address(lpAddressProvider), "lpAddressProvider");
-        uint32 lzEndpoint_eid = 1;
-        vm.prank(owner);
-        lzEndpoint = new MockLayerZeroEndpointV2(lzEndpoint_eid, owner);
+
+        lzEndpoint = EndpointV2(chainALzEndpointV2);
 
         // ################ Deploy SuperAsset ################
         vm.prank(owner);
-        superAsset = new SuperAsset(
-            address(underlyingAsset), address(lzEndpoint), _delegate, superAssetTokenName, superAsseTokenSymbol
-        );
+        superAsset =
+            new SuperAsset(address(underlyingAsset), superAssetTokenName, superAsseTokenSymbol, current_wethAddress);
+        vm.prank(owner);
+        superAssetWeth =
+            new SuperAsset(address(current_wethAddress), superAssetTokenName, superAsseTokenSymbol, current_wethAddress);
+
         vm.label(address(superAsset), "superAsset");
 
         // ################ Deploy RVaultAsset ################
@@ -190,7 +209,7 @@ contract Base is Test {
         rVaultAsset1 = address(
             new RVaultAsset{salt: "rVaultAsset1Impl"}(
                 address(superAsset),
-                ILendingPoolAddressesProvider(address(lpAddressProvider)),
+                ILendingPoolAddressesProvider(address(lpAddressProvider1)),
                 address(lzEndpoint),
                 _delegate,
                 rVaultAssetTokenName1,
@@ -198,11 +217,10 @@ contract Base is Test {
                 underlyingAssetDecimals
             )
         );
-
         rVaultAsset2 = address(
-            new RVaultAsset{salt: "rVaultAsset1Impl"}(
+            new RVaultAsset{salt: "rVaultAsset2Impl"}(
                 address(underlyingAsset),
-                ILendingPoolAddressesProvider(address(lpAddressProvider)),
+                ILendingPoolAddressesProvider(address(lpAddressProvider2)),
                 address(lzEndpoint),
                 _delegate,
                 rVaultAssetTokenName2,
@@ -210,6 +228,34 @@ contract Base is Test {
                 underlyingAssetDecimals
             )
         );
+
+        // ################ Configuring cluster types and lz peers
+        vm.startPrank(owner);
+        superAssetAdapter1 = new SuperAssetAdapter(rVaultAsset1, address(lzEndpoint), address(underlyingAsset));
+        superAssetAdapter2 = new SuperAssetAdapter(rVaultAsset2, address(lzEndpoint), address(underlyingAsset));
+
+        IRVaultAsset(rVaultAsset1).setChainClusterType(block.chainid, DataTypes.Chain_Cluster_Types.SUPER_CHAIN);
+        IRVaultAsset(rVaultAsset2).setChainClusterType(block.chainid, DataTypes.Chain_Cluster_Types.OTHER);
+        // TODO:add correct peers here
+        IRVaultAsset(rVaultAsset1).setChainPeer(uint32(block.chainid), bytes32(bytes20(makeAddr("peer1"))));
+        IRVaultAsset(rVaultAsset2).setChainPeer(uint32(block.chainid), bytes32(bytes20(makeAddr("peer2"))));
+
+        superAssetAdapter1.setChainPeer(uint32(block.chainid), bytes32(bytes20(makeAddr("peer1"))));
+        superAssetAdapter2.setChainPeer(uint32(block.chainid), bytes32(bytes20(makeAddr("peer2"))));
+        vm.stopPrank();
+
+        MessagingFee memory mfee = MessagingFee(0, 0);
+        vm.mockCall(
+            address(superAssetAdapter1), abi.encodeWithSelector(ISuperAssetAdapter.quoteSend.selector), abi.encode(mfee)
+        );
+
+        MessagingReceipt memory msgReceipt = MessagingReceipt(bytes32(uint256(1)), uint64(1), mfee);
+        vm.mockCall(
+            address(superAssetAdapter1),
+            abi.encodeWithSelector(ISuperAssetAdapter.send.selector),
+            abi.encode(msgReceipt)
+        );
+
         // ################ Deploy incentives controller ################
         vm.prank(owner);
         incentivesController = address(new IncentivesController{salt: "incentivesController"}());
@@ -224,7 +270,7 @@ contract Base is Test {
             treasury,
             address(rVaultAsset1),
             IAaveIncentivesController(incentivesController),
-            ILendingPoolAddressesProvider(address(lpAddressProvider)),
+            ILendingPoolAddressesProvider(address(lpAddressProvider1)),
             underlyingAsset.decimals(),
             rTokenName1,
             rTokenSymbol1,
@@ -248,20 +294,24 @@ contract Base is Test {
 
         // ################ Set addresses in LpAddressesProvider ################
         vm.prank(owner);
-        lpAddressProvider.setPoolAdmin(poolAdmin1);
+        lpAddressProvider1.setPoolAdmin(poolAdmin1);
         vm.prank(owner);
-        lpAddressProvider.setRelayer(relayer);
+        lpAddressProvider1.setRelayer(relayer);
         vm.prank(owner);
-        lpAddressProvider.setRouter(address(router));
+        lpAddressProvider1.setRouter(address(router));
+        vm.prank(owner);
+        lpAddressProvider1.setSuperAssetAdapter(address(superAssetAdapter1));
+        vm.prank(owner);
+        lpAddressProvider2.setSuperAssetAdapter(address(superAssetAdapter2));
 
         // ################ Deploy LendingPoolConfigurator ################
         lpConfigurator = new LendingPoolConfigurator();
-        lpConfigurator.initialize(ILendingPoolAddressesProvider(address(lpAddressProvider)), superProxyAdmin);
+        lpConfigurator.initialize(ILendingPoolAddressesProvider(address(lpAddressProvider1)), superProxyAdmin);
 
         // ################ Deploy proxy configurator ################
         vm.prank(owner);
-        lpAddressProvider.setLendingPoolConfiguratorImpl(address(lpConfigurator));
-        proxyConfigurator = LendingPoolConfigurator(lpAddressProvider.getLendingPoolConfigurator());
+        lpAddressProvider1.setLendingPoolConfiguratorImpl(address(lpConfigurator));
+        proxyConfigurator = LendingPoolConfigurator(lpAddressProvider1.getLendingPoolConfigurator());
 
         // ################ Activate Reserves ################
         vm.prank(poolAdmin1);
@@ -270,7 +320,7 @@ contract Base is Test {
         // ################ Deploy DefaultReserveInterestRateStrategy ################
         address strategy = address(
             new DefaultReserveInterestRateStrategy(
-                ILendingPoolAddressesProvider(address(lpAddressProvider)),
+                ILendingPoolAddressesProvider(address(lpAddressProvider1)),
                 0.8 * 1e27, // optimalUtilizationRate
                 0.02 * 1e27, // baseVariableBorrowRate
                 0.04 * 1e27, // variableRateSlope1

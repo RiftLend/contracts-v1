@@ -23,8 +23,6 @@ contract VariableDebtToken is DebtTokenBase, IVariableDebtToken {
     ILendingPool internal _pool;
     address internal _underlyingAsset;
     IAaveIncentivesController internal _incentivesController;
-    // Syncing the cross chain balancs of users.
-    mapping(address => uint256) public crossChainUserBalance;
 
     /**
      * @dev Initializes the debt token.
@@ -193,6 +191,10 @@ contract VariableDebtToken is DebtTokenBase, IVariableDebtToken {
 
     function crossChainScaledTotalSupply() public view returns (uint256) {
         return super.totalSupply();
+    }
+
+    function getCrossChainUserBalance(address user) external view returns (uint256) {
+        return crossChainUserBalance[user];
     }
 
     /**

@@ -43,7 +43,23 @@ interface IRToken is IERC20, IScaledBalanceToken, IInitializableRToken {
      * @param index The new liquidity index of the reserve
      *
      */
-    event BalanceTransfer(address indexed from, address indexed to, uint256 value, uint256 index);
+    event BalanceTransfer(address from, address to, uint256 value, uint256 index);
+
+    /**
+     * @dev Emitted during the cross-chain burn action
+     * @param user The owner of the rTokens, getting them burned
+     * @param amountScaled The amount being burned, scaled to the pool's unit
+     *
+     */
+    event CrossChainBurn(address user, uint256 amountScaled);
+
+    /**
+     * @dev Emitted during the cross-chain mint action
+     * @param user The address receiving the minted tokens
+     * @param amountScaled The amount being minted, scaled to the pool's unit
+     *
+     */
+    event CrossChainMint(address user, uint256 amountScaled);
 
     /**
      * @dev Burns rTokens from `user` and sends the equivalent amount of underlying to `receiverOfUnderlying`
@@ -113,10 +129,11 @@ interface IRToken is IERC20, IScaledBalanceToken, IInitializableRToken {
      * @param mode 1 if minting, 2 if burning
      */
     function updateCrossChainBalance(address user, uint256 amountScaled, uint256 mode) external;
+
     /**
-     * @dev Updates the cross chain balance of user
+     * @dev gets the cross chain balance of user
      * @param user The user address
      * @return The user balance
      */
-    function crossChainUserBalance(address user) external view returns (uint256);
+    function getCrossChainUserBalance(address user) external view returns (uint256);
 }

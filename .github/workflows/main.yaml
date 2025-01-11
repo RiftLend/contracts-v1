@@ -60,7 +60,7 @@ jobs:
         run: 'cd packages/contracts && forge build'
 
       - name: Run Forge test
-        run: 'cd packages/contracts && forge test'
+        run: 'cd packages/contracts && forge test --via-irs'
 
       - name: Run Forge coverage
         run: 'cd packages/contracts && forge coverage'
