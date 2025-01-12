@@ -202,11 +202,10 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         require(amountScaled != 0, Errors.CT_INVALID_BURN_AMOUNT);
         _burn(user, amountScaled);
 
-        IRVaultAsset(_underlyingAsset).burn(address(this), receiverOfUnderlying, toChainId, amount);
+        IRVaultAsset(_underlyingAsset).burn(receiverOfUnderlying, toChainId, amount);
 
         emit Transfer(user, address(0), amount);
         emit Burn(user, receiverOfUnderlying, amount, index);
-        emit CrossChainBurn(user, amountScaled);
         emit CrossChainBurn(user, amountScaled);
         return (2, amountScaled);
     }
@@ -397,7 +396,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         onlyLendingPool
         returns (uint256)
     {
-        IRVaultAsset(_underlyingAsset).burn(address(this), receiverOfUnderlying, toChainId, amount);
+        IRVaultAsset(_underlyingAsset).burn(receiverOfUnderlying, toChainId, amount);
         return amount;
     }
 
