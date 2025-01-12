@@ -10,3 +10,9 @@
 [submodule "packages/contracts/lib/LayerZero-v2"]
 	path = packages/contracts/lib/LayerZero-v2
 	url = https://github.com/LayerZero-Labs/LayerZero-v2
+[submodule "packages/contracts/lib/LayerZero-v1"]
+	path = packages/contracts/lib/LayerZero-v1
+	url = https://github.com/LayerZero-Labs/LayerZero-v1
+[submodule "packages/contracts/lib/solidity-bytes-utils"]
+	path = packages/contracts/lib/solidity-bytes-utils
+	url = https://github.com/GNSPS/solidity-bytes-utils
