@@ -11,7 +11,6 @@ import "./interfaces/ILendingPool.sol";
 import {ISuperAsset} from "./interfaces/ISuperAsset.sol";
 import {IRVaultAsset} from "./interfaces/IRVaultAsset.sol";
 
-import {Identifier} from "./interfaces/ICrossL2Inbox.sol";
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
 import {Initializable} from "@solady/utils/Initializable.sol";
 import {Helpers} from "./libraries/helpers/Helpers.sol";
@@ -28,24 +27,6 @@ import {LendingPoolStorage} from "./LendingPoolStorage.sol";
 import {Predeploys} from "./libraries/Predeploys.sol";
 import {SuperPausable} from "./interop-std/src/utils/SuperPausable.sol";
 
-/**
- * @title LendingPool contract
- * @dev Main point of interaction with an Aave protocol's market
- * - Users can:
- *   # Deposit
- *   # Withdraw
- *   # Borrow
- *   # Repay
- *   # Swap their loans between variable and stable rate
- *   # Enable/disable their deposits as collateral rebalance stable rate borrow positions
- *   # Liquidate positions
- *   # Execute Flash Loans
- * - To be covered by a proxy contract, owned by the LendingPoolAddressesProvider of the specific market
- * - All admin functions are callable by the LendingPoolConfigurator contract defined also in the
- *   LendingPoolAddressesProvider
- * @author supercontracts.eth.eth (superlend@proton.me)
- *
- */
 contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     using WadRayMath for uint256;
     using PercentageMath for uint256;
@@ -59,12 +40,18 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     bytes2 private constant UPDATE_RATES_MASK = bytes2(uint16(2));
     bytes2 public constant UPDATE_RATES_AND_STATES_MASK = bytes2(uint16(3));
 
-    uint256 public constant LENDINGPOOL_REVISION = 0x2;
+    uint256 public constant LENDINGPOOL_REVISION = 0x1;
 
-    // custom errors
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                  Custom Errors                             */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     error ZeroParams();
     error rVaultAssetNotFoundForAsset(address asset);
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                  Modifiers                                 */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     modifier onlyLendingPoolConfigurator() {
         _onlyLendingPoolConfigurator();
@@ -95,6 +82,10 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     function _onlyRouterOrSelf() internal view {
         require(_addressesProvider.getRouter() == msg.sender || msg.sender == address(this), "!router || !self");
     }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                  Initializer                               */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
      * @dev Function is invoked by the proxy contract when the LendingPool contract is added to the
@@ -215,6 +206,9 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         uint256 debt = Helpers.getUserCurrentDebt(onBehalfOf, reserve);
         ValidationLogic.validateRepay(reserve, amount, debt);
 
+        // TODO:
+        // wrap underlying to rVaultAsset, base underlying ...
+
         uint256 paybackAmount;
         if (amount <= paybackAmount) {
             paybackAmount = amount;
@@ -238,34 +232,6 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         emit Repay(asset, paybackAmount, onBehalfOf, sender, mode, amountBurned);
     }
 
-    /**
-     * @dev Allows a borrower to swap his debt between stable and variable mode, or viceversa
-     * @param sender The address of the user swapping the debt
-     * @param asset The address of the underlying asset borrowed
-     * @param rateMode The rate mode that the user wants to swap to
-     *
-     */
-    function swapBorrowRateMode(address sender, address asset, uint256 rateMode) internal {
-        DataTypes.ReserveData storage reserve = _reserves[asset];
-
-        uint256 variableDebt = Helpers.getUserCurrentDebt(sender, reserve);
-
-        DataTypes.InterestRateMode interestRateMode = DataTypes.InterestRateMode(rateMode);
-
-        ValidationLogic.validateSwapRateMode(reserve, _usersConfig[sender], variableDebt, interestRateMode);
-
-        reserve.updateState();
-
-        uint256 variableDebtAmount;
-
-        (, variableDebtAmount) =
-            IVariableDebtToken(reserve.variableDebtTokenAddress).burn(sender, variableDebt, reserve.variableBorrowIndex);
-
-        reserve.updateInterestRates(asset, reserve.rTokenAddress, 0, 0);
-
-        emit Swap(asset, sender, rateMode, variableDebtAmount);
-    }
-
     function setUserUseReserveAsCollateral(address sender, address asset, bool useAsCollateral) external onlyRouter {
         DataTypes.ReserveData storage reserve = _reserves[asset];
 
@@ -285,7 +251,6 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         emit ReserveUsedAsCollateral(sender, asset, useAsCollateral);
     }
 
-    // TODO: remove sendToChainId
     function liquidationCall(
         address sender,
         address collateralAsset,
@@ -460,13 +425,13 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             reserve.updateInterestRates(asset, reserve.rTokenAddress, depositAmount, withdrawAmount);
         }
     }
+
     /**
      * @dev Returns the state and configuration of the reserve
      * @param asset The address of the underlying asset of the reserve
      * @return The state of the reserve
      *
      */
-
     function getReserveData(address asset) external view returns (DataTypes.ReserveData memory) {
         return _reserves[asset];
     }
@@ -684,37 +649,6 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         _reserves[asset].configuration.data = configuration;
     }
 
-    /**
-     * @dev Sets the configuration bitmap of the reserve via cross-chain message
-     * - Only callable by the LendingPoolConfigurator contract
-     * @param _identifier Cross-chain message identifier containing origin and chain details
-     * @param _data Encoded message data containing:
-     *        - selector: Function selector to verify the cross-chain call
-     *        - chainId: Target chain ID for the update
-     *        - asset: The address of the underlying asset of the reserve
-     *        - configuration: The new configuration bitmap
-     * @notice Validates the cross-chain message origin and updates the reserve configuration
-     * @notice Will revert if:
-     *         - Message origin is not the LendingPoolConfigurator
-     *         - Chain ID in message doesn't match current chain
-     *         - Selector doesn't match ReserveConfigurationChanged
-     */
-    function setConfiguration(Identifier calldata _identifier, bytes calldata _data) external {
-        if (_identifier.origin != _addressesProvider.getLendingPoolConfigurator()) {
-            revert OriginNotLendingPoolConfigurator();
-        }
-        ICrossL2Inbox(Predeploys.CROSS_L2_INBOX).validateMessage(_identifier, keccak256(_data));
-
-        (bytes32 selector, uint256 chainId, address asset, uint256 configuration) =
-            abi.decode(_data, (bytes32, uint256, address, uint256));
-        if (chainId != block.chainid) revert InvalidChainId(chainId);
-        if (selector != ReserveConfigurationChanged.selector) {
-            revert InvalidSelector(selector);
-        }
-
-        _reserves[asset].configuration.data = configuration;
-    }
-
     struct ExecuteBorrowParams {
         address asset;
         address user;
@@ -749,7 +683,6 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
 
         _updateStates(reserve, address(0), 0, 0, UPDATE_STATE_MASK);
 
-        // uint256 currentStableRate = 0;
         uint256 mintMode = 0;
         uint256 amountScaled = 0;
 

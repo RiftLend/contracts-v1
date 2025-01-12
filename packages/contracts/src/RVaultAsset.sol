@@ -1,29 +1,25 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.8.25;
 
+import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
 import {ILendingPoolAddressesProvider} from "src/interfaces/ILendingPoolAddressesProvider.sol";
 import {ISuperAsset} from "src/interfaces/ISuperAsset.sol";
-// import "./interfaces/IRVaultAsset.sol"; // @audit umar maybe remmove this.
-import {Origin, MessagingReceipt} from "src/libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
+import "src/interfaces/IRVaultAsset.sol";
+import {ILendingPool} from "src/interfaces/ILendingPool.sol";
 
-import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
-import {ILendingPool} from "./interfaces/ILendingPool.sol";
-import {ILayerZeroEndpointV2} from "./libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
-
+import {Origin, MessagingReceipt, ILayerZeroEndpointV2, MessagingFee} from "src/libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
+import {Initializable} from "@solady/utils/Initializable.sol";
 import {Ownable} from "@solady/auth/Ownable.sol";
-import {Predeploys} from "./libraries/Predeploys.sol";
+import {Predeploys} from "src/libraries/Predeploys.sol";
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
-import {OFT} from "./libraries/helpers/layerzero/OFT.sol";
+import {OFT} from "src/libraries/helpers/layerzero/OFT.sol";
 import {ERC20} from "@solady/tokens/ERC20.sol";
-import {SendParam, OFTReceipt} from "./libraries/helpers/layerzero/IOFT.sol";
-import {MessagingFee} from "./libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
-import {SuperOwnable} from "./interop-std/src/auth/SuperOwnable.sol";
-import {DataTypes} from "./libraries/types/DataTypes.sol";
-import {OFTLogic} from "./libraries/logic/OFTLogic.sol";
-import {ILendingPool} from "./interfaces/ILendingPool.sol";
+import {SendParam, OFTReceipt} from "src/libraries/helpers/layerzero/IOFT.sol";
+import {SuperOwnable} from "src/interop-std/src/auth/SuperOwnable.sol";
+import {DataTypes} from "src/libraries/types/DataTypes.sol";
+import {OFTLogic} from "src/libraries/logic/OFTLogic.sol";
 
-// @tabish make the RVaultAsset upgradable.
-contract RVaultAsset is SuperOwnable, OFT {
+contract RVaultAsset is Initializable, SuperOwnable, OFT {
     using SafeERC20 for IERC20;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -43,14 +39,10 @@ contract RVaultAsset is SuperOwnable, OFT {
     uint256 public totalBalances;
     mapping(address => uint256) public _lastWithdrawalTime;
     uint256 public withdrawCoolDownPeriod = 1 days;
-    // todo: @umar set a max limit of totalAssets() and check when depositing that the limit doesn't exceed for a rVaultAsset
     uint256 public maxDepositLimit = 1000 ether;
 
     uint8 public immutable pool_type; // 1 - superchain, unset for ethereum and arbitrum instances
-    // Chain to EID mapping
     mapping(uint256 => uint32) public chainToEid;
-    // EID to chain mapping
-    mapping(uint32 => uint256) public eidToChain;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           Events                           */
@@ -73,6 +65,7 @@ contract RVaultAsset is SuperOwnable, OFT {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           Modifiers                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+    
     modifier onlyRouter() {
         if (provider.getRouter() != msg.sender) revert onlyRouterCall();
         _;
@@ -89,7 +82,7 @@ contract RVaultAsset is SuperOwnable, OFT {
     /// @param name_ - the name of the rVaultAsset
     /// @param symbol_ - the symbol of the rVaultAsset
     /// @param decimals_ - the decimals of the rVaultAsset
-    constructor(
+    function initialize(
         address underlying_,
         ILendingPoolAddressesProvider provider_,
         address lzEndpoint_,
@@ -97,7 +90,7 @@ contract RVaultAsset is SuperOwnable, OFT {
         string memory name_,
         string memory symbol_,
         uint8 decimals_
-    ) OFT(lzEndpoint_, delegate_, decimals_) {
+    ) external initializer {
         underlying = underlying_;
         provider = provider_;
         pool_type = provider.getPoolType();
@@ -107,6 +100,7 @@ contract RVaultAsset is SuperOwnable, OFT {
         _decimals = decimals_;
 
         _initializeSuperOwner(uint64(block.chainid), msg.sender);
+        OFT__Init(lzEndpoint_, delegate_, decimals_);
     }
 
     /// @param shares - the amount of shares to mint
@@ -190,8 +184,7 @@ contract RVaultAsset is SuperOwnable, OFT {
     /// @param _asset - asset to be withdrawn
     /// @param _recipient - address to which the underlying is to be sent
     /// @param _amount - amount of underlying to be sent
-    // @audit the superadmin code ..., thinking is this onlySuperAdmin or onlyOwner
-    function withdrawTokens(address _asset, address _recipient, uint256 _amount) external onlySuperAdmin {
+    function withdrawTokens(address _asset, address _recipient, uint256 _amount) external onlyOwner {
         if (_asset == underlying) revert UnAuthorized();
         IERC20(_asset).safeTransfer(_recipient, _amount);
     }
@@ -253,7 +246,6 @@ contract RVaultAsset is SuperOwnable, OFT {
         if (toChainId != block.chainid) {
             // @audit tabish this also
             bytes memory compose_message = OFTLogic.encodeMessage(receiverOfUnderlying, amount);
-            // TODO: umar fix this eid
             SendParam memory sendParam = SendParam(
                 chainToEid[toChainId], bytes32(uint256(uint160(address(this)))), 0, 0, "", compose_message, ""
             );
@@ -284,11 +276,6 @@ contract RVaultAsset is SuperOwnable, OFT {
 
     function setChainToEid(uint256 _chainId, uint32 _eid) public {
         chainToEid[_chainId] = _eid;
-    }
-
-    // Setter function for EID to chain mapping
-    function setEidToChain(uint256 _chainId, uint32 _eid) public {
-        eidToChain[_eid] = _chainId;
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/

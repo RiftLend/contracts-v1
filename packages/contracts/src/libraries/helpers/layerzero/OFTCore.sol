@@ -33,7 +33,7 @@ abstract contract OFTCore is IOFT, OApp, OAppPreCrimeSimulator, OAppOptionsType3
     //  you can only display 1.23 -> uint(123).
     //  @dev To preserve the dust that would otherwise be lost on that conversion,
     //  we need to unify a denomination that can be represented on ALL chains inside of the OFT mesh
-    uint256 public immutable decimalConversionRate;
+    uint256 public decimalConversionRate;
 
     // @notice Msg types that are used to identify the various OFT operations.
     // @dev This can be extended in child contracts for non-default oft operations
@@ -52,9 +52,10 @@ abstract contract OFTCore is IOFT, OApp, OAppPreCrimeSimulator, OAppOptionsType3
      * @param _endpoint The address of the LayerZero endpoint.
      * @param _delegate The delegate capable of making OApp configurations inside of the endpoint.
      */
-    constructor(uint8 _localDecimals, address _endpoint, address _delegate) OApp(_endpoint, _delegate) {
+    function OFTCore__Init(uint8 _localDecimals, address _endpoint, address _delegate) internal {
         if (_localDecimals < sharedDecimals()) revert InvalidLocalDecimals();
         decimalConversionRate = 10 ** (_localDecimals - sharedDecimals());
+        OApp__Init(_endpoint, _delegate);
     }
 
     /**

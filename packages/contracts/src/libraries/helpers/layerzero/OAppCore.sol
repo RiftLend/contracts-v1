@@ -11,7 +11,7 @@ import {IOAppCore, ILayerZeroEndpointV2} from "./IOAppCore.sol";
  */
 abstract contract OAppCore is IOAppCore, Ownable {
     // The LayerZero endpoint associated with the given OApp
-    ILayerZeroEndpointV2 public immutable endpoint;
+    ILayerZeroEndpointV2 public endpoint;
 
     // Mapping to store peers associated with corresponding endpoints
     mapping(uint32 eid => bytes32 peer) public peers;
@@ -23,7 +23,7 @@ abstract contract OAppCore is IOAppCore, Ownable {
      *
      * @dev The delegate typically should be set as the owner of the contract.
      */
-    constructor(address _endpoint, address _delegate) {
+    function OAppCore__Init(address _endpoint, address _delegate) internal {
         endpoint = ILayerZeroEndpointV2(_endpoint);
 
         if (_delegate == address(0)) revert InvalidDelegate();

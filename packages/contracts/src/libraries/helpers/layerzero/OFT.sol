@@ -16,7 +16,9 @@ abstract contract OFT is OFTCore, ERC20 {
      * @param _lzEndpoint The LayerZero endpoint address.
      * @param _delegate The delegate capable of making OApp configurations inside of the endpoint.
      */
-    constructor(address _lzEndpoint, address _delegate, uint8 _decimals) OFTCore(_decimals, _lzEndpoint, _delegate) {}
+    function OFT__Init(address _lzEndpoint, address _delegate, uint8 _decimals) internal {
+        OFTCore__Init(_decimals, _lzEndpoint, _delegate);
+    }
 
     /**
      * @dev Retrieves the address of the underlying ERC20 implementation.
