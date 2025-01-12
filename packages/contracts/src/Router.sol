@@ -2,38 +2,41 @@
 pragma solidity 0.8.25;
 
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
-import "./interfaces/ILendingPool.sol";
-import {ILendingPoolCollateralManager} from "./interfaces/ILendingPoolCollateralManager.sol";
-import {ISuperAsset} from "./interfaces/ISuperAsset.sol";
-import {IRToken} from "./interfaces/IRToken.sol";
-import {IRVaultAsset} from "./interfaces/IRVaultAsset.sol";
-import {IVariableDebtToken} from "./interfaces/IVariableDebtToken.sol";
-import {ISuperchainTokenBridge} from "./interfaces/ISuperchainTokenBridge.sol";
-import {ILendingPoolAddressesProvider} from "./interfaces/ILendingPoolAddressesProvider.sol";
-import {ILendingPool} from "./interfaces/ILendingPool.sol";
+import "src/interfaces/ILendingPool.sol";
+import {ILendingPoolCollateralManager} from "src/interfaces/ILendingPoolCollateralManager.sol";
+import {ISuperAsset} from "src/interfaces/ISuperAsset.sol";
+import {IRToken} from "src/interfaces/IRToken.sol";
+import {IRVaultAsset} from "src/interfaces/IRVaultAsset.sol";
+import {IVariableDebtToken} from "src/interfaces/IVariableDebtToken.sol";
+import {ISuperchainTokenBridge} from "src/interfaces/ISuperchainTokenBridge.sol";
+import {ILendingPoolAddressesProvider} from "src/interfaces/ILendingPoolAddressesProvider.sol";
 
 import {Initializable} from "@solady/utils/Initializable.sol";
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
-import {ReserveLogic} from "./libraries/logic/ReserveLogic.sol";
-import {Errors} from "./libraries/helpers/Errors.sol";
-import {SuperPausable} from "./interop-std/src/utils/SuperPausable.sol";
-import {Predeploys} from "./libraries/Predeploys.sol";
-import {EventValidator, ValidationMode, Identifier} from "./libraries/EventValidator.sol";
-import {DataTypes} from "./libraries/types/DataTypes.sol";
-import {console} from "forge-std/console.sol";
+import {ReserveLogic} from "src/libraries/logic/ReserveLogic.sol";
+import {Errors} from "src/libraries/helpers/Errors.sol";
+import {SuperPausable} from "src/interop-std/src/utils/SuperPausable.sol";
+import {Predeploys} from "src/libraries/Predeploys.sol";
+import {EventValidator, ValidationMode, Identifier} from "src/libraries/EventValidator.sol";
+import {DataTypes} from "src/libraries/types/DataTypes.sol";
 
 contract Router is Initializable, SuperPausable {
     using SafeERC20 for IERC20;
     using ReserveLogic for DataTypes.ReserveData;
 
     bytes2 public constant UPDATE_RATES_AND_STATES_MASK = bytes2(uint16(3));
-
     uint256 public constant ROUTER_REVISION = 0x1;
+    
     ILendingPool public lendingPool;
     ILendingPoolAddressesProvider public addressesProvider;
     address public relayer;
     EventValidator public eventValidator;
     uint8 pool_type;
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                  Modifiers                                 */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
 
     modifier onlyRelayer() {
         _onlyRelayer();
@@ -54,6 +57,10 @@ contract Router is Initializable, SuperPausable {
             addressesProvider.getLendingPoolConfigurator() == msg.sender, Errors.LP_CALLER_NOT_LENDING_POOL_CONFIGURATOR
         );
     }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                  External Functions                        */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
      * @dev Function is invoked by the proxy contract to initialize the Router contract
@@ -108,7 +115,7 @@ contract Router is Initializable, SuperPausable {
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*                    WITHDRAW DISPATCH                       */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-        // emit Withdraw(sender, asset, to, amountToWithdraw, mode, amountScaled);
+
         if (selector == Withdraw.selector && _identifier.chainId != block.chainid) {
             (, address asset, address to, uint256 amount, uint256 mintMode, uint256 amountScaled) =
                 abi.decode(_data[64:], (address, address, address, uint256, uint256, uint256));
@@ -125,7 +132,7 @@ contract Router is Initializable, SuperPausable {
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*                    BORROW DISPATCH                         */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-        // event Borrow(address reserve,uint256 amount,address user,address onBehalfOf,uint256 borrowRateMode,uint256 sendToChainId,uint256 borrowRate,uint256 mintMode,uint256 amountScaled,uint16 referral);
+
         if (selector == Borrow.selector && _identifier.chainId != block.chainid) {
             (address asset, uint256 amount,, address onBehalfOf,,, uint256 mintMode, uint256 amountScaled,) =
                 abi.decode(_data[32:], (address, uint256, address, address, uint256, uint256, uint256, uint256, uint16));
@@ -151,6 +158,7 @@ contract Router is Initializable, SuperPausable {
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*                    REPAY DISPATCH                          */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+        
         if (selector == Repay.selector && _identifier.chainId != block.chainid) {
             (address asset, uint256 amount,, address repayer,, uint256 mintMode, uint256 amountBurned) =
                 abi.decode(_data[32:], (address, uint256, address, address, uint256, uint256, uint256));
@@ -175,6 +183,7 @@ contract Router is Initializable, SuperPausable {
             }
             // send rvaultasset to debtchain  normal bridging
             // bridge rVaultasset and not the underlying remember ...
+            // @audit check
             IRVaultAsset(rVaultAsset).bridge(address(lendingPool), debtChainId, amount);
             emit CrossChainRepayFinalize(debtChainId, sender, onBehalfOf, amount, rVaultAsset);
         } else if (selector == CrossChainRepayFinalize.selector && abi.decode(_data[32:64], (uint256)) == block.chainid)
@@ -187,7 +196,6 @@ contract Router is Initializable, SuperPausable {
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*                    LIQUIDATION CALL DISPATCH               */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-        //    event LiquidationCall(address indexed collateralAsset,address indexed debtAsset,address indexed user,uint256 debtToCover,uint256 liquidatedCollateralAmount,address liquidator,bool receiveRToken,uint256 variableDebtBurned,uint256 collateralRTokenBurned)
         if (selector == ILendingPoolCollateralManager.LiquidationCall.selector && _identifier.chainId != block.chainid)
         {
             (
@@ -250,18 +258,6 @@ contract Router is Initializable, SuperPausable {
                 uint16 referralCode
             ) = abi.decode(_data[96:], (address, address, address[], uint256[], uint256[], address, bytes, uint16));
             lendingPool.flashLoan(sender, receiverAddress, assets, amounts, modes, onBehalfOf, params, referralCode);
-        }
-
-        /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-        /*               UseReserveAsCollateral DISPATCH              */
-        /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-
-        if (
-            selector == CrossChainSetUserUseReserveAsCollateral.selector
-                && abi.decode(_data[32:64], (uint256)) == block.chainid
-        ) {
-            (address sender, address asset, bool useAsCollateral) = abi.decode(_data[64:], (address, address, bool));
-            lendingPool.setUserUseReserveAsCollateral(sender, asset, useAsCollateral);
         }
     }
 

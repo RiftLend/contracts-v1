@@ -189,6 +189,7 @@ library ReserveLogic {
         //calculates the total variable debt locally using the scaled total supply instead
         //of totalSupply(), as it's noticeably cheaper. Also, the index has been
         //updated by the previous updateState() call
+        // @audit check
         vars.totalVariableDebt =
             IVariableDebtToken(reserve.variableDebtTokenAddress).scaledTotalSupply().rayMul(reserve.variableBorrowIndex);
 
