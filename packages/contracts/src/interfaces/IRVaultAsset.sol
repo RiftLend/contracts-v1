@@ -59,7 +59,7 @@ interface IRVaultAsset {
 
     function maxRedeem(address owner) external view returns (uint256);
 
-    function burn(address user, address receiverOfUnderlying, uint256 toChainId, uint256 amount) external;
+    function burn(address receiverOfUnderlying, uint256 toChainId, uint256 amount) external;
 
     // Events
     event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
@@ -74,8 +74,6 @@ interface IRVaultAsset {
     function setChainClusterType(uint256 chainId, DataTypes.Chain_Cluster_Types cluster_type) external;
 
     function setWithdrawCoolDownPeriod(uint256 _newPeriod) external;
-
-    function setChainPeer(uint32 _eid, bytes32 _peer) external;
 
     function toggleSuperTokenBridgeEnabled(bool mode) external;
 

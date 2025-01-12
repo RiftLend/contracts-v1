@@ -154,9 +154,8 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         // TODO: transfer
         if (selector == BalanceTransfer.selector && _identifier.chainId != block.chainid) {
             (address from, address to, uint256 amount,) = abi.decode(_data[32:], (address, address, uint256, uint256));
-            // _totalCrossChainSupply -= amount;
             crossChainUserBalance[from] -= amount;
-            crossChainUserBalance[to] -= amount;
+            crossChainUserBalance[to] += amount;
         }
     }
 

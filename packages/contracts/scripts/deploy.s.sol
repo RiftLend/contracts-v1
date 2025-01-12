@@ -16,7 +16,8 @@ import {LendingRateOracle} from "../src/LendingRateOracle.sol";
 import {SuperAsset} from "../src/SuperAsset.sol";
 import {RToken} from "../src/tokenization/RToken.sol";
 import {VariableDebtToken} from "../src/tokenization/VariableDebtToken.sol";
-import {L2NativeSuperchainERC20} from "../src/L2NativeSuperchainERC20.sol";
+import {L2NativeSuperchainERC20} from "../src/libraries/op/L2NativeSuperchainERC20.sol";
+
 import {Router} from "../src/Router.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {MockLayerZeroEndpointV2} from "../test/utils/MockLayerZeroEndpointV2.sol";

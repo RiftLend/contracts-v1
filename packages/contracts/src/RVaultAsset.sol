@@ -40,9 +40,15 @@ contract RVaultAsset is SuperOwnable, OFT {
 
     uint256 public totalBalances;
     mapping(address => uint256) public _lastWithdrawalTime;
-    uint256 public WITHDRAW_COOL_DOWN_PERIOD = 1 days;
+    uint256 public withdrawCoolDownPeriod = 1 days;
     // todo: @umar set a max limit of totalAssets() and check when depositing that the limit doesn't exceed for a rVaultAsset
+    uint256 public maxDepositLimit;
+
     uint8 public immutable pool_type; // 1 - superchain, unset for ethereum and arbitrum instances
+    // Chain to EID mapping
+    mapping(uint256 => uint32) public chainToEid;
+    // EID to chain mapping
+    mapping(uint32 => uint256) public eidToChain;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           Events                           */
@@ -54,24 +60,17 @@ contract RVaultAsset is SuperOwnable, OFT {
     /*                           Errors                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    error NonConfiguredCluster(uint256 ChainId);
     error OnlyRelayerCall();
-    error BridgeCrossClusterFailed();
     error OftSendFailed();
-    error onlySuperAssetAdapterOrLzEndpointCall();
     error onlyRouterCall();
-    error withdrawCoolDownPeriodNotElapsed();
     error BungeeBridgingFailed();
+    error DepositLimitExceeded();
+    error WithdrawCoolDownPeriodNotElapsed();
+    error UnAuthorized();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           Modifiers                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-
-    modifier onlyRelayer() {
-        if (provider.getRelayer() != msg.sender) revert OnlyRelayerCall();
-        _;
-    }
-
     modifier onlyRouter() {
         if (provider.getRouter() != msg.sender) revert onlyRouterCall();
         _;
@@ -117,8 +116,8 @@ contract RVaultAsset is SuperOwnable, OFT {
     /// @param assets - the amount of assets to deposit
     /// @param receiver - the address to which the assets are deposited
     function deposit(uint256 assets, address receiver) public returns (uint256) {
+        if (totalAssets() + assets > maxDepositLimit) revert DepositLimitExceeded();
         totalBalances += assets;
-
         balances[receiver] += assets;
         super._mint(receiver, assets);
         IERC20(underlying).safeTransferFrom(msg.sender, address(this), assets);
@@ -148,10 +147,13 @@ contract RVaultAsset is SuperOwnable, OFT {
     /// @param _receiver - the address to which the underlying is to be sent
     /// @param _owner - the address of the owner of the rVaultAsset
     function withdraw(uint256 _assets, address _receiver, address _owner) public returns (uint256 shares) {
+        if (block.timestamp - _lastWithdrawalTime[_owner] < withdrawCoolDownPeriod) {
+            revert WithdrawCoolDownPeriodNotElapsed();
+        }
+        _lastWithdrawalTime[_owner] = block.timestamp;
         shares = _assets;
         if (msg.sender != _owner) _spendAllowance(_owner, msg.sender, shares);
         _burn(_owner, shares);
-
         if (pool_type == 1) ISuperAsset(underlying).withdraw(_receiver, shares);
         else IERC20(underlying).safeTransfer(_receiver, shares);
     }
@@ -161,7 +163,8 @@ contract RVaultAsset is SuperOwnable, OFT {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     // todo: ask bungee about if there contracts can change for bridging and also do they have the same addresses
-    function bridgeUnderlying( // we will hardcode bungee target address in the contracts to gain trust that we dont move the funds elsewhere ...
+    function bridgeUnderlying(
+        // we will hardcode bungee target address in the contracts to gain trust that we dont move the funds elsewhere ...
         // @audit the transaction data of what type it is and write a standardalized format so that we can verify it because this is a .call directly ...
         address payable _bungeeTarget,
         bytes memory txData,
@@ -187,7 +190,7 @@ contract RVaultAsset is SuperOwnable, OFT {
     /// @param _amount - amount of underlying to be sent
     // @audit the superadmin code ..., thinking is this onlySuperAdmin or onlyOwner
     function withdrawTokens(address _asset, address _recipient, uint256 _amount) external onlySuperAdmin {
-        if (_asset == underlying) revert("UnAuthorized");
+        if (_asset == underlying) revert UnAuthorized();
         IERC20(_asset).safeTransfer(_recipient, _amount);
     }
 
@@ -218,15 +221,21 @@ contract RVaultAsset is SuperOwnable, OFT {
         // @audit tabish this also to see the oftTxCaller
         (address receiverOfUnderlying, uint256 amount, address oftTxCaller) = OFTLogic.decodeMessage(_message);
         if (msg.sender != address(endpoint) && oftTxCaller != address(this)) {
-            revert("UnAuthorized");
+            revert UnAuthorized();
         }
         if (_getPeerOrRevert(_origin.srcEid) != _origin.sender) {
             revert OnlyPeer(_origin.srcEid, _origin.sender);
         }
+        address assetToTransfer = underlying;
         if (pool_type == 1) {
-            ISuperAsset(underlying).withdraw(receiverOfUnderlying, amount);
+            ISuperAsset(underlying).withdraw(address(this), amount);
+            assetToTransfer = ISuperAsset(underlying).underlying();
+        }
+        // Todo:tabish verify : send rVaultAsset tokens to user if we run short of underlying to transfer
+        if (IERC20(assetToTransfer).balanceOf(address(this)) < amount) {
+            super._mint(receiverOfUnderlying, amount);
         } else {
-            IERC20(underlying).safeTransfer(receiverOfUnderlying, amount);
+            IERC20(assetToTransfer).safeTransfer(receiverOfUnderlying, amount);
         }
 
         emit OFTReceived(_guid, _origin.srcEid, address(0), 0);
@@ -243,8 +252,9 @@ contract RVaultAsset is SuperOwnable, OFT {
             // @audit tabish this also
             bytes memory compose_message = OFTLogic.encodeMessage(receiverOfUnderlying, amount);
             // TODO: umar fix this eid
-            SendParam memory sendParam =
-                SendParam(uint32(toChainId), bytes32(uint256(uint160(address(this)))), 0, 0, "", compose_message, "");
+            SendParam memory sendParam = SendParam(
+                chainToEid[toChainId], bytes32(uint256(uint160(address(this)))), 0, 0, "", compose_message, ""
+            );
             MessagingFee memory fee = quoteSend(sendParam, false);
             _send(sendParam, fee, payable(address(this)));
         } else {
@@ -260,8 +270,23 @@ contract RVaultAsset is SuperOwnable, OFT {
     /*                 Privileged Functions                       */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    function setChainPeer(uint32 _eid, bytes32 _peer) public onlySuperAdmin {
-        _setPeer(_eid, _peer);
+    function setMaxDepositLimit(uint256 _maxDeposit) public onlySuperAdmin {
+        maxDepositLimit = _maxDeposit;
+    }
+    // set withdrawCoolDownPeriod
+
+    function setWithdrawCoolDownPeriod(uint256 _withdrawCoolDownPeriod) public onlySuperAdmin {
+        withdrawCoolDownPeriod = _withdrawCoolDownPeriod;
+    }
+    // Setter function for chain to EID mapping
+
+    function setChainToEid(uint256 _chainId, uint32 _eid) public {
+        chainToEid[_chainId] = _eid;
+    }
+
+    // Setter function for EID to chain mapping
+    function setEidToChain(uint256 _chainId, uint32 _eid) public {
+        eidToChain[_eid] = _chainId;
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -306,7 +331,7 @@ contract RVaultAsset is SuperOwnable, OFT {
         return underlying;
     }
 
-    function totalAssets() external view returns (uint256) {
+    function totalAssets() public view returns (uint256) {
         return IERC20(underlying).balanceOf(address(this));
     }
 

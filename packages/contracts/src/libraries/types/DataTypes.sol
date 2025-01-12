@@ -13,7 +13,7 @@ library DataTypes {
         address variableDebtTokenAddress;
         address interestRateStrategyAddress;
         uint8 id;
-        //uint8 pool_type; // TODO: Put this in LendingPoolStorage instead.
+        //uint8 pool_type; // TODO:DONE Put this in LendingPoolStorage instead.
         address superAsset;
     }
 

@@ -230,9 +230,6 @@ contract Base is Test {
 
         IRVaultAsset(rVaultAsset1).setChainClusterType(block.chainid, DataTypes.Chain_Cluster_Types.SUPER_CHAIN);
         IRVaultAsset(rVaultAsset2).setChainClusterType(block.chainid, DataTypes.Chain_Cluster_Types.OTHER);
-        // TODO:add correct peers here
-        IRVaultAsset(rVaultAsset1).setChainPeer(uint32(block.chainid), bytes32(bytes20(makeAddr("peer1"))));
-        IRVaultAsset(rVaultAsset2).setChainPeer(uint32(block.chainid), bytes32(bytes20(makeAddr("peer2"))));
 
         vm.stopPrank();
 

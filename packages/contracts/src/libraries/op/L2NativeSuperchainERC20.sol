@@ -2,7 +2,7 @@
 // TODO: umar move this file to libraries/op
 pragma solidity 0.8.25;
 
-import {Predeploys} from "./libraries/Predeploys.sol";
+import {Predeploys} from "../Predeploys.sol";
 import {SuperchainERC20} from "./SuperchainERC20.sol";
 import {Ownable} from "@solady/auth/Ownable.sol";
 import {ERC20} from "@solady/tokens/ERC20.sol";

@@ -220,7 +220,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             paybackAmount = amount;
         } else {
             paybackAmount = debt;
-            IRVaultAsset(rVaultAsset).burn(sender, sender, block.chainid, amount - paybackAmount);
+            IRVaultAsset(rVaultAsset).burn(sender, block.chainid, amount - paybackAmount);
         }
         _updateStates(reserve, asset, paybackAmount, 0, UPDATE_RATES_AND_STATES_MASK);
         (uint256 mode, uint256 amountBurned) = IVariableDebtToken(reserve.variableDebtTokenAddress).burn(

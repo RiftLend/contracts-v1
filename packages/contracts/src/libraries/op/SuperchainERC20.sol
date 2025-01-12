@@ -2,12 +2,13 @@
 // TODO: umar move this file to libraries/op
 pragma solidity 0.8.25;
 
-import {IERC7802, IERC165} from "./interfaces/IERC7802.sol";
-import {ISemver} from "./interfaces/ISemver.sol";
-import {Predeploys} from "./libraries/Predeploys.sol";
+import {IERC7802, IERC165} from "../../interfaces/IERC7802.sol";
+import {ISemver} from "../../interfaces/ISemver.sol";
+
+import {Predeploys} from "../Predeploys.sol";
 import {ERC20} from "@solady/tokens/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Unauthorized} from "./libraries/op/errors/CommonErrors.sol";
+import {Unauthorized} from "./errors/CommonErrors.sol";
 
 /// @title SuperchainERC20
 /// @notice A standard ERC20 extension implementing IERC7802 for unified cross-chain fungibility across
