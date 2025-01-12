@@ -174,6 +174,7 @@ contract Router is Initializable, SuperPausable {
                 IERC20(asset).safeTransfer(rVaultAsset, amount);
             }
             // send rvaultasset to debtchain  normal bridging
+            // bridge rVaultasset and not the underlying remember ...
             IRVaultAsset(rVaultAsset).bridge(address(lendingPool), debtChainId, amount);
             emit CrossChainRepayFinalize(debtChainId, sender, onBehalfOf, amount, rVaultAsset);
         } else if (selector == CrossChainRepayFinalize.selector && abi.decode(_data[32:64], (uint256)) == block.chainid)

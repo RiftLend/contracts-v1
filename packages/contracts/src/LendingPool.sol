@@ -212,8 +212,6 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     function repay(address sender, address onBehalfOf, address asset, uint256 amount) external onlyRouter {
         address rVaultAsset = getRVaultAssetOrRevert(asset);
         DataTypes.ReserveData storage reserve = _reserves[rVaultAsset];
-
-        /// @dev this will get the debt of the user on the current chain
         uint256 debt = Helpers.getUserCurrentDebt(onBehalfOf, reserve);
         ValidationLogic.validateRepay(reserve, amount, debt);
 
@@ -222,24 +220,20 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             paybackAmount = amount;
         } else {
             paybackAmount = debt;
-            // TODO: umar as we are sending them the asset back in the same chain why are we bridging
-            IRVaultAsset(rVaultAsset).bridge(sender, block.chainid, amount - paybackAmount);
+            IRVaultAsset(rVaultAsset).burn(sender, sender, block.chainid, amount - paybackAmount);
         }
-
         _updateStates(reserve, asset, paybackAmount, 0, UPDATE_RATES_AND_STATES_MASK);
-
         (uint256 mode, uint256 amountBurned) = IVariableDebtToken(reserve.variableDebtTokenAddress).burn(
             onBehalfOf, paybackAmount, reserve.variableBorrowIndex
         );
 
         address rToken = reserve.rTokenAddress;
-
         if (debt - paybackAmount == 0) {
             _usersConfig[onBehalfOf].setBorrowing(reserve.id, false);
         }
-
         IERC20(rVaultAsset).safeTransfer(address(rToken), paybackAmount);
-        IRToken(rToken).handleRepayment(onBehalfOf, paybackAmount); // TODO check handleRepayment function ...
+        IRToken(rToken).handleRepayment(onBehalfOf, paybackAmount);
+        /// @audit tabish check handleRepayment function ...
 
         emit Repay(asset, paybackAmount, onBehalfOf, sender, mode, amountBurned);
     }
