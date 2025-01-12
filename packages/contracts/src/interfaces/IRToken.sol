@@ -93,13 +93,12 @@ interface IRToken is IERC20, IScaledBalanceToken, IInitializableRToken {
     /**
      * @dev Transfers the underlying asset to `target`. Used by the LendingPool to transfer
      * assets in borrow(), withdraw() and flashLoan()
-     * @param user The recipient of the underlying
      * @param amount The amount getting transferred
      * @param toChainId The chain id to send the funds to
      * @return The amount transferred
      *
      */
-    function transferUnderlyingTo(address user, address receiverOfUnderlying, uint256 amount, uint256 toChainId)
+    function transferUnderlyingTo(address receiverOfUnderlying, uint256 amount, uint256 toChainId)
         external
         returns (uint256);
 

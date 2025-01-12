@@ -22,6 +22,14 @@ library OFTLogic {
         // abi.encodePacked(_sendTo, _amountShared, addressToBytes32(msg.sender), _composeMsg)
         (,, bytes32 oftCaller, bytes memory encoded_message) = abi.decode(_message, (address, uint256, bytes32, bytes));
         _oftCaller = address(uint160(uint256(oftCaller)));
-        (_amount, _receiverOfUnderlying) = abi.decode(encoded_message, (uint256, address));
+        (_receiverOfUnderlying, _amount) = abi.decode(encoded_message, (address, uint256));
+    }
+
+    function decodeSubLzMessage(bytes memory encoded_message)
+        public
+        pure
+        returns (address _receiverOfUnderlying, uint256 _amount)
+    {
+        (_receiverOfUnderlying, _amount) = abi.decode(encoded_message, (address, uint256));
     }
 }

@@ -386,13 +386,12 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     /**
      * @dev Transfers the underlying asset to `target`. Used by the LendingPool to transfer
      * assets in borrow(), withdraw() and flashLoan()
-     * @param user The send of the rTokens
      * @param receiverOfUnderlying The recipient of the rTokens
      * @param amount The amount getting transferred
      * @return The amount transferred
      *
      */
-    function transferUnderlyingTo(address user, address receiverOfUnderlying, uint256 amount, uint256 toChainId)
+    function transferUnderlyingTo(address receiverOfUnderlying, uint256 amount, uint256 toChainId)
         external
         override
         onlyLendingPool

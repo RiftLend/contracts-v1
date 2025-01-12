@@ -6,6 +6,8 @@ import {ISuperAsset} from "./interfaces/ISuperAsset.sol";
 import "./interfaces/IRVaultAsset.sol";
 import {ISuperchainTokenBridge} from "./interfaces/ISuperchainTokenBridge.sol";
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
+import {ILendingPool} from "./interfaces/ILendingPool.sol";
+import {ILayerZeroEndpointV2} from "./libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
 
 import {Ownable} from "@solady/auth/Ownable.sol";
 import {Predeploys} from "./libraries/Predeploys.sol";
@@ -19,6 +21,10 @@ import {DataTypes} from "./libraries/types/DataTypes.sol";
 import {OFTLogic} from "./libraries/logic/OFTLogic.sol";
 import {ILendingPool} from "./interfaces/ILendingPool.sol";
 import "forge-std/console.sol";
+import {MessagingFee, MessagingParams} from "./libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
+import {PacketV1Codec} from "./libraries/helpers/layerzero/PacketV1Codec.sol";
+import {Packet} from "./libraries/helpers/layerzero/ISendLib.sol";
+import {GUID} from "./libraries/helpers/layerzero/GUID.sol";
 
 contract RVaultAsset is SuperOwnable, OFT {
     using SafeERC20 for IERC20;
@@ -77,6 +83,7 @@ contract RVaultAsset is SuperOwnable, OFT {
     error onlySuperAssetAdapterOrLzEndpointCall();
     error onlyRouterCall();
     error withdrawCoolDownPeriodNotElapsed();
+    error UnAuthorized();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           Modifiers                        */
@@ -132,9 +139,9 @@ contract RVaultAsset is SuperOwnable, OFT {
         balances[receiver] += assets;
         super._mint(receiver, assets);
         IERC20(underlying).safeTransferFrom(msg.sender, address(this), assets);
-        
+
         return assets;
-        
+
         // if (!isRVaultAssetHolder[receiver]) {
         //     isRVaultAssetHolder[receiver] = true;
         //     rVaultAssetHolder[totalRVaultAssetHolders++] = receiver;
@@ -143,15 +150,15 @@ contract RVaultAsset is SuperOwnable, OFT {
     }
 
     /// @notice Burn shares and return underlying
-    function burn(address user, address receiverOfUnderlying, uint256 toChainId, uint256 amount) external {
+    function burn(address receiverOfUnderlying, uint256 toChainId, uint256 amount) external {
         // if (msg.sender != user) _spendAllowance(user, msg.sender, amount);
         // _burn(msg.sender, amount);
         // // IERC20(underlying).safeTransfer(msg.sender, address(this), amount);
         // _bridge(receiverOfUnderlying, toChainId, amount);
         // console.log("bridge success");
         // if (balances[msg.sender] == 0) isRVaultAssetHolder[msg.sender] = false;
-        
-        if(toChainId != block.chainId) {
+
+        if (toChainId != block.chainid) {
             _bridge(receiverOfUnderlying, toChainId, amount);
         } else {
             _burn(msg.sender, amount);
@@ -189,7 +196,8 @@ contract RVaultAsset is SuperOwnable, OFT {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     // todo: ask bungee about if there contracts can change for bridging and also do they have the same addresses
-    function bridgeUnderlying( // we will hardcode bungee target address in the contracts to gain trust that we dont move the funds elsewhere ...
+    function bridgeUnderlying(
+        // we will hardcode bungee target address in the contracts to gain trust that we dont move the funds elsewhere ...
         address payable _bungeeTarget,
         bytes memory txData,
         address _bungeeAllowanceTarget,
@@ -274,8 +282,16 @@ contract RVaultAsset is SuperOwnable, OFT {
             compose_message,
             "" // empty oftCmd
         );
-        MessagingFee memory fee = quoteSend(sendParam, false);
-        _send(sendParam, fee, payable(address(this)));
+        // MessagingFee memory fee = quoteSend(sendParam, false);
+        // todo: uncomment for mainnet launch
+        // _send(sendParam, fee, payable(address(this)));
+
+        // @dev:test below lines are for testing ,
+        // TODO: remove later when launch on mainnet
+        MessagingParams memory messagingParams =
+            MessagingParams(sendParam.dstEid, sendParam.to, compose_message, "", false);
+        _sendPacket(messagingParams, uint32(toChainId), msg.sender);
+        emit OFTSent(bytes32(uint256(1)), sendParam.dstEid, msg.sender, sendParam.amountLD, sendParam.minAmountLD);
     }
 
     function _send(SendParam memory _sendParam, MessagingFee memory _fee, address _refundAddress)
@@ -302,23 +318,59 @@ contract RVaultAsset is SuperOwnable, OFT {
         emit OFTSent(msgReceipt.guid, _sendParam.dstEid, msg.sender, amountSentLD, amountReceivedLD);
     }
 
-    // q why do we even need the superAssetAdapter the vault can directly handle vault to vault communication right, the superAssetAdapter just takes the asset 
+    function _sendPacket(MessagingParams memory _params, uint32 eid, address _sender) internal {
+        // construct the packet with a GUID
+        uint64 latestNonce = 1;
+        Packet memory packet = Packet({
+            nonce: latestNonce,
+            srcEid: eid,
+            sender: _sender,
+            dstEid: _params.dstEid,
+            receiver: _params.receiver,
+            guid: GUID.generate(latestNonce, eid, _sender, _params.dstEid, _params.receiver),
+            message: _params.message
+        });
+        bytes memory packetHeader = PacketV1Codec.encodePacketHeader(packet);
+        bytes memory payload = PacketV1Codec.encodePayload(packet);
+        bytes memory encodedPacket = abi.encodePacked(packetHeader, payload);
+
+        // Emit packet information for DVNs, Executors, and any other offchain infrastructure to only listen
+        // for this one event to perform their actions.
+        emit ILayerZeroEndpointV2.PacketSent(encodedPacket, _params.options, address(0));
+    }
+
+    // q why do we even need the superAssetAdapter the vault can directly handle vault to vault communication right, the superAssetAdapter just takes the asset
     // which was already present in the and that flow is really not needed cause the superasset can just say in the vault, as we withdraw 1:1
     function lzReceive(
-        Origin calldata _origin,
+        Origin calldata, //_origin,
         bytes32, /*_guid*/
         bytes calldata _message,
         address, /*_executor*/
         bytes calldata /*_extraData*/
-    ) public payable override {        
-        (address receiverOfUnderlying, uint256 tokensAmount, address oftTxCaller) = OFTLogic.decodeMessage(_message);
+    ) public payable override {
+        address oftTxCaller = address(this); // for test
+        // (address receiverOfUnderlying, uint256 tokensAmount, oftTxCaller) = OFTLogic.decodeMessage(_message);
+        (address receiverOfUnderlying, uint256 tokensAmount) = OFTLogic.decodeSubLzMessage(_message);
+
         if (msg.sender != address(endpoint) || oftTxCaller != address(this)) {
             revert UnAuthorized();
         }
-        if(pool_type) {
-            ISuperAsset(underlying).withdraw(receiverOfUnderlying, tokensAmount);
+
+        // todo @dev:test un-comment these for mainnet
+        // if (
+        //   msg.sender == address(endpoint) &&
+        //   _getPeerOrRevert(_origin.srcEid) != _origin.sender
+        // ) revert OnlyPeer(_origin.srcEid, _origin.sender);
+        address assetToTransfer = underlying;
+        if (pool_type == 1) {
+            ISuperAsset(underlying).withdraw(address(this), tokensAmount);
+            assetToTransfer = ISuperAsset(underlying).underlying();
+        }
+        // send rVaultAsset tokens to user if we run short of underlying to transfer
+        if (IERC20(assetToTransfer).balanceOf(address(this)) < tokensAmount) {
+            super._mint(receiverOfUnderlying, tokensAmount);
         } else {
-            IERC20(underlying).safeTransfer(receiverOfUnderlying, tokensAmount);
+            IERC20(assetToTransfer).safeTransfer(receiverOfUnderlying, tokensAmount);
         }
 
         // address superAssetAdapter = provider.getSuperAssetAdapter(); // this will be zero in instances other than superchain one
@@ -329,9 +381,8 @@ contract RVaultAsset is SuperOwnable, OFT {
         //     }
         // }
 
-        
         // bug the caller will be on the source chain how can we get the size on the destination chain haha
-        // but irrespective of the caller we have to just transfer the underlying cause on the source chain the 
+        // but irrespective of the caller we have to just transfer the underlying cause on the source chain the
         // uint256 caller_codesize;
         // assembly {
         //     caller_codesize := extcodesize(oftTxCaller)
@@ -340,7 +391,7 @@ contract RVaultAsset is SuperOwnable, OFT {
         // todo:discuss with supercontracts.eth what about proportion of holders amount ?
         // TODO: tabish p1
         // when sending we just burn rVault asset on the source chain if the caller is rVaultAsset
-        // bug: this is a bit weird we are double spending we are 
+        // bug: this is a bit weird we are double spending we are
         // if (oftTxCaller != address(this)) {
         //     distributeRVaultAsset(tokensAmount); // bug we dont need this our invariant is different
         // } else if (caller_codesize == 0) {
@@ -348,7 +399,7 @@ contract RVaultAsset is SuperOwnable, OFT {
         //     _mint(oftTxCaller, tokensAmount);
         // }
 
-        // if (msg.sender == superAssetAdapter) { 
+        // if (msg.sender == superAssetAdapter) {
         //     ISuperAsset(underlying).withdraw(receiverOfUnderlying, tokensAmount);
         // } else {
         //     IERC20(underlying).safeTransfer(receiverOfUnderlying, tokensAmount);
@@ -366,7 +417,7 @@ contract RVaultAsset is SuperOwnable, OFT {
         uint256 toChainId
     ) internal {
         if (toChainId != block.chainid) {
-            // TODO: umar so here in repay, the superAsset gets sent to the lendingpool but in the lending pool we are assuming that the 
+            // TODO: umar so here in repay, the superAsset gets sent to the lendingpool but in the lending pool we are assuming that the
             // rVaultAsset is already there - so this line Router.sol#177 IRVaultAsset(rVaultAsset).bridge(address(lendingPool), debtChainId, amount);
             ISuperchainTokenBridge(Predeploys.SUPERCHAIN_TOKEN_BRIDGE).sendERC20(
                 _underlyingAsset, receiverOfUnderlying, amount, toChainId
@@ -377,7 +428,8 @@ contract RVaultAsset is SuperOwnable, OFT {
     }
 
     /// @notice also write the invariant for bridging ie. sumof RVaultAsset + sumof underlying (source) = sumof RVaultAsset + sumof underlying (source)
-    function bridge(address receiverOfUnderlying, uint256 toChainId, uint256 amount) external onlyRouter { // also then we can remove the onlyRouter call
+    function bridge(address receiverOfUnderlying, uint256 toChainId, uint256 amount) external onlyRouter {
+        // also then we can remove the onlyRouter call
         _bridge(receiverOfUnderlying, toChainId, amount);
     }
 
@@ -395,15 +447,17 @@ contract RVaultAsset is SuperOwnable, OFT {
         //         _bridgeCrossCluster(amount, receiverOfUnderlying, toChainId);
         //     }
         // } else if (sourceType == other_cluster_type && destinationType == other_cluster_type) {
-        //     
+        //
         // } else {
         //     revert NonConfiguredCluster(toChainId);
         // }
 
-        uint256 destinationType = chainIdToClusterType[toChainId];
-        if (pool_type) {
-            if (destinationType && isSuperTokenBridgeEnabled) {
+        DataTypes.Chain_Cluster_Types destinationType = chainIdToClusterType[toChainId];
+        if (pool_type == 1) {
+            if (destinationType == DataTypes.Chain_Cluster_Types.SUPER_CHAIN && isSuperTokenBridgeEnabled) {
                 _bridgeUsingSuperTokenBridge(amount, receiverOfUnderlying, underlying, toChainId);
+            } else {
+                _bridgeCrossCluster(amount, receiverOfUnderlying, toChainId);
             }
         } else {
             _bridgeCrossCluster(amount, receiverOfUnderlying, toChainId);

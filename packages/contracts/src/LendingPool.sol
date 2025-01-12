@@ -388,9 +388,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
 
             premiums[vars.i] = (amounts[vars.i] * _flashLoanPremiumTotal) / 10000;
 
-            IRToken(rTokenAddresses[vars.i]).transferUnderlyingTo(
-                sender, receiverAddress, amounts[vars.i], block.chainid
-            );
+            IRToken(rTokenAddresses[vars.i]).transferUnderlyingTo(receiverAddress, amounts[vars.i], block.chainid);
         }
 
         require(
@@ -772,9 +770,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         _updateStates(reserve, vars.rVaultAsset, 0, vars.releaseUnderlying ? vars.amount : 0, UPDATE_RATES_MASK);
 
         if (vars.releaseUnderlying) {
-            IRToken(vars.rTokenAddress).transferUnderlyingTo(
-                vars.user, vars.onBehalfOf, vars.amount, vars.sendToChainId
-            );
+            IRToken(vars.rTokenAddress).transferUnderlyingTo(vars.onBehalfOf, vars.amount, vars.sendToChainId);
         }
 
         emit Borrow(

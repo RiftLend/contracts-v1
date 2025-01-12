@@ -276,11 +276,11 @@ contract LendingPoolDeployer is Script {
 
     function deploySuperAsset(address underlying) public returns (address addr_) {
         string memory salt = vm.parseTomlString(deployConfig, ".superchain_asset_1.salt");
-        address ownerAddr_ = vm.parseTomlAddress(deployConfig, ".superchain_asset_1.owner_address");
+        // address ownerAddr_ = vm.parseTomlAddress(deployConfig, ".superchain_asset_1.owner_address");
         string memory name = vm.parseTomlString(deployConfig, ".superchain_asset_1.name");
         string memory symbol = vm.parseTomlString(deployConfig, ".superchain_asset_1.symbol");
 
-        uint32 lzEndpoint_eid = 1;
+        // uint32 lzEndpoint_eid = 1;
         // address lzEndpoint = address(new MockLayerZeroEndpointV2(lzEndpoint_eid, ownerAddr_));
         //Todo: add correct weth address here
         address weth = address(0);

@@ -10,7 +10,6 @@ import {ILendingPool} from "../src/interfaces/ILendingPool.sol";
 import {IRVaultAsset} from "../src/interfaces/IRVaultAsset.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IncentivesController} from "./utils/IncentivesController.sol";
-import {ISuperAssetAdapter} from "../src/interfaces/ISuperAssetAdapter.sol";
 import {MessagingFee, MessagingReceipt} from "../src/libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
 import {SendParam, OFTReceipt} from "../src/libraries/helpers/layerzero/IOFT.sol";
 
@@ -31,7 +30,6 @@ import {EndpointV2} from "../src/libraries/helpers/layerzero/EndpointV2.sol";
 import {Router} from "../src/Router.sol";
 import {EventValidator} from "../src/libraries/EventValidator.sol";
 import {DataTypes} from "../src/libraries/types/DataTypes.sol";
-import {SuperAssetAdapter} from "../src/SuperAssetAdapter.sol";
 
 contract Base is Test {
     //////////////////////////
@@ -105,8 +103,6 @@ contract Base is Test {
     address rVaultAsset1;
     address rVaultAsset2;
     address current_wethAddress;
-    SuperAssetAdapter superAssetAdapter1;
-    SuperAssetAdapter superAssetAdapter2;
 
     function setUp() public virtual {
         // vm.chainId(1);
@@ -231,8 +227,6 @@ contract Base is Test {
 
         // ################ Configuring cluster types and lz peers
         vm.startPrank(owner);
-        superAssetAdapter1 = new SuperAssetAdapter(rVaultAsset1, address(lzEndpoint), address(underlyingAsset));
-        superAssetAdapter2 = new SuperAssetAdapter(rVaultAsset2, address(lzEndpoint), address(underlyingAsset));
 
         IRVaultAsset(rVaultAsset1).setChainClusterType(block.chainid, DataTypes.Chain_Cluster_Types.SUPER_CHAIN);
         IRVaultAsset(rVaultAsset2).setChainClusterType(block.chainid, DataTypes.Chain_Cluster_Types.OTHER);
@@ -240,21 +234,7 @@ contract Base is Test {
         IRVaultAsset(rVaultAsset1).setChainPeer(uint32(block.chainid), bytes32(bytes20(makeAddr("peer1"))));
         IRVaultAsset(rVaultAsset2).setChainPeer(uint32(block.chainid), bytes32(bytes20(makeAddr("peer2"))));
 
-        superAssetAdapter1.setChainPeer(uint32(block.chainid), bytes32(bytes20(makeAddr("peer1"))));
-        superAssetAdapter2.setChainPeer(uint32(block.chainid), bytes32(bytes20(makeAddr("peer2"))));
         vm.stopPrank();
-
-        MessagingFee memory mfee = MessagingFee(0, 0);
-        vm.mockCall(
-            address(superAssetAdapter1), abi.encodeWithSelector(ISuperAssetAdapter.quoteSend.selector), abi.encode(mfee)
-        );
-
-        MessagingReceipt memory msgReceipt = MessagingReceipt(bytes32(uint256(1)), uint64(1), mfee);
-        vm.mockCall(
-            address(superAssetAdapter1),
-            abi.encodeWithSelector(ISuperAssetAdapter.send.selector),
-            abi.encode(msgReceipt)
-        );
 
         // ################ Deploy incentives controller ################
         vm.prank(owner);
@@ -299,10 +279,6 @@ contract Base is Test {
         lpAddressProvider1.setRelayer(relayer);
         vm.prank(owner);
         lpAddressProvider1.setRouter(address(router));
-        vm.prank(owner);
-        lpAddressProvider1.setSuperAssetAdapter(address(superAssetAdapter1));
-        vm.prank(owner);
-        lpAddressProvider2.setSuperAssetAdapter(address(superAssetAdapter2));
 
         // ################ Deploy LendingPoolConfigurator ################
         lpConfigurator = new LendingPoolConfigurator();
