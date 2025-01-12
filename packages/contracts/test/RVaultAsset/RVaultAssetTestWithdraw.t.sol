@@ -28,7 +28,7 @@ contract RVaultAssetTestWithdraw is RVaultAssetTestBase {
         IRVaultAsset(rVaultAsset1).withdraw(DEPOSIT_AMOUNT / 2, user1, user1);
         vm.stopPrank();
         // After cooldown period, withdrawal should succeed
-        vm.warp(block.timestamp + IRVaultAsset(rVaultAsset1).WITHDRAW_COOL_DOWN_PERIOD() + 1);
+        vm.warp(block.timestamp + IRVaultAsset(rVaultAsset1).withdrawCoolDownPeriod() + 1);
         vm.startPrank(user1);
         IRVaultAsset(rVaultAsset1).withdraw(DEPOSIT_AMOUNT / 2, user1, user1);
         vm.stopPrank();

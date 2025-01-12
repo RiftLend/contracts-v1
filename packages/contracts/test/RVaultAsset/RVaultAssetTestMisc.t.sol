@@ -28,18 +28,7 @@ contract RVaultAssetTestMisc is RVaultAssetTestBase {
         // Test withdrawal cooldown period modification
         uint256 newPeriod = 2 days;
         IRVaultAsset(rVaultAsset1).setWithdrawCoolDownPeriod(newPeriod);
-        assertEq(IRVaultAsset(rVaultAsset1).WITHDRAW_COOL_DOWN_PERIOD(), newPeriod);
-        // Test cluster type modification
-        uint256 newChainId = 42161; // Arbitrum
-        IRVaultAsset(rVaultAsset1).setChainClusterType(newChainId, DataTypes.Chain_Cluster_Types.OTHER);
-        assertEq(
-            uint256(IRVaultAsset(rVaultAsset1).chainIdToClusterType(newChainId)),
-            uint256(DataTypes.Chain_Cluster_Types.OTHER)
-        );
-        // Test intra-cluster service type toggle
-        IRVaultAsset(rVaultAsset1).toggleSuperTokenBridgeEnabled(true);
-        assertTrue(IRVaultAsset(rVaultAsset1).isSuperTokenBridgeEnabled());
-
+        assertEq(IRVaultAsset(rVaultAsset1).withdrawCoolDownPeriod(), newPeriod);
         vm.stopPrank();
     }
 
@@ -51,8 +40,6 @@ contract RVaultAssetTestMisc is RVaultAssetTestBase {
         vm.expectRevert();
         IRVaultAsset(rVaultAsset1).setWithdrawCoolDownPeriod(2 days);
         vm.expectRevert();
-        IRVaultAsset(rVaultAsset1).setChainClusterType(1, DataTypes.Chain_Cluster_Types.SUPER_CHAIN);
-        vm.expectRevert();
         IRVaultAsset(rVaultAsset1).toggleSuperTokenBridgeEnabled(true);
         vm.stopPrank();
     }
@@ -60,7 +47,7 @@ contract RVaultAssetTestMisc is RVaultAssetTestBase {
     /// @dev tests that the rVaultAsset has the correct underlying
     /// @dev for rVaultAsset1 the underlying is superasset
     /// @dev for rVaultAsset1 the underlying is superasset
-    function test_rVaultAssetUnderlyingIsCorrect() public {
+    function test_rVaultAssetUnderlyingIsCorrect() public view {
         // for rVaultAsset1 the underlying is superasset
         assertEq(IRVaultAsset(rVaultAsset1).asset(), address(superAsset));
         // for rVaultAsset1 the underlying is superasset

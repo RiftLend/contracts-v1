@@ -241,9 +241,6 @@ contract Base is TestHelperOz5 {
         // ################ Configuring cluster types and lz peers
         vm.startPrank(owner);
 
-        IRVaultAsset(rVaultAsset1).setChainClusterType(block.chainid, DataTypes.Chain_Cluster_Types.SUPER_CHAIN);
-        IRVaultAsset(rVaultAsset2).setChainClusterType(block.chainid, DataTypes.Chain_Cluster_Types.OTHER);
-
         vm.stopPrank();
 
         // ################ Deploy incentives controller ################

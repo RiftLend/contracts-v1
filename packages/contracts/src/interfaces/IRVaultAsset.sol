@@ -71,19 +71,15 @@ interface IRVaultAsset {
         address indexed caller, address indexed receiver, address indexed owner, uint256 shares, uint256 assets
     );
 
-    function setChainClusterType(uint256 chainId, DataTypes.Chain_Cluster_Types cluster_type) external;
-
     function setWithdrawCoolDownPeriod(uint256 _newPeriod) external;
 
     function toggleSuperTokenBridgeEnabled(bool mode) external;
 
     function pool_type() external view returns (uint8);
 
-    function WITHDRAW_COOL_DOWN_PERIOD() external view returns (uint256);
+    function withdrawCoolDownPeriod() external view returns (uint256);
 
     function provider() external view returns (address);
-
-    function chainIdToClusterType(uint256) external view returns (uint8);
 
     function isSuperTokenBridgeEnabled() external view returns (bool);
 }

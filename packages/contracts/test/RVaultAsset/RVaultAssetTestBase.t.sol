@@ -46,11 +46,5 @@ contract RVaultAssetTestBase is Base {
             vm.prank(user2);
             superAsset.deposit(user2, DEPOSIT_AMOUNT);
         }
-
-        // Setup chain cluster types
-        vm.startPrank(superProxyAdmin);
-        IRVaultAsset(rVaultAsset1).setChainClusterType(block.chainid, DataTypes.Chain_Cluster_Types.SUPER_CHAIN);
-        IRVaultAsset(rVaultAsset1).setChainClusterType(43114, DataTypes.Chain_Cluster_Types.OTHER); // Avalanche chain
-        vm.stopPrank();
     }
 }

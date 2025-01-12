@@ -44,7 +44,7 @@ contract RVaultAsset is SuperOwnable, OFT {
     mapping(address => uint256) public _lastWithdrawalTime;
     uint256 public withdrawCoolDownPeriod = 1 days;
     // todo: @umar set a max limit of totalAssets() and check when depositing that the limit doesn't exceed for a rVaultAsset
-    uint256 public maxDepositLimit;
+    uint256 public maxDepositLimit = 1000 ether;
 
     uint8 public immutable pool_type; // 1 - superchain, unset for ethereum and arbitrum instances
     // Chain to EID mapping
