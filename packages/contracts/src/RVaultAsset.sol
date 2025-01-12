@@ -3,7 +3,9 @@ pragma solidity 0.8.25;
 
 import {ILendingPoolAddressesProvider} from "src/interfaces/ILendingPoolAddressesProvider.sol";
 import {ISuperAsset} from "src/interfaces/ISuperAsset.sol";
-import "./interfaces/IRVaultAsset.sol"; // @audit umar maybe remmove this.
+// import "./interfaces/IRVaultAsset.sol"; // @audit umar maybe remmove this.
+import {Origin, MessagingReceipt} from "src/libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
+
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
 import {ILendingPool} from "./interfaces/ILendingPool.sol";
 import {ILayerZeroEndpointV2} from "./libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";

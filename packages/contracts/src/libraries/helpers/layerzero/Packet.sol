@@ -2,8 +2,8 @@
 
 pragma solidity ^0.8.20;
 
-import {Origin} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
-import {PacketV1Codec} from "@layerzerolabs/lz-evm-protocol-v2/contracts/messagelib/libs/PacketV1Codec.sol";
+import {Origin} from "./ILayerZeroEndpointV2.sol";
+import {PacketV1Codec} from "./PacketV1Codec.sol";
 
 /**
  * @title InboundPacket

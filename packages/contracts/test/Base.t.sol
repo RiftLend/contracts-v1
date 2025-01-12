@@ -25,13 +25,29 @@ import {LendingPoolAddressesProvider} from "../src/configuration/LendingPoolAddr
 import {LendingPoolConfigurator} from "../src/LendingPoolConfigurator.sol";
 import {DefaultReserveInterestRateStrategy} from "../src/DefaultReserveInterestRateStrategy.sol";
 import {ProxyAdmin} from "src/interop-std/src/utils/SuperProxyAdmin.sol";
-import {OFT} from "@layerzerolabs/oft-evm/contracts/OFT.sol";
+import {OFT} from "../src/libraries/helpers/layerzero/OFT.sol";
+
 import {EndpointV2} from "../src/libraries/helpers/layerzero/EndpointV2.sol";
 import {Router} from "../src/Router.sol";
 import {EventValidator} from "../src/libraries/EventValidator.sol";
 import {DataTypes} from "../src/libraries/types/DataTypes.sol";
 
-contract Base is Test {
+// OApp imports
+import {
+    IOAppOptionsType3, EnforcedOptionParam
+} from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OAppOptionsType3.sol";
+import {OptionsBuilder} from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OptionsBuilder.sol";
+
+// OFT imports/
+import {OFTMsgCodec} from "src/libraries/helpers/layerzero/OFTMsgCodec.sol";
+
+import {OFTComposeMsgCodec} from "@layerzerolabs/oft-evm/contracts/libs/OFTComposeMsgCodec.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "forge-std/console.sol";
+import {TestHelperOz5} from "@layerzerolabs/test-devtools-evm-foundry/contracts/TestHelperOz5.sol";
+import {RVaultAsset} from "src/RVaultAsset.sol";
+
+contract Base is TestHelperOz5 {
     //////////////////////////
     //// Structs Helpers /////
     /////////////////////////
@@ -104,7 +120,23 @@ contract Base is Test {
     address rVaultAsset2;
     address current_wethAddress;
 
-    function setUp() public virtual {
+    //  ######## Token metadata ########
+    string public constant underlyingAssetName = "TUSDC";
+    string public constant underlyingAssetSymbol = "USDC";
+    string public constant rTokenName1 = "rTUSDC1";
+    string public constant rTokenSymbol1 = "rTUSDC1";
+    string public constant rVaultAssetTokenName1 = "rVaultAsset-TUSDC1";
+    string public constant rVaultAssetTokenSymbol1 = "rVaultAsset-rTUSDC1";
+    string public constant rVaultAssetTokenName2 = "rVaultAsset-TUSDC2";
+    string public constant rVaultAssetTokenSymbol2 = "rVaultAsset-rTUSDC2";
+    string public constant superAssetTokenName = "superTUSDC";
+    string public constant superAsseTokenSymbol = "superTUSDC";
+    string public constant variableDebtTokenName = "vDebt-TUSDC";
+    string public constant variableDebtTokenSymbol = "vDBT-rTUSDC";
+    uint8 underlyingAssetDecimals = 6;
+
+    function setUp() public virtual override {
+        super.setUp();
         // vm.chainId(1);
         // ############## Load deploy config ##############
         string memory deployConfigPath = vm.envOr("DEPLOY_CONFIG_PATH", string("/configs/deploy-config.toml"));
@@ -135,25 +167,6 @@ contract Base is Test {
         vm.label(superProxyAdmin, "superProxyAdmin");
 
         // ################ Deploy underlyingAsset #################
-        string memory underlyingAssetName = "TUSDC";
-        string memory underlyingAssetSymbol = "USDC";
-        string memory rTokenName1 = "rTUSDC1";
-        string memory rTokenSymbol1 = "rTUSDC1";
-        // string memory rTokenName2 = "rTUSDC2";
-        // string memory rTokenSymbol2 = "rTUSDC2";
-
-        string memory rVaultAssetTokenName1 = "rVaultAsset-TUSDC1";
-        string memory rVaultAssetTokenSymbol1 = "rVaultAsset-rTUSDC1";
-        string memory rVaultAssetTokenName2 = "rVaultAsset-TUSDC2";
-        string memory rVaultAssetTokenSymbol2 = "rVaultAsset-rTUSDC2";
-
-        string memory superAssetTokenName = "superTUSDC";
-        string memory superAsseTokenSymbol = "superTUSDC";
-
-        string memory variableDebtTokenName = "vDebt-TUSDC";
-        string memory variableDebtTokenSymbol = "vDBT-rTUSDC";
-        uint8 underlyingAssetDecimals = 6;
-
         vm.prank(owner);
         underlyingAsset = new TestERC20(underlyingAssetName, underlyingAssetSymbol, underlyingAssetDecimals);
         vm.label(address(underlyingAsset), "underlyingAsset");

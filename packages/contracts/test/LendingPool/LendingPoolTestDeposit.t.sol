@@ -57,7 +57,7 @@ contract LendingPoolTestDeposit is LendingPoolTestBase {
     }
 
     function getActionXConfig()
-        internal
+        public
         view
         returns (uint256[] memory amounts, address onBehalfOf, uint16 referralCode, uint256[] memory chainIds)
     {

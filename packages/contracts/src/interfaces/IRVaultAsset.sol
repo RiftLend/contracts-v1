@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {Origin, MessagingReceipt} from "../libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
+import {Origin} from "../libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
 import {DataTypes} from "../libraries/types/DataTypes.sol";
 
 // @audit @umar clean this up

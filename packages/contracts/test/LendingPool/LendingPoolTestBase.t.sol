@@ -20,7 +20,7 @@ contract LendingPoolTestBase is Base {
     /// @dev tests that the user config is updated correctly
     /// @dev tests that the rToken has the correct balance
 
-    function setUp() public override {
+    function setUp() public virtual override {
         super.setUp();
         deal(address(underlyingAsset), user1, INITIAL_BALANCE);
         deal(address(underlyingAsset), user2, INITIAL_BALANCE);
