@@ -135,7 +135,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         // We now mint RTokens to the user as a receipt of their deposit
         (bool isFirstDeposit, uint256 mintMode, uint256 amountScaled) =
             IRToken(rToken).mint(onBehalfOf, amount, reserve.liquidityIndex);
-        if (isFirstDeposit) { 
+        if (isFirstDeposit) {
             unchecked {
                 _usersConfig[onBehalfOf].setUsingAsCollateral(reserve.id, true);
             }
