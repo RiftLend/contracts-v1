@@ -133,7 +133,6 @@ contract Router is Initializable, SuperPausable {
         /*                    WITHDRAW DISPATCH                       */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-
         if (selector == Withdraw.selector && _identifier.chainId != block.chainid) {
             (, address asset, address to, uint256 amount, uint256 mintMode, uint256 amountScaled) =
                 abi.decode(_data[64:], (address, address, address, uint256, uint256, uint256));
@@ -150,7 +149,6 @@ contract Router is Initializable, SuperPausable {
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*                    BORROW DISPATCH                         */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-
 
         if (selector == Borrow.selector && _identifier.chainId != block.chainid) {
             (address asset, uint256 amount,, address onBehalfOf,,, uint256 mintMode, uint256 amountScaled,) =
