@@ -88,7 +88,6 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
 
         // ======== Deploy & Initialize LendingPools ========
         vm.startPrank(owner);
-
         // Deploy implementations
         implementationLp1 = new LendingPool();
         implementationLp2 = new LendingPool();
@@ -409,7 +408,7 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
      */
     function test_lpWithdraw() public {
         // ======== Test Configuration ========
-        // Setup withdrawal parameters
+        // Setup deposit parameters
         address onBehalfOf = user1;
         uint16 referralCode = 0;
         uint256[] memory amounts = new uint256[](1);
@@ -500,6 +499,8 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         assert(to == address(user2));
         assert(amount == amounts[0]);
 
+        /// assert cross chain balances of rtoken and variable debt token
+        
         // ======== Verify Cross-Chain Messages ========
         verifyPackets(bEid, addressToBytes32(address(bRVaultAsset)));
     }
