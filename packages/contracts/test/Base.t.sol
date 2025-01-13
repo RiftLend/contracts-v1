@@ -218,34 +218,29 @@ contract Base is TestHelperOz5 {
         vm.label(address(superAsset), "superAsset");
 
         // ################ Deploy RVaultAsset ################
-        vm.prank(owner);
-
-        rVaultAsset1 = address(
-            new RVaultAsset{salt: "rVaultAsset1Impl"}(
-                address(superAsset),
-                ILendingPoolAddressesProvider(address(lpAddressProvider1)),
-                address(lzEndpoint),
-                _delegate,
-                rVaultAssetTokenName1,
-                rVaultAssetTokenSymbol1,
-                underlyingAssetDecimals
-            )
-        );
-        rVaultAsset2 = address(
-            new RVaultAsset{salt: "rVaultAsset2Impl"}(
-                address(underlyingAsset),
-                ILendingPoolAddressesProvider(address(lpAddressProvider2)),
-                address(lzEndpoint),
-                _delegate,
-                rVaultAssetTokenName2,
-                rVaultAssetTokenSymbol2,
-                underlyingAssetDecimals
-            )
-        );
-
-        // ################ Configuring cluster types and lz peers
         vm.startPrank(owner);
 
+        rVaultAsset1 = address(new RVaultAsset{salt: "rVaultAsset1Impl"}());
+
+        IRVaultAsset(rVaultAsset1).initialize(
+            address(superAsset),
+            ILendingPoolAddressesProvider(address(lpAddressProvider1)),
+            address(lzEndpoint),
+            _delegate,
+            rVaultAssetTokenName1,
+            rVaultAssetTokenSymbol1,
+            underlyingAssetDecimals
+        );
+        rVaultAsset2 = address(new RVaultAsset{salt: "rVaultAsset2Impl"}());
+        IRVaultAsset(rVaultAsset2).initialize(
+            address(underlyingAsset),
+            ILendingPoolAddressesProvider(address(lpAddressProvider2)),
+            address(lzEndpoint),
+            _delegate,
+            rVaultAssetTokenName2,
+            rVaultAssetTokenSymbol2,
+            underlyingAssetDecimals
+        );
         vm.stopPrank();
 
         // ################ Deploy incentives controller ################

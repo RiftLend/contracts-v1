@@ -4,13 +4,16 @@ pragma solidity 0.8.25;
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
 import {ILendingPoolAddressesProvider} from "src/interfaces/ILendingPoolAddressesProvider.sol";
 import {ISuperAsset} from "src/interfaces/ISuperAsset.sol";
-import "src/interfaces/IRVaultAsset.sol";
 import {ILendingPool} from "src/interfaces/ILendingPool.sol";
+import {
+    Origin,
+    MessagingReceipt,
+    ILayerZeroEndpointV2,
+    MessagingFee
+} from "src/libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
 
-import {Origin, MessagingReceipt, ILayerZeroEndpointV2, MessagingFee} from "src/libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
 import {Initializable} from "@solady/utils/Initializable.sol";
 import {Ownable} from "@solady/auth/Ownable.sol";
-import {Predeploys} from "src/libraries/Predeploys.sol";
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
 import {OFT} from "src/libraries/helpers/layerzero/OFT.sol";
 import {ERC20} from "@solady/tokens/ERC20.sol";
@@ -18,21 +21,24 @@ import {SendParam, OFTReceipt} from "src/libraries/helpers/layerzero/IOFT.sol";
 import {SuperOwnable} from "src/interop-std/src/auth/SuperOwnable.sol";
 import {DataTypes} from "src/libraries/types/DataTypes.sol";
 import {OFTLogic} from "src/libraries/logic/OFTLogic.sol";
+import {OptionsBuilder} from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OptionsBuilder.sol";
+import {OFTMsgCodec} from "src/libraries/helpers/layerzero/OFTMsgCodec.sol";
 
 contract RVaultAsset is Initializable, SuperOwnable, OFT {
     using SafeERC20 for IERC20;
+    using OptionsBuilder for bytes;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                  State Variables                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    ILendingPoolAddressesProvider public immutable provider;
+    ILendingPoolAddressesProvider public provider;
 
     string internal _name;
     string internal _symbol;
     uint8 internal _decimals;
 
-    address public immutable underlying;
+    address public underlying;
 
     mapping(address user => uint256 balance) public balances;
 
@@ -41,7 +47,7 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
     uint256 public withdrawCoolDownPeriod = 1 days;
     uint256 public maxDepositLimit = 1000 ether;
 
-    uint8 public immutable pool_type; // 1 - superchain, unset for ethereum and arbitrum instances
+    uint8 public pool_type; // 1 - superchain, unset for ethereum and arbitrum instances
     mapping(uint256 => uint32) public chainToEid;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -65,7 +71,7 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           Modifiers                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-    
+
     modifier onlyRouter() {
         if (provider.getRouter() != msg.sender) revert onlyRouterCall();
         _;
@@ -112,7 +118,7 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
     /// @param assets - the amount of assets to deposit
     /// @param receiver - the address to which the assets are deposited
     function deposit(uint256 assets, address receiver) public returns (uint256) {
-        if (totalAssets() + assets > maxDepositLimit) revert DepositLimitExceeded();
+        if (totalBalances + assets > maxDepositLimit) revert DepositLimitExceeded();
         totalBalances += assets;
         balances[receiver] += assets;
         super._mint(receiver, assets);
@@ -218,6 +224,7 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
         if (msg.sender != address(endpoint) && oftTxCaller != address(this)) {
             revert UnAuthorized();
         }
+
         if (_getPeerOrRevert(_origin.srcEid) != _origin.sender) {
             revert OnlyPeer(_origin.srcEid, _origin.sender);
         }
@@ -245,12 +252,14 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
         _burn(msg.sender, amount);
         if (toChainId != block.chainid) {
             // @audit tabish this also
+            // Build options for the send operation with a composed message
+            bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0)
+                .addExecutorLzComposeOption(0, 500000, 0);
+
             bytes memory compose_message = OFTLogic.encodeMessage(receiverOfUnderlying, amount);
             SendParam memory sendParam = SendParam(
-                chainToEid[toChainId], bytes32(uint256(uint160(address(this)))), 0, 0, "", compose_message, ""
+                chainToEid[toChainId], bytes32(uint256(uint160(address(this)))), 0, 0, options, compose_message, ""
             );
-            console.log("Send params eid is ");
-            console.log(chainToEid[toChainId]);
 
             MessagingFee memory fee = quoteSend(sendParam, false);
             _send(sendParam, fee, payable(address(this)));

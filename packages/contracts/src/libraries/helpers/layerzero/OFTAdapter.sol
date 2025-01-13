@@ -28,9 +28,8 @@ abstract contract OFTAdapter is OFTCore {
      * @param _lzEndpoint The LayerZero endpoint address.
      * @param _delegate The delegate capable of making OApp configurations inside of the endpoint.
      */
-    constructor(address _token, address _lzEndpoint, address _delegate)
-        OFTCore(IERC20Metadata(_token).decimals(), _lzEndpoint, _delegate)
-    {
+    constructor(address _token, address _lzEndpoint, address _delegate) {
+        OFTCore__Init(IERC20Metadata(_token).decimals(), _lzEndpoint, _delegate);
         innerToken = IERC20(_token);
     }
 

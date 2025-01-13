@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 import {Origin} from "../libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
 import {DataTypes} from "../libraries/types/DataTypes.sol";
+import {ILendingPoolAddressesProvider} from "../interfaces/ILendingPoolAddressesProvider.sol";
 
 // @audit @umar clean this up
 
@@ -13,6 +14,15 @@ interface IRVaultAsset {
     function totalBalances() external view returns (uint256);
 
     // Functions
+    function initialize(
+        address underlying_,
+        ILendingPoolAddressesProvider provider_,
+        address lzEndpoint_,
+        address delegate_,
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_
+    ) external;
     function deposit(uint256 assets, address receiver) external returns (uint256 shares);
 
     function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares);

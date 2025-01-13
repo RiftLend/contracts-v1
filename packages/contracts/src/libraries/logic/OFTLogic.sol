@@ -2,8 +2,12 @@
 
 pragma solidity 0.8.25;
 
+import {OFTMsgCodec} from "src/libraries/helpers/layerzero/OFTMsgCodec.sol";
+
 library OFTLogic {
-    ///@dev modification in this one also needs modification in decodeMessage below
+    using OFTMsgCodec for bytes;
+
+    ///@dev modification in encodeMessage also needs modification in decodeMessage below
 
     function encodeMessage(address _receiverOfUnderlying, uint256 _amount)
         public
@@ -13,23 +17,12 @@ library OFTLogic {
         _message = abi.encode(_receiverOfUnderlying, _amount);
     }
 
-    function decodeMessage(bytes memory _message)
+    function decodeMessage(bytes calldata _message)
         public
         pure
         returns (address _receiverOfUnderlying, uint256 _amount, address _oftCaller)
     {
-        // the oft's _buildMsgAndOptions is used by _send method that encodes the passed messagein following way
-        // abi.encodePacked(_sendTo, _amountShared, addressToBytes32(msg.sender), _composeMsg)
-        (,, bytes32 oftCaller, bytes memory encoded_message) = abi.decode(_message, (address, uint256, bytes32, bytes));
-        _oftCaller = address(uint160(uint256(oftCaller)));
-        (_receiverOfUnderlying, _amount) = abi.decode(encoded_message, (address, uint256));
-    }
-
-    function decodeSubLzMessage(bytes memory encoded_message)
-        public
-        pure
-        returns (address _receiverOfUnderlying, uint256 _amount)
-    {
-        (_receiverOfUnderlying, _amount) = abi.decode(encoded_message, (address, uint256));
+        (_oftCaller, _receiverOfUnderlying, _amount) =
+            abi.decode(OFTMsgCodec.composeMsg(_message), (address, address, uint256));
     }
 }

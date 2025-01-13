@@ -26,7 +26,7 @@ contract Router is Initializable, SuperPausable {
 
     bytes2 public constant UPDATE_RATES_AND_STATES_MASK = bytes2(uint16(3));
     uint256 public constant ROUTER_REVISION = 0x1;
-    
+
     ILendingPool public lendingPool;
     ILendingPoolAddressesProvider public addressesProvider;
     address public relayer;
@@ -36,7 +36,6 @@ contract Router is Initializable, SuperPausable {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                  Modifiers                                 */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-
 
     modifier onlyRelayer() {
         _onlyRelayer();
@@ -158,7 +157,7 @@ contract Router is Initializable, SuperPausable {
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*                    REPAY DISPATCH                          */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-        
+
         if (selector == Repay.selector && _identifier.chainId != block.chainid) {
             (address asset, uint256 amount,, address repayer,, uint256 mintMode, uint256 amountBurned) =
                 abi.decode(_data[32:], (address, uint256, address, address, uint256, uint256, uint256));
