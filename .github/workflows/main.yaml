@@ -17,8 +17,8 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: 'read'
-  actions: 'read'
+  contents: "read"
+  actions: "read"
 
 jobs:
   build:
@@ -38,7 +38,7 @@ jobs:
           version: nightly
 
       - name: Run Forge build
-        run: 'cd packages/contracts && forge build'
+        run: "forge build"
 
   test:
     runs-on: ubuntu-latest
@@ -57,10 +57,7 @@ jobs:
           version: nightly
 
       - name: Run Forge build
-        run: 'cd packages/contracts && forge build'
+        run: "forge build"
 
       - name: Run Forge test
-        run: 'cd packages/contracts && forge test --via-ir'
-
-      - name: Run Forge coverage
-        run: 'cd packages/contracts && forge coverage'
+        run: "forge test"
