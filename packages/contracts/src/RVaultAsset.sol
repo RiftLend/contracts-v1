@@ -5,7 +5,6 @@ import {ILendingPoolAddressesProvider} from "src/interfaces/ILendingPoolAddresse
 import {ISuperAsset} from "src/interfaces/ISuperAsset.sol";
 // import "./interfaces/IRVaultAsset.sol"; // @audit umar maybe remmove this.
 import {Origin, MessagingReceipt} from "src/libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
-
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
 import {ILendingPool} from "./interfaces/ILendingPool.sol";
 import {ILayerZeroEndpointV2} from "./libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
@@ -21,6 +20,7 @@ import {SuperOwnable} from "./interop-std/src/auth/SuperOwnable.sol";
 import {DataTypes} from "./libraries/types/DataTypes.sol";
 import {OFTLogic} from "./libraries/logic/OFTLogic.sol";
 import {ILendingPool} from "./interfaces/ILendingPool.sol";
+import {console} from "forge-std/console.sol";
 
 // @tabish make the RVaultAsset upgradable.
 contract RVaultAsset is SuperOwnable, OFT {
@@ -257,6 +257,9 @@ contract RVaultAsset is SuperOwnable, OFT {
             SendParam memory sendParam = SendParam(
                 chainToEid[toChainId], bytes32(uint256(uint160(address(this)))), 0, 0, "", compose_message, ""
             );
+            console.log("Send params eid is ");
+            console.log(chainToEid[toChainId]);
+
             MessagingFee memory fee = quoteSend(sendParam, false);
             _send(sendParam, fee, payable(address(this)));
         } else {
@@ -282,12 +285,12 @@ contract RVaultAsset is SuperOwnable, OFT {
     }
     // Setter function for chain to EID mapping
 
-    function setChainToEid(uint256 _chainId, uint32 _eid) public {
+    function setChainToEid(uint256 _chainId, uint32 _eid) public onlySuperAdmin {
         chainToEid[_chainId] = _eid;
     }
 
     // Setter function for EID to chain mapping
-    function setEidToChain(uint256 _chainId, uint32 _eid) public {
+    function setEidToChain(uint256 _chainId, uint32 _eid) public onlySuperAdmin {
         eidToChain[_eid] = _chainId;
     }
 

@@ -29,7 +29,7 @@ import {OFT} from "../src/libraries/helpers/layerzero/OFT.sol";
 
 import {EndpointV2} from "../src/libraries/helpers/layerzero/EndpointV2.sol";
 import {Router} from "../src/Router.sol";
-import {EventValidator} from "../src/libraries/EventValidator.sol";
+import {EventValidator} from "src/libraries/EventValidator.sol";
 import {DataTypes} from "../src/libraries/types/DataTypes.sol";
 
 // OApp imports
@@ -103,6 +103,7 @@ contract Base is TestHelperOz5 {
     address treasury;
     LendingPool proxyLp;
     LendingPool implementationLp;
+
     SuperAsset superAsset;
     SuperAsset superAssetWeth;
 
@@ -119,6 +120,7 @@ contract Base is TestHelperOz5 {
     address rVaultAsset1;
     address rVaultAsset2;
     address current_wethAddress;
+    EventValidator eventValidator;
 
     //  ######## Token metadata ########
     string public constant underlyingAssetName = "TUSDC";
@@ -129,6 +131,9 @@ contract Base is TestHelperOz5 {
     string public constant rVaultAssetTokenSymbol1 = "rVaultAsset-rTUSDC1";
     string public constant rVaultAssetTokenName2 = "rVaultAsset-TUSDC2";
     string public constant rVaultAssetTokenSymbol2 = "rVaultAsset-rTUSDC2";
+    string public constant rTokenName2 = "rTUSDC2";
+    string public constant rTokenSymbol2 = "rTUSDC2";
+
     string public constant superAssetTokenName = "superTUSDC";
     string public constant superAsseTokenSymbol = "superTUSDC";
     string public constant variableDebtTokenName = "vDebt-TUSDC";
@@ -159,7 +164,7 @@ contract Base is TestHelperOz5 {
 
         // ################ Deploy Event validator #################
         vm.prank(owner);
-        EventValidator eventValidator = new EventValidator((chain_a_cross_l2_prover_address));
+        eventValidator = new EventValidator((chain_a_cross_l2_prover_address));
 
         // ############# Deploy SuperProxyAdmin ####################
         vm.prank(owner);
@@ -249,10 +254,10 @@ contract Base is TestHelperOz5 {
 
         // ################ Deploy RToken ################
         vm.prank(owner);
-        RToken rTokenImpl1 = new RToken{salt: "rTokenImpl1"}();
+        RToken rToken = new RToken{salt: "rToken"}();
 
         vm.prank(owner);
-        rTokenImpl1.initialize(
+        rToken.initialize(
             ILendingPool(address(proxyLp)),
             treasury,
             address(rVaultAsset1),
@@ -332,7 +337,7 @@ contract Base is TestHelperOz5 {
         input[0].underlyingAssetName = underlyingAssetName;
         input[0].params = "v";
         input[0].salt = "salt";
-        input[0].rTokenImpl = address(rTokenImpl1);
+        input[0].rTokenImpl = address(rToken);
 
         vm.prank(poolAdmin1);
         proxyConfigurator.batchInitReserve(input);

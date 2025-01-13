@@ -232,6 +232,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             _usersConfig[onBehalfOf].setBorrowing(reserve.id, false);
         }
         IERC20(rVaultAsset).safeTransfer(address(rToken), paybackAmount);
+
         IRToken(rToken).handleRepayment(onBehalfOf, paybackAmount);
         /// @audit tabish check handleRepayment function ...
 

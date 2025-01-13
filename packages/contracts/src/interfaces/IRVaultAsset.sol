@@ -82,4 +82,8 @@ interface IRVaultAsset {
     function provider() external view returns (address);
 
     function isSuperTokenBridgeEnabled() external view returns (bool);
+
+    function setChainToEid(uint256 _chainId, uint32 _eid) external;
+    // Setter function for EID to chain mapping
+    function setEidToChain(uint256 _chainId, uint32 _eid) external;
 }
