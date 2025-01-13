@@ -2,6 +2,7 @@
 pragma solidity 0.8.25;
 
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
+import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
 import {ILendingPoolAddressesProvider} from "src/interfaces/ILendingPoolAddressesProvider.sol";
 import {ISuperAsset} from "src/interfaces/ISuperAsset.sol";
 import {ILendingPool} from "src/interfaces/ILendingPool.sol";
@@ -15,6 +16,7 @@ import {
 import {Initializable} from "@solady/utils/Initializable.sol";
 import {Ownable} from "@solady/auth/Ownable.sol";
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
+import {OFT} from "src/libraries/helpers/layerzero/OFT.sol";
 import {OFT} from "src/libraries/helpers/layerzero/OFT.sol";
 import {ERC20} from "@solady/tokens/ERC20.sol";
 import {SendParam, OFTReceipt} from "src/libraries/helpers/layerzero/IOFT.sol";
@@ -89,6 +91,7 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
     /// @param symbol_ - the symbol of the rVaultAsset
     /// @param decimals_ - the decimals of the rVaultAsset
     function initialize(
+    function initialize(
         address underlying_,
         ILendingPoolAddressesProvider provider_,
         address lzEndpoint_,
@@ -96,6 +99,7 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
         string memory name_,
         string memory symbol_,
         uint8 decimals_
+    ) external initializer {
     ) external initializer {
         underlying = underlying_;
         provider = provider_;
@@ -106,6 +110,7 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
         _decimals = decimals_;
 
         _initializeSuperOwner(uint64(block.chainid), msg.sender);
+        OFT__Init(lzEndpoint_, delegate_, decimals_);
         OFT__Init(lzEndpoint_, delegate_, decimals_);
     }
 
@@ -190,6 +195,7 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
     /// @param _asset - asset to be withdrawn
     /// @param _recipient - address to which the underlying is to be sent
     /// @param _amount - amount of underlying to be sent
+    function withdrawTokens(address _asset, address _recipient, uint256 _amount) external onlyOwner {
     function withdrawTokens(address _asset, address _recipient, uint256 _amount) external onlyOwner {
         if (_asset == underlying) revert UnAuthorized();
         IERC20(_asset).safeTransfer(_recipient, _amount);

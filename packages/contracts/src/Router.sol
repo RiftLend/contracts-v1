@@ -10,9 +10,23 @@ import {IRVaultAsset} from "src/interfaces/IRVaultAsset.sol";
 import {IVariableDebtToken} from "src/interfaces/IVariableDebtToken.sol";
 import {ISuperchainTokenBridge} from "src/interfaces/ISuperchainTokenBridge.sol";
 import {ILendingPoolAddressesProvider} from "src/interfaces/ILendingPoolAddressesProvider.sol";
+import "src/interfaces/ILendingPool.sol";
+import {ILendingPoolCollateralManager} from "src/interfaces/ILendingPoolCollateralManager.sol";
+import {ISuperAsset} from "src/interfaces/ISuperAsset.sol";
+import {IRToken} from "src/interfaces/IRToken.sol";
+import {IRVaultAsset} from "src/interfaces/IRVaultAsset.sol";
+import {IVariableDebtToken} from "src/interfaces/IVariableDebtToken.sol";
+import {ISuperchainTokenBridge} from "src/interfaces/ISuperchainTokenBridge.sol";
+import {ILendingPoolAddressesProvider} from "src/interfaces/ILendingPoolAddressesProvider.sol";
 
 import {Initializable} from "@solady/utils/Initializable.sol";
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
+import {ReserveLogic} from "src/libraries/logic/ReserveLogic.sol";
+import {Errors} from "src/libraries/helpers/Errors.sol";
+import {SuperPausable} from "src/interop-std/src/utils/SuperPausable.sol";
+import {Predeploys} from "src/libraries/Predeploys.sol";
+import {EventValidator, ValidationMode, Identifier} from "src/libraries/EventValidator.sol";
+import {DataTypes} from "src/libraries/types/DataTypes.sol";
 import {ReserveLogic} from "src/libraries/logic/ReserveLogic.sol";
 import {Errors} from "src/libraries/helpers/Errors.sol";
 import {SuperPausable} from "src/interop-std/src/utils/SuperPausable.sol";
@@ -56,6 +70,10 @@ contract Router is Initializable, SuperPausable {
             addressesProvider.getLendingPoolConfigurator() == msg.sender, Errors.LP_CALLER_NOT_LENDING_POOL_CONFIGURATOR
         );
     }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                  External Functions                        */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                  External Functions                        */
@@ -115,6 +133,7 @@ contract Router is Initializable, SuperPausable {
         /*                    WITHDRAW DISPATCH                       */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
+
         if (selector == Withdraw.selector && _identifier.chainId != block.chainid) {
             (, address asset, address to, uint256 amount, uint256 mintMode, uint256 amountScaled) =
                 abi.decode(_data[64:], (address, address, address, uint256, uint256, uint256));
@@ -131,6 +150,7 @@ contract Router is Initializable, SuperPausable {
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*                    BORROW DISPATCH                         */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
 
         if (selector == Borrow.selector && _identifier.chainId != block.chainid) {
             (address asset, uint256 amount,, address onBehalfOf,,, uint256 mintMode, uint256 amountScaled,) =
@@ -182,6 +202,7 @@ contract Router is Initializable, SuperPausable {
             }
             // send rvaultasset to debtchain  normal bridging
             // bridge rVaultasset and not the underlying remember ...
+            // @audit check
             // @audit check
             IRVaultAsset(rVaultAsset).bridge(address(lendingPool), debtChainId, amount);
             emit CrossChainRepayFinalize(debtChainId, sender, onBehalfOf, amount, rVaultAsset);
