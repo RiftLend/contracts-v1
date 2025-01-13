@@ -1,0 +1,87 @@
+[deploy_config]
+salt = "ethers phoenix"
+chains = ["op_chain_a","op_chain_b"]
+
+[token]
+salt = "ethers phoenix"
+owner_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+name = "TestSuperchainERC20"
+symbol = "TSU"
+decimals = 18
+
+[rTokenImpl]
+salt = "ethers phoenix rTokenImpl"
+
+[stableDebtTokenImpl]
+salt = "ethers phoenix stableDebtTokenImpl"
+
+[variableDebtTokenImpl]
+salt = "ethers phoenix variableDebtTokenImpl"
+
+[lending_pool_addresses_provider]
+salt = "ethers phoenix lpap"
+owner_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+marketId = "TSU Market"
+
+[proxy_admin]
+salt = "ethers phoenix proxyAdmin"
+owner_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+
+[superchain_asset_1]
+salt = "ethers phoenix sa1"
+owner_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+name = "SuperTestSuperchainERC20"
+symbol = "STSU"
+decimals = 18
+# TODO:Add correct lz addresses
+lzEndpoint = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+lzDelegate = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+
+
+[lending_pool_impl]
+salt = "ethers phoenix laimpl"
+
+[lending_pool_configurator]
+salt = "ethers phoenix lpc"
+
+[default_reserve_interest_rate_strategy]
+salt = "ethers phoenix drirs"
+# These are random values. TODO these should be in ray terms
+optimalUtilizationRate = 1
+baseVariableBorrowRate = 2
+variableRateSlope1 = 3
+variableRateSlope2 = 6
+stableRateSlope1 = 4
+stableRateSlope2 = 5
+
+[lending_rate_oracle]
+salt = "ethers phoenix lro"
+owner_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+
+[treasury]
+address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+
+[incentives_controller]
+address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+
+[aToken1]
+name = "A-TestSuperchainERC20"
+symbol = "ATUSDC"
+
+[variableDebtToken1]
+name = "VDebt-TestSuperchainERC20"
+symbol = "VDTUSDC"
+
+[stableDebtToken1]
+name = "SDebt-TestSuperchainERC20"
+symbol = "SDTUSDC"
+
+[router]
+salt = "ethers phoenix router"
+
+[forks]
+chain_a_rpc_url = "https://opt-mainnet.g.alchemy.com/v2/xFdbkJe3ZbpjHxU2qIpikVBgN7TIMyX8"
+chain_a_chain_id = 10
+chain_a_cross_l2_prover_address="0x1CCb363c18484A568DCB0Ec37fE5ad716C1D6e77"
+chain_a_weth="0x4200000000000000000000000000000000000006"
+chain_a_lz_endpoint_v2="0x1a44076050125825900e736c501f859c50fE728c"

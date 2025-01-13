@@ -12,4 +12,3 @@ docs/
 .env
 
 deployment.json
-configs/deploy-config.toml
