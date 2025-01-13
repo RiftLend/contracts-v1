@@ -91,7 +91,6 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
     /// @param symbol_ - the symbol of the rVaultAsset
     /// @param decimals_ - the decimals of the rVaultAsset
     function initialize(
-    function initialize(
         address underlying_,
         ILendingPoolAddressesProvider provider_,
         address lzEndpoint_,
@@ -99,7 +98,6 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
         string memory name_,
         string memory symbol_,
         uint8 decimals_
-    ) external initializer {
     ) external initializer {
         underlying = underlying_;
         provider = provider_;
@@ -195,7 +193,6 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
     /// @param _asset - asset to be withdrawn
     /// @param _recipient - address to which the underlying is to be sent
     /// @param _amount - amount of underlying to be sent
-    function withdrawTokens(address _asset, address _recipient, uint256 _amount) external onlyOwner {
     function withdrawTokens(address _asset, address _recipient, uint256 _amount) external onlyOwner {
         if (_asset == underlying) revert UnAuthorized();
         IERC20(_asset).safeTransfer(_recipient, _amount);
