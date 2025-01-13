@@ -17,19 +17,47 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: 'read'
-  actions: 'read'
+  contents: "read"
+  actions: "read"
 
 jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - name: Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16.x.x
+
+      - name: Install Foundry
+        uses: onbjerg/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Run Forge build
+        run: "forge build"
+
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
         with:
-          fetch-depth: 0
-      - name: Setup
-        uses: ./.github/actions/setup
-      - name: Run Tests
-        run: |
-          pnpm -r --filter '!e2e-test' test
+          submodules: recursive
+      - name: Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16.x.x
+
+      - name: Install Foundry
+        uses: onbjerg/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Run Forge build
+        run: "forge build"
+
+      - name: Run Forge test
+        run: "forge test"
