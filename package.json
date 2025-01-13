@@ -1,28 +1,13 @@
 {
-  "name": "superchainerc20-starter",
-  "packageManager": "pnpm@9.0.2",
-  "description": "",
+  "name": "@riftlend/contracts-v1",
   "scripts": {
-    "dev": "mprocs",
-    "install:contracts": "pnpm nx run @superchainerc20-starter/contracts:install",
-    "contracts:update:rpcs": "pnpm nx run @superchainerc20-starter/contracts:update:rpcs",
-    "contracts:deploy:token": "pnpm nx run @superchainerc20-starter/contracts:deploy:token",
-    "update:toc": "doctoc README.md",
-    "e2e-test": "mprocs -c mprocs-e2e-test.yaml",
-    "init:env": "pnpm nx run-many --target=init:env",
-    "contracts:deploy:dev": "pnpm install:contracts && pnpm nx run @superchainerc20-starter/contracts:deploy:dev",
-    "e2e-test:ci": "pnpm nx run @superchainerc20-starter/e2e-test:test"
+    "deploy:dev": "forge script scripts/deploy.s.sol --broadcast --private-key $DEPLOYER_PRIVATE_KEY --rpc-url http://127.0.0.1:9545 && forge script scripts/deploy.s.sol --broadcast --private-key $DEPLOYER_PRIVATE_KEY --rpc-url http://127.0.0.1:9546'",
+    "install": "forge install",
+    "build": "forge build",
+    "test": "forge test",
+    "init:env": "cp .env.example .env"
   },
-  "license": "MIT",
-  "devDependencies": {
-    "cross-env": "^7.0.3",
-    "doctoc": "^2.2.1",
-    "env-cmd": "^10.1.0",
-    "mprocs": "^0.7.1",
-    "nx": "^20.0.7",
-    "prettier": "^3.3.3",
-    "prettier-plugin-solidity": "^1.4.1",
-    "supersim": "^0.0.5",
-    "wait-port": "^1.1.0"
+  "dependencies": {
+    "viem": "^2.21.37"
   }
 }
