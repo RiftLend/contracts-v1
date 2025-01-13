@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.8.25;
 
-import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
-import {ERC20} from "@solady/tokens/ERC20.sol";
-
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts-v5/token/ERC20/extensions/IERC20Metadata.sol";
+
+import {ERC20} from "@solady/tokens/ERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
 import {SuperchainERC20} from "./libraries/op/SuperchainERC20.sol";
 
 contract SuperAsset is SuperchainERC20 {
@@ -44,6 +44,8 @@ contract SuperAsset is SuperchainERC20 {
         if (WETH == underlying) {
             (bool success,) = WETH.call(abi.encodeWithSignature("withdraw(uint256)", _amount));
             require(success, "Withdraw failed");
+            (bool ethSendSuccess,) = _to.call{value: _amount}("");
+            require(ethSendSuccess, "Transfer failed");
         } else {
             IERC20(underlying).safeTransfer(_to, _amount);
         }

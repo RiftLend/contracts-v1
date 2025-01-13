@@ -44,7 +44,6 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
 
     mapping(address user => uint256 balance) public balances;
 
-    uint256 public totalBalances;
     mapping(address => uint256) public _lastWithdrawalTime;
     uint256 public withdrawCoolDownPeriod = 1 days;
     uint256 public maxDepositLimit = 1000 ether;
@@ -109,7 +108,6 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
 
         _initializeSuperOwner(uint64(block.chainid), msg.sender);
         OFT__Init(lzEndpoint_, delegate_, decimals_);
-        OFT__Init(lzEndpoint_, delegate_, decimals_);
     }
 
     /// @param shares - the amount of shares to mint
@@ -121,8 +119,7 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
     /// @param assets - the amount of assets to deposit
     /// @param receiver - the address to which the assets are deposited
     function deposit(uint256 assets, address receiver) public returns (uint256) {
-        if (totalBalances + assets > maxDepositLimit) revert DepositLimitExceeded();
-        totalBalances += assets;
+        if (totalAssets() + assets > maxDepositLimit) revert DepositLimitExceeded();
         balances[receiver] += assets;
         super._mint(receiver, assets);
         IERC20(underlying).safeTransferFrom(msg.sender, address(this), assets);
@@ -168,9 +165,9 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     // todo: ask bungee about if there contracts can change for bridging and also do they have the same addresses
+    // we will hardcode bungee target address in the contracts to gain trust that we dont move the funds elsewhere ...
+    // @audit the transaction data of what type it is and write a standardalized format so that we can verify it because this is a .call directly ...
     function bridgeUnderlying(
-        // we will hardcode bungee target address in the contracts to gain trust that we dont move the funds elsewhere ...
-        // @audit the transaction data of what type it is and write a standardalized format so that we can verify it because this is a .call directly ...
         address payable _bungeeTarget,
         bytes memory txData,
         address _bungeeAllowanceTarget,
@@ -231,16 +228,16 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
         if (_getPeerOrRevert(_origin.srcEid) != _origin.sender) {
             revert OnlyPeer(_origin.srcEid, _origin.sender);
         }
-        address assetToTransfer = underlying;
-        if (pool_type == 1) {
-            ISuperAsset(underlying).withdraw(address(this), amount);
-            assetToTransfer = ISuperAsset(underlying).underlying();
+
+        uint256 payAmount = amount;
+        if (totalAssets() < amount) {
+            payAmount = totalAssets();
+            super._mint(receiverOfUnderlying, amount - payAmount);
         }
-        // Todo:tabish verify : send rVaultAsset tokens to user if we run short of underlying to transfer
-        if (IERC20(assetToTransfer).balanceOf(address(this)) < amount) {
-            super._mint(receiverOfUnderlying, amount);
+        if (pool_type == 1) {
+            ISuperAsset(underlying).withdraw(receiverOfUnderlying, payAmount);
         } else {
-            IERC20(assetToTransfer).safeTransfer(receiverOfUnderlying, amount);
+            IERC20(underlying).safeTransfer(receiverOfUnderlying, payAmount);
         }
 
         emit OFTReceived(_guid, _origin.srcEid, address(0), 0);
@@ -256,6 +253,7 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
         if (toChainId != block.chainid) {
             // @audit tabish this also
             // Build options for the send operation with a composed message
+            // TODO check the params what we need to set.
             bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0)
                 .addExecutorLzComposeOption(0, 500000, 0);
 
@@ -335,7 +333,7 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
         return underlying;
     }
 
-    function totalAssets() public view returns (uint256) {
+    function totalAssets() internal view returns (uint256) {
         return IERC20(underlying).balanceOf(address(this));
     }
 

@@ -24,6 +24,7 @@ import {ReserveConfiguration} from "./libraries/configuration/ReserveConfigurati
 import {UserConfiguration} from "./libraries/configuration/UserConfiguration.sol";
 import {DataTypes} from "./libraries/types/DataTypes.sol";
 import {LendingPoolStorage} from "./LendingPoolStorage.sol";
+import {Predeploys} from "./libraries/Predeploys.sol";
 import {SuperPausable} from "./interop-std/src/utils/SuperPausable.sol";
 
 contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
@@ -225,7 +226,6 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             _usersConfig[onBehalfOf].setBorrowing(reserve.id, false);
         }
         IERC20(rVaultAsset).safeTransfer(address(rToken), paybackAmount);
-
         IRToken(rToken).handleRepayment(onBehalfOf, paybackAmount);
         /// @audit tabish check handleRepayment function ...
 
