@@ -33,7 +33,7 @@ owner_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 name = "SuperTestSuperchainERC20"
 symbol = "STSU"
 decimals = 18
-# ToDo:Add correct lz addresses
+# TODO:Add correct lz addresses
 lzEndpoint = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 lzDelegate = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 

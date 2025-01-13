@@ -83,8 +83,8 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         bytes32 lp_type = keccak256("OpSuperchain_LENDING_POOL");
 
         // Deploy address providers for both chains
-        lpAddressProvider1 = new LendingPoolAddressesProvider("TUSDC1", owner, superProxyAdmin, lp_type);
-        lpAddressProvider2 = new LendingPoolAddressesProvider("TUSDC2", owner, superProxyAdmin, lp_type);
+        lpAddressProvider1 = new LendingPoolAddressesProvider("TUSDC1", owner, proxyAdmin, lp_type);
+        lpAddressProvider2 = new LendingPoolAddressesProvider("TUSDC2", owner, proxyAdmin, lp_type);
 
         // ======== Deploy & Initialize LendingPools ========
         vm.startPrank(owner);
@@ -127,8 +127,8 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         LendingPoolConfigurator lpConfigurator2 = new LendingPoolConfigurator();
 
         // Initialize configurators
-        lpConfigurator1.initialize(ILendingPoolAddressesProvider(address(lpAddressProvider1)), superProxyAdmin);
-        lpConfigurator2.initialize(ILendingPoolAddressesProvider(address(lpAddressProvider2)), superProxyAdmin);
+        lpConfigurator1.initialize(ILendingPoolAddressesProvider(address(lpAddressProvider1)), proxyAdmin);
+        lpConfigurator2.initialize(ILendingPoolAddressesProvider(address(lpAddressProvider2)), proxyAdmin);
 
         // Set configurator implementations in providers
         lpAddressProvider1.setLendingPoolConfiguratorImpl(address(lpConfigurator1));

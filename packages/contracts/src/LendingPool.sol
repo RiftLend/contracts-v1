@@ -206,15 +206,12 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         uint256 debt = Helpers.getUserCurrentDebt(onBehalfOf, reserve);
         ValidationLogic.validateRepay(reserve, amount, debt);
 
-        // TODO:
-        // wrap underlying to rVaultAsset, base underlying ...
-
         uint256 paybackAmount;
         if (amount <= paybackAmount) {
             paybackAmount = amount;
         } else {
             paybackAmount = debt;
-            IRVaultAsset(rVaultAsset).burn(sender, block.chainid, amount - paybackAmount);
+            IERC20(asset).safeTransfer(sender, amount - paybackAmount);
         }
         _updateStates(reserve, asset, paybackAmount, 0, UPDATE_RATES_AND_STATES_MASK);
         (uint256 mode, uint256 amountBurned) = IVariableDebtToken(reserve.variableDebtTokenAddress).burn(
@@ -225,9 +222,10 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         if (debt - paybackAmount == 0) {
             _usersConfig[onBehalfOf].setBorrowing(reserve.id, false);
         }
-        IERC20(rVaultAsset).safeTransfer(address(rToken), paybackAmount);
+
+        if (pool_type == 1) ISuperAsset(reserve.superAsset).deposit(address(address(this)), paybackAmount);
+        IRVaultAsset(rVaultAsset).deposit(paybackAmount, rToken);
         IRToken(rToken).handleRepayment(onBehalfOf, paybackAmount);
-        /// @audit tabish check handleRepayment function ...
 
         emit Repay(asset, paybackAmount, onBehalfOf, sender, mode, amountBurned);
     }
@@ -274,7 +272,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             abi.encodeWithSignature(
                 "liquidationCall(address,address,address,address,uint256,bool,uint256)",
                 sender,
-                rVaultCollateralAsset, // TODO pass here the rVaultAsset
+                rVaultCollateralAsset,
                 rVaultDebtAsset,
                 user,
                 debtToCover,

@@ -164,9 +164,6 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
     /*                           Bridge underlying                */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    // todo: ask bungee about if there contracts can change for bridging and also do they have the same addresses
-    // we will hardcode bungee target address in the contracts to gain trust that we dont move the funds elsewhere ...
-    // @audit the transaction data of what type it is and write a standardalized format so that we can verify it because this is a .call directly ...
     function bridgeUnderlying(
         address payable _bungeeTarget,
         bytes memory txData,
@@ -212,11 +209,6 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
         emit OFTSent(msgReceipt.guid, _sendParam.dstEid, msg.sender, 0, 0);
     }
 
-    function _payNative(uint256 _nativeFee) internal override returns (uint256 nativeFee) {
-        if (address(this).balance < _nativeFee) revert NotEnoughNative(msg.value);
-        return _nativeFee;
-    }
-
     function lzReceive(
         Origin calldata _origin,
         bytes32 _guid,
@@ -256,9 +248,7 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
     function _bridge(address receiverOfUnderlying, uint256 toChainId, uint256 amount) internal {
         _burn(msg.sender, amount);
         if (toChainId != block.chainid) {
-            // @audit tabish this also
             // Build options for the send operation with a composed message
-            // TODO check the params what we need to set.
             bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0)
                 .addExecutorLzComposeOption(0, 500000, 0);
 

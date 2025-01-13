@@ -299,10 +299,6 @@ contract Router is Initializable, SuperPausable {
         }
     }
 
-    // TODO: supercontracts.eth frontend would need to calculate how much to burn for the rTokens on each chain for withdraw.
-    // toChainId - check if deposits are here and withdraw them all ...
-    // intercluster like if the toChainId withdraw is in opsuperchain then withdraw from superchain first and then go crosscluster ...
-    // TODO: @superForgerer in testing withdraw keep a track of deposits in what chains they are and use the same logic as frontend
     /**
      * @dev Withdraws an `amount` of underlying asset from the reserve, burning the equivalent rTokens owned
      * @param asset The address of the underlying asset to withdraw

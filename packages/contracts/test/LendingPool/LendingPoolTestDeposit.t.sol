@@ -51,7 +51,6 @@ contract LendingPoolTestDeposit is LendingPoolTestBase {
 
         assertEq(IERC20(rVaultAsset1).balanceOf(rToken), amounts[0]);
 
-        // TODO:test is the userconfig for the rVaultAsset correct?
         DataTypes.UserConfigurationMap memory userConfig = proxyLp.getUserConfiguration(onBehalfOf);
         assert(userConfig.isUsingAsCollateralOrBorrowing(reserveData.id) == true);
     }

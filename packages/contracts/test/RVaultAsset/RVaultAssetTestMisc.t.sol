@@ -24,7 +24,7 @@ contract RVaultAssetTestMisc is RVaultAssetTestBase {
      * @dev Tests that only the super admin can modify the rVaultAsset's state.
      */
     function test_rVaultAssetSuperAdminFunctions() public {
-        vm.startPrank(superProxyAdmin);
+        vm.startPrank(proxyAdmin);
         // Test withdrawal cooldown period modification
         uint256 newPeriod = 2 days;
         IRVaultAsset(rVaultAsset1).setWithdrawCoolDownPeriod(newPeriod);
@@ -52,7 +52,6 @@ contract RVaultAssetTestMisc is RVaultAssetTestBase {
         assertEq(IRVaultAsset(rVaultAsset2).asset(), address(underlyingAsset));
     }
 
-    // TODO:test does the rVaultAsset correctly mint and burn ... with the token type like superasset / underlying?
     /// @dev tests that the rVaultAsset correctly mint and burn ... with the token type like superasset / underlying?
     /// @dev for rVaultAsset1 the underlying is superasset
     /// @dev for rVaultAsset2 the underlying is superasset

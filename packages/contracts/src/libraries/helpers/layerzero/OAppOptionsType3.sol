@@ -78,7 +78,7 @@ abstract contract OAppOptionsType3 is IOAppOptionsType3, Ownable {
         if (_extraOptions.length >= 2) {
             _assertOptionsType3(_extraOptions);
             // @dev Remove the first 2 bytes containing the type from the _extraOptions and combine with enforced.
-            // TODO: check this math
+            // TODO: @tabshaikh check this math
             // return bytes.concat(enforced, _extraOptions[2:]);
             assembly {
                 mstore(add(_extraOptions, 32), sub(mload(_extraOptions), 2)) // reduce length by 2

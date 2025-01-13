@@ -24,7 +24,7 @@ import {LendingPool} from "../src/LendingPool.sol";
 import {LendingPoolAddressesProvider} from "../src/configuration/LendingPoolAddressesProvider.sol";
 import {LendingPoolConfigurator} from "../src/LendingPoolConfigurator.sol";
 import {DefaultReserveInterestRateStrategy} from "../src/DefaultReserveInterestRateStrategy.sol";
-import {ProxyAdmin} from "src/interop-std/src/utils/SuperProxyAdmin.sol";
+import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import {OFT} from "../src/libraries/helpers/layerzero/OFT.sol";
 
 import {EndpointV2} from "../src/libraries/helpers/layerzero/EndpointV2.sol";
@@ -108,7 +108,7 @@ contract Base is TestHelperOz5 {
     SuperAsset superAsset;
     SuperAsset superAssetWeth;
 
-    address superProxyAdmin;
+    address proxyAdmin;
     TestERC20 INR;
     TestERC20 underlyingAsset;
     LendingPoolConfigurator lpConfigurator;
@@ -167,10 +167,10 @@ contract Base is TestHelperOz5 {
         vm.prank(owner);
         eventValidator = new EventValidator((chain_a_cross_l2_prover_address));
 
-        // ############# Deploy SuperProxyAdmin ####################
+        // ############# Deploy proxyAdmin ####################
         vm.prank(owner);
-        superProxyAdmin = address(new ProxyAdmin{salt: "superProxyAdmin"}(owner, _chainId));
-        vm.label(superProxyAdmin, "superProxyAdmin");
+        proxyAdmin = address(new ProxyAdmin{salt: "proxyAdmin"}(owner));
+        vm.label(proxyAdmin, "proxyAdmin");
 
         // ################ Deploy underlyingAsset #################
         vm.prank(owner);
@@ -179,9 +179,9 @@ contract Base is TestHelperOz5 {
 
         // ################ Deploy LendingPoolAddressesProvider ################
         bytes32 lp_type = keccak256("OpSuperchain_LENDING_POOL");
-        lpAddressProvider1 = new LendingPoolAddressesProvider("TUSDC", owner, superProxyAdmin, lp_type);
+        lpAddressProvider1 = new LendingPoolAddressesProvider("TUSDC", owner, proxyAdmin, lp_type);
         lp_type = keccak256("ARB_LENDING_POOL");
-        lpAddressProvider2 = new LendingPoolAddressesProvider("TUSDC", owner, superProxyAdmin, lp_type);
+        lpAddressProvider2 = new LendingPoolAddressesProvider("TUSDC", owner, proxyAdmin, lp_type);
 
         // ################ Deploy LendingPool Implementation ################
         vm.prank(owner);
@@ -290,7 +290,7 @@ contract Base is TestHelperOz5 {
 
         // ################ Deploy LendingPoolConfigurator ################
         lpConfigurator = new LendingPoolConfigurator();
-        lpConfigurator.initialize(ILendingPoolAddressesProvider(address(lpAddressProvider1)), superProxyAdmin);
+        lpConfigurator.initialize(ILendingPoolAddressesProvider(address(lpAddressProvider1)), proxyAdmin);
 
         // ################ Deploy proxy configurator ################
         vm.prank(owner);
