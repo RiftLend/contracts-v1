@@ -49,7 +49,17 @@ interface ISuperAsset {
     /// @param _recepient The address to withdraw tokens to
     function withdrawTokens(address _token, address _recepient) external;
 
+    /// @notice Deposit a specified amount of the underlying asset to a given address
+    /// @param to The address to deposit the asset to
+    /// @param amount The amount of the asset to deposit
     function deposit(address to, uint256 amount) external;
+
+    /// @notice Withdraw a specified amount of the underlying asset to a given address
+    /// @param to The address to withdraw the asset to
+    /// @param amount The amount of the asset to withdraw
     function withdraw(address to, uint256 amount) external;
+
+    /// @notice Get the address of the underlying asset
+    /// @return The address of the underlying asset
     function underlying() external view returns (address);
 }

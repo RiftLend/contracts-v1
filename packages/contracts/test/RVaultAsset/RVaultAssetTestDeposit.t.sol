@@ -11,13 +11,12 @@ contract RVaultAssetTestDeposit is RVaultAssetTestBase {
         address rVaultAssetUnderlying = IRVaultAsset(rVaultAsset1).asset();
 
         uint256 beforeBalance = IERC20(rVaultAssetUnderlying).balanceOf(user1);
-        vm.startPrank(user1);
+        vm.prank(user1);
         IRVaultAsset(rVaultAsset1).deposit(DEPOSIT_AMOUNT, user1);
 
         assertEq(IERC20(rVaultAsset1).balanceOf(user1), DEPOSIT_AMOUNT);
         assertEq(IERC20(rVaultAsset1).balanceOf(user1), DEPOSIT_AMOUNT);
         assertEq(IERC20(rVaultAssetUnderlying).balanceOf(user1), beforeBalance - DEPOSIT_AMOUNT);
-        assertEq(IRVaultAsset(rVaultAsset1).totalBalances(), DEPOSIT_AMOUNT);
         vm.stopPrank();
     }
 

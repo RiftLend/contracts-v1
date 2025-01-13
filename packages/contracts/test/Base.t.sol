@@ -89,6 +89,7 @@ contract Base is TestHelperOz5 {
     address poolAdmin1 = makeAddr("poolAdmin1");
     address user1 = makeAddr("user1");
     address user2 = makeAddr("user2");
+    address liquidityProvider = makeAddr("liquidityProvider");
 
     address relayer = makeAddr("relayer");
     address emergencyAdmin = makeAddr("emergencyAdmin");

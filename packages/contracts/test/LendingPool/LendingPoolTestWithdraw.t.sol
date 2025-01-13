@@ -368,6 +368,7 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
             // Provide initial underlying token balances
             deal(address(underlyingAsset), user1, INITIAL_BALANCE);
             deal(address(underlyingAsset), user2, INITIAL_BALANCE);
+            deal(address(underlyingAsset), liquidityProvider, INITIAL_BALANCE);
 
             // Setup approvals for user1
             vm.startPrank(user1);
@@ -381,12 +382,20 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
             IERC20(address(superAsset)).approve(rVaultAsset, type(uint256).max);
             vm.stopPrank();
 
+            // Setup approvals for lp
+            vm.startPrank(liquidityProvider);
+            IERC20(address(underlyingAsset)).approve(address(superAsset), type(uint256).max);
+            IERC20(address(superAsset)).approve(rVaultAsset, type(uint256).max);
+            vm.stopPrank();
+
             // Handle superAsset deposits if required
             if (IRVaultAsset(rVaultAsset).pool_type() == 1) {
                 vm.prank(user1);
                 superAsset.deposit(user1, DEPOSIT_AMOUNT);
                 vm.prank(user2);
                 superAsset.deposit(user2, DEPOSIT_AMOUNT);
+                vm.prank(liquidityProvider);
+                superAsset.deposit(liquidityProvider, DEPOSIT_AMOUNT);
             }
 
             // Initial deposits to RVaultAssets
@@ -395,11 +404,6 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
             vm.prank(user2);
             IRVaultAsset(rVaultAsset).deposit(DEPOSIT_AMOUNT, user2);
         }
-
-        // ======== Bootstrap Initial Liquidity ========
-        // Provide initial liquidity to vault assets
-        deal(address(superAsset), address(aRVaultAsset), INITIAL_BALANCE);
-        deal(address(superAsset), address(bRVaultAsset), INITIAL_BALANCE);
     }
 
     /**
@@ -500,7 +504,7 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         assert(amount == amounts[0]);
 
         /// assert cross chain balances of rtoken and variable debt token
-        
+
         // ======== Verify Cross-Chain Messages ========
         verifyPackets(bEid, addressToBytes32(address(bRVaultAsset)));
     }

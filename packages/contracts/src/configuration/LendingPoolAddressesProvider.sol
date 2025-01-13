@@ -15,8 +15,8 @@ import "../interfaces/ILendingPoolAddressesProvider.sol";
  * @title LendingPoolAddressesProvider contract
  * @dev Main registry of addresses part of or connected to the protocol, including permissioned roles
  * - Acting also as factory of proxies and admin of those, so with right to change its implementations
- * - Owned by the Aave Governance
- * @author Aave
+ * - Owned by the Riftlend Governance
+ * @author Riftlend
  *
  */
 contract LendingPoolAddressesProvider is SuperOwnable {
@@ -25,9 +25,6 @@ contract LendingPoolAddressesProvider is SuperOwnable {
     address private _proxyAdmin;
     bytes32 immutable LENDING_POOL; // naming will be like `"OpSuperchain_LENDING_POOL"` or `"EthArb_LENDING_POOL"`
     bytes32 private constant UNDERLYING = "UNDERLYING";
-    bytes32 private constant SUPER_ASSET = "SUPER_ASSET";
-    bytes32 private constant SUPER_ASSET_ADAPTER = "SUPER_ASSET_ADAPTER";
-
     bytes32 private constant LENDING_POOL_CONFIGURATOR = "LENDING_POOL_CONFIGURATOR";
     bytes32 private constant POOL_ADMIN = "POOL_ADMIN";
     bytes32 private constant EMERGENCY_ADMIN = "EMERGENCY_ADMIN";
@@ -36,9 +33,6 @@ contract LendingPoolAddressesProvider is SuperOwnable {
     bytes32 private constant LENDING_RATE_ORACLE = "LENDING_RATE_ORACLE";
     bytes32 private constant RELAYER = "RELAYER";
     bytes32 private constant ROUTER = "ROUTER";
-
-    event SuperAssetUpdated(address indexed superchainAsset);
-    event SuperAssetAdapterUpdated(address indexed superchainAssetAdapter);
 
     event RelayerUpdated(address indexed relayer);
     event RouterUpdated(address indexed router);
@@ -114,41 +108,13 @@ contract LendingPoolAddressesProvider is SuperOwnable {
     function getLendingPool() external view returns (address) {
         return getAddress(LENDING_POOL);
     }
-
-    function setUnderlying(address underlying) external onlyOwner {
-        _addresses[UNDERLYING] = underlying;
-        emit UnderlyingUpdated(underlying);
-    }
-
-    function getUnderlying() external view returns (address) {
-        return getAddress(UNDERLYING);
-    }
-
-    function setSuperAsset(address superAsset) external onlyOwner {
-        if (LENDING_POOL != keccak256("OpSuperchain_LENDING_POOL")) revert("!allowed");
-        _addresses[SUPER_ASSET] = superAsset;
-        emit SuperAssetUpdated(superAsset);
-    }
-
-    function getSuperAsset() external view returns (address) {
-        return getAddress(SUPER_ASSET);
-    }
-
-    function setSuperAssetAdapter(address _superAssetAdapter) external onlyOwner {
-        _addresses[SUPER_ASSET_ADAPTER] = _superAssetAdapter;
-        emit SuperAssetAdapterUpdated(_superAssetAdapter);
-    }
-
-    function getSuperAssetAdapter() external view returns (address) {
-        return getAddress(SUPER_ASSET_ADAPTER);
-    }
-
     /**
      * @dev Updates the implementation of the LendingPool, or creates the proxy
      * setting the new `pool` implementation on the first time calling it
      * @param pool The new LendingPool implementation
      *
      */
+
     function setLendingPoolImpl(address pool) external onlyOwner {
         bytes memory params = abi.encodeWithSignature("initialize(address)", address(this));
         _updateImpl(LENDING_POOL, pool, params);

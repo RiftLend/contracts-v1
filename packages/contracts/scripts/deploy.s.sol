@@ -1,24 +1,22 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.8.25;
 
-import {ILendingPoolConfigurator} from "../src/interfaces/ILendingPoolConfigurator.sol";
-import {ILendingPoolAddressesProvider} from "../src/interfaces/ILendingPoolAddressesProvider.sol";
+import {ILendingPoolConfigurator} from "src/interfaces/ILendingPoolConfigurator.sol";
+import {ILendingPoolAddressesProvider} from "src/interfaces/ILendingPoolAddressesProvider.sol";
 
 import {Script, console} from "forge-std/Script.sol";
 import {Vm} from "forge-std/Vm.sol";
-
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
-import {LendingPoolAddressesProvider} from "../src/configuration/LendingPoolAddressesProvider.sol";
-import {LendingPoolConfigurator} from "../src/LendingPoolConfigurator.sol";
-import {LendingPool} from "../src/LendingPool.sol";
-import {DefaultReserveInterestRateStrategy} from "../src/DefaultReserveInterestRateStrategy.sol";
-import {LendingRateOracle} from "../src/LendingRateOracle.sol";
-import {SuperAsset} from "../src/SuperAsset.sol";
-import {RToken} from "../src/tokenization/RToken.sol";
-import {VariableDebtToken} from "../src/tokenization/VariableDebtToken.sol";
-import {L2NativeSuperchainERC20} from "../src/libraries/op/L2NativeSuperchainERC20.sol";
-
-import {Router} from "../src/Router.sol";
+import {LendingPoolAddressesProvider} from "src/configuration/LendingPoolAddressesProvider.sol";
+import {LendingPoolConfigurator} from "src/LendingPoolConfigurator.sol";
+import {LendingPool} from "src/LendingPool.sol";
+import {DefaultReserveInterestRateStrategy} from "src/DefaultReserveInterestRateStrategy.sol";
+import {LendingRateOracle} from "src/LendingRateOracle.sol";
+import {SuperAsset} from "src/SuperAsset.sol";
+import {RToken} from "src/tokenization/RToken.sol";
+import {VariableDebtToken} from "src/tokenization/VariableDebtToken.sol";
+import {L2NativeSuperchainERC20} from "src/libraries/op/L2NativeSuperchainERC20.sol";
+import {Router} from "src/Router.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {MockLayerZeroEndpointV2} from "../test/utils/MockLayerZeroEndpointV2.sol";
 
@@ -200,8 +198,6 @@ contract LendingPoolDeployer is Script {
     {
         string memory salt = vm.parseTomlString(deployConfig, ".router.salt");
         bytes32 bsalt = _implSalt(salt);
-
-        // First deploy the implementation
         bytes memory initCode = type(Router).creationCode;
         address preComputedAddress = vm.computeCreate2Address(bsalt, keccak256(initCode));
         if (preComputedAddress.code.length > 0) {
@@ -212,7 +208,6 @@ contract LendingPoolDeployer is Script {
             console.log("Deployed Router Impl at address: ", routerImpl, "on chain id: ", block.chainid);
         }
 
-        // Then deploy the proxy
         bytes memory initializerData =
             abi.encodeWithSelector(Router.initialize.selector, _lendingPool, _addressesProvider);
 
@@ -277,12 +272,9 @@ contract LendingPoolDeployer is Script {
 
     function deploySuperAsset(address underlying) public returns (address addr_) {
         string memory salt = vm.parseTomlString(deployConfig, ".superchain_asset_1.salt");
-        // address ownerAddr_ = vm.parseTomlAddress(deployConfig, ".superchain_asset_1.owner_address");
         string memory name = vm.parseTomlString(deployConfig, ".superchain_asset_1.name");
         string memory symbol = vm.parseTomlString(deployConfig, ".superchain_asset_1.symbol");
 
-        // uint32 lzEndpoint_eid = 1;
-        // address lzEndpoint = address(new MockLayerZeroEndpointV2(lzEndpoint_eid, ownerAddr_));
         //Todo: add correct weth address here
         address weth = address(0);
 

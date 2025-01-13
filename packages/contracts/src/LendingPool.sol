@@ -637,7 +637,6 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     function setRvaultAssetForUnderlying(address asset, address rVaultAsset) external onlyLendingPoolConfigurator {
         _rVaultAsset[asset] = rVaultAsset;
     }
-
     /**
      * @dev Sets the configuration bitmap of the reserve as a whole
      * - Only callable by the LendingPoolConfigurator contract
@@ -645,6 +644,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
      * @param configuration The new configuration bitmap
      *
      */
+
     function setConfiguration(address asset, uint256 configuration) external onlyLendingPoolConfigurator {
         _reserves[asset].configuration.data = configuration;
     }

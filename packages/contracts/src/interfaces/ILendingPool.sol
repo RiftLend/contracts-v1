@@ -272,6 +272,7 @@ interface ILendingPool {
     function getReservesList() external view returns (address[] memory);
 
     function getAddressesProvider() external view returns (ILendingPoolAddressesProvider);
+
     function getRVaultAssetOrRevert(address asset) external view returns (address rVaultAsset);
 
     function FLASHLOAN_PREMIUM_TOTAL() external view returns (uint256);

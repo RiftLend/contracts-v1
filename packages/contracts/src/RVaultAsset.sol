@@ -212,6 +212,11 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
         emit OFTSent(msgReceipt.guid, _sendParam.dstEid, msg.sender, 0, 0);
     }
 
+    function _payNative(uint256 _nativeFee) internal override returns (uint256 nativeFee) {
+        if (address(this).balance < _nativeFee) revert NotEnoughNative(msg.value);
+        return _nativeFee;
+    }
+
     function lzReceive(
         Origin calldata _origin,
         bytes32 _guid,

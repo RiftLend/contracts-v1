@@ -39,8 +39,6 @@ contract RVaultAssetTestMisc is RVaultAssetTestBase {
         vm.startPrank(user1);
         vm.expectRevert();
         IRVaultAsset(rVaultAsset1).setWithdrawCoolDownPeriod(2 days);
-        vm.expectRevert();
-        IRVaultAsset(rVaultAsset1).toggleSuperTokenBridgeEnabled(true);
         vm.stopPrank();
     }
 
