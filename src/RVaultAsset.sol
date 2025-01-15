@@ -36,18 +36,19 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
     string internal _name;
     string internal _symbol;
     uint8 internal _decimals;
-
+    uint8 public pool_type; // 1 - superchain, unset for ethereum and arbitrum instances
     address public underlying;
-
-    mapping(address user => uint256 balance) public balances;
-
-    mapping(address => uint256) public _lastWithdrawalTime;
+    uint128 lzComposeGasLimit;
+    uint128 lzReceiveGasLimit;
     uint256 public withdrawCoolDownPeriod;
     uint256 public maxDepositLimit;
 
-    uint8 public pool_type; // 1 - superchain, unset for ethereum and arbitrum instances
+    mapping(address user => uint256 balance) public balances;
+    mapping(address => uint256) public _lastWithdrawalTime;
     mapping(uint256 => uint32) public chainToEid;
     mapping(address => bool) public isSupportedBungeeTarget;
+
+    uint256[50] __gap;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           Events                           */
@@ -97,7 +98,9 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
         string memory symbol_,
         uint8 decimals_,
         uint256 withdrawCoolDownPeriod_,
-        uint256 maxDepositLimit_
+        uint256 maxDepositLimit_,
+        uint128 lzReceiveGasLimit_,
+        uint128 lzComposeGasLimit_
     ) external initializer {
         underlying = underlying_;
         provider = provider_;
@@ -108,6 +111,8 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
         _decimals = decimals_;
         withdrawCoolDownPeriod = withdrawCoolDownPeriod_;
         maxDepositLimit = maxDepositLimit_;
+        lzReceiveGasLimit = lzReceiveGasLimit_;
+        lzComposeGasLimit = lzComposeGasLimit_;
 
         _initializeSuperOwner(uint64(block.chainid), msg.sender);
         OFT__Init(lzEndpoint_, delegate_, decimals_);
@@ -267,8 +272,8 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
         view
         returns (SendParam memory sendParam, MessagingFee memory)
     {
-        bytes memory options =
-            OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0).addExecutorLzComposeOption(0, 500000, 0);
+        bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(lzReceiveGasLimit, 0)
+            .addExecutorLzComposeOption(0, lzComposeGasLimit, 0);
 
         bytes memory compose_message = OFTLogic.encodeMessage(receiverOfUnderlying, amount);
         sendParam = SendParam(
@@ -293,6 +298,15 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
 
     function setChainToEid(uint256 _chainId, uint32 _eid) public onlySuperAdmin {
         chainToEid[_chainId] = _eid;
+    }
+    // setters for setting lzReceiveGasLimit and lzComposeGasLimit
+
+    function setLzReceiveGasLimit(uint128 _lzReceiveGasLimit) public onlySuperAdmin {
+        lzReceiveGasLimit = _lzReceiveGasLimit;
+    }
+
+    function setLzComposeGasLimit(uint128 _lzComposeGasLimit) public onlySuperAdmin {
+        lzComposeGasLimit = _lzComposeGasLimit;
     }
 
     // setter for isSupported bungee target ( also a toggler by design)

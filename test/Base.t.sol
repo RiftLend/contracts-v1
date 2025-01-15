@@ -231,7 +231,9 @@ contract Base is TestHelperOz5 {
             rVaultAssetTokenSymbol1,
             underlyingAssetDecimals,
             1 days,
-            1000 ether
+            1000 ether,
+            200000,
+            500000
         );
         rVaultAsset2 = address(new RVaultAsset{salt: "rVaultAsset2Impl"}());
         IRVaultAsset(rVaultAsset2).initialize(
@@ -243,7 +245,9 @@ contract Base is TestHelperOz5 {
             rVaultAssetTokenSymbol2,
             underlyingAssetDecimals,
             1 days,
-            1000 ether
+            1000 ether,
+            200000,
+            500000
         );
         vm.stopPrank();
 

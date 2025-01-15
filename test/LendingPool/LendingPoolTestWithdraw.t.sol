@@ -182,7 +182,9 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
             rVaultAssetTokenSymbol1,
             underlyingAssetDecimals,
             1 days,
-            1000 ether
+            1000 ether,
+            200000,
+            500000
         );
 
         // Deploy and initialize vault asset for chain B
@@ -196,7 +198,9 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
             rVaultAssetTokenSymbol2,
             underlyingAssetDecimals,
             1 days,
-            1000 ether
+            1000 ether,
+            200000,
+            500000
         );
 
         vm.stopPrank();
