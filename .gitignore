@@ -15,3 +15,4 @@ deployment.json
 node_modules/
 .specstory/
 .gitpod.yml
+pnpm-lock.yaml
