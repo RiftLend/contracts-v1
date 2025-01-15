@@ -28,7 +28,9 @@ interface IRVaultAsset {
         string memory symbol_,
         uint8 decimals_,
         uint256 withdrawCoolDownPeriod_,
-        uint256 maxDepositLimit_
+        uint256 maxDepositLimit_,
+        uint128 lzReceiveGasLimit_,
+        uint128 lzComposeGasLimit_
     ) external;
     function deposit(uint256 assets, address receiver) external returns (uint256 shares);
 
