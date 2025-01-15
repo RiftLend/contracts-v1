@@ -301,16 +301,16 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
     }
     // setters for setting lzReceiveGasLimit and lzComposeGasLimit
 
-    function setLzReceiveGasLimit(uint128 _lzReceiveGasLimit) public onlySuperAdmin {
+    function setLzReceiveGasLimit(uint128 _lzReceiveGasLimit) public onlyOwner {
         lzReceiveGasLimit = _lzReceiveGasLimit;
     }
 
-    function setLzComposeGasLimit(uint128 _lzComposeGasLimit) public onlySuperAdmin {
+    function setLzComposeGasLimit(uint128 _lzComposeGasLimit) public onlyOwner {
         lzComposeGasLimit = _lzComposeGasLimit;
     }
 
     // setter for isSupported bungee target ( also a toggler by design)
-    function setIsSupportedBungeeTarget(address _target, bool isSupported) public onlySuperAdmin {
+    function setIsSupportedBungeeTarget(address _target, bool isSupported) public onlyOwner {
         isSupportedBungeeTarget[_target] = isSupported;
     }
 
