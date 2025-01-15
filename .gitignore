@@ -12,3 +12,6 @@ docs/
 .env
 
 deployment.json
+node_modules/
+.specstory/
+.gitpod.yml

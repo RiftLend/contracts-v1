@@ -180,7 +180,9 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
             _delegate,
             rVaultAssetTokenName1,
             rVaultAssetTokenSymbol1,
-            underlyingAssetDecimals
+            underlyingAssetDecimals,
+            1 days,
+            1000 ether
         );
 
         // Deploy and initialize vault asset for chain B
@@ -192,7 +194,9 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
             _delegate,
             rVaultAssetTokenName2,
             rVaultAssetTokenSymbol2,
-            underlyingAssetDecimals
+            underlyingAssetDecimals,
+            1 days,
+            1000 ether
         );
 
         vm.stopPrank();

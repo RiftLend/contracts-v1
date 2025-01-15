@@ -42,8 +42,8 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
     mapping(address user => uint256 balance) public balances;
 
     mapping(address => uint256) public _lastWithdrawalTime;
-    uint256 public withdrawCoolDownPeriod = 1 days;
-    uint256 public maxDepositLimit = 1000 ether;
+    uint256 public withdrawCoolDownPeriod;
+    uint256 public maxDepositLimit;
 
     uint8 public pool_type; // 1 - superchain, unset for ethereum and arbitrum instances
     mapping(uint256 => uint32) public chainToEid;
@@ -93,7 +93,9 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
         address delegate_,
         string memory name_,
         string memory symbol_,
-        uint8 decimals_
+        uint8 decimals_,
+        uint256 withdrawCoolDownPeriod_,
+        uint256 maxDepositLimit_
     ) external initializer {
         underlying = underlying_;
         provider = provider_;
@@ -102,6 +104,8 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
         _name = name_;
         _symbol = symbol_;
         _decimals = decimals_;
+        withdrawCoolDownPeriod = withdrawCoolDownPeriod_;
+        maxDepositLimit = maxDepositLimit_;
 
         _initializeSuperOwner(uint64(block.chainid), msg.sender);
         OFT__Init(lzEndpoint_, delegate_, decimals_);
