@@ -46,6 +46,7 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
     mapping(address user => uint256 balance) public balances;
     mapping(address => uint256) public _lastWithdrawalTime;
     mapping(uint256 => uint32) public chainToEid;
+    mapping(address => bool) public isSupportedBungeeTarget;
 
     uint256[50] __gap;
 
@@ -66,6 +67,7 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
     error DepositLimitExceeded();
     error WithdrawCoolDownPeriodNotElapsed();
     error UnAuthorized();
+    error BungeeTargetNotSupported();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           Modifiers                        */
@@ -177,6 +179,7 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
         address _underlying,
         uint256 _underlyingAmount
     ) external onlySuperAdmin {
+        if (!isSupportedBungeeTarget[_bungeeTarget]) revert BungeeTargetNotSupported();
         if (pool_type == 1) {
             ISuperAsset(_underlying).withdraw(address(this), _underlyingAmount);
         }
@@ -304,6 +307,11 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
 
     function setLzComposeGasLimit(uint128 _lzComposeGasLimit) public onlySuperAdmin {
         lzComposeGasLimit = _lzComposeGasLimit;
+    }
+
+    // setter for isSupported bungee target ( also a toggler by design)
+    function setIsSupportedBungeeTarget(address _target, bool isSupported) public onlySuperAdmin {
+        isSupportedBungeeTarget[_target] = isSupported;
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
