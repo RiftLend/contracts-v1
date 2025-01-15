@@ -47,6 +47,7 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
 
     uint8 public pool_type; // 1 - superchain, unset for ethereum and arbitrum instances
     mapping(uint256 => uint32) public chainToEid;
+    mapping(address => bool) public isSupportedBungeeTarget;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           Events                           */
@@ -65,6 +66,7 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
     error DepositLimitExceeded();
     error WithdrawCoolDownPeriodNotElapsed();
     error UnAuthorized();
+    error BungeeTargetNotSupported();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           Modifiers                        */
@@ -172,6 +174,7 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
         address _underlying,
         uint256 _underlyingAmount
     ) external onlySuperAdmin {
+        if (!isSupportedBungeeTarget[_bungeeTarget]) revert BungeeTargetNotSupported();
         if (pool_type == 1) {
             ISuperAsset(_underlying).withdraw(address(this), _underlyingAmount);
         }
@@ -290,6 +293,11 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
 
     function setChainToEid(uint256 _chainId, uint32 _eid) public onlySuperAdmin {
         chainToEid[_chainId] = _eid;
+    }
+
+    // setter for isSupported bungee target ( also a toggler by design)
+    function setIsSupportedBungeeTarget(address _target, bool isSupported) public onlySuperAdmin {
+        isSupportedBungeeTarget[_target] = isSupported;
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
