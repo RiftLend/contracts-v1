@@ -92,3 +92,12 @@ more will be added later
 1. Audit Documentation:
    1. [Stale Documentation](https://github.com/RiftLend/contracts-v1/tree/tabish/nits?tab=readme-ov-file#riftlend)
    2. [Official Docs (beta)](https://docs.riftlend.com/)
+
+## Auditor Notes
+
+### Changes in the libraries
+We have used `Layerzero V1 and V2` libraries to implement cross chain interoperability. However , we have changed somethings in their code and put it in `src/libraries/helpers/layerzero` folder . The key changes are made in `layerzero v2` contracts
+    - Using `Solady` contracts to remove conflicts with some of our contracts that uses solady's code for gas efficiency
+    - We have made OFT contracts upgradable to serve the purpose of child contracts be upgradable .
+ 
+ It is to note that from `Layerzero v1` we had to use it for a one specific instance of `ILayerzeroUtraLightNodeV2.sol` which is used inside `DVN.sol` from lz V2 . Changing DVN would have been hectic to manage all the cascading deps change so we directly installed the v1 too but just for you to understand that the real dependency issues might be in how we use layerzero v2.
