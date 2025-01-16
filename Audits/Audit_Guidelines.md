@@ -11,55 +11,68 @@ The current branch for the latest changes is [tabish/nits](https://github.com/Ri
 ## Scope
 
 ```fs
-packages
-└── contracts
-    └── src
-        ├── libraries
-        │   ├── configuration
-        │   │   ├── ReserveConfiguration.sol
-        │   │   └── UserConfiguration.sol
-        │   ├── logic
-        │   │   ├── GenericLogic.sol
-        │   │   ├── ReserveLogic.sol
-        │   │   └── ValidationLogic.sol
-        │   └── types
-        │       └── DataTypes.sol
-        ├── tokenization
-        │   ├── RToken.sol
-        │   └── VariableDebtToken.sol
-        ├── LendingPool.sol
-        ├── LendingPoolCollateralManager.sol
-        ├── LendingPoolConfigurator.sol
-        ├── LendingPoolStorage.sol
-        ├── LendingRateOracle.sol
-        ├── Router.sol
-        ├── RVaultAsset.sol
-        └── SuperAsset.sol
+    src
+    ├── libraries
+    │   ├── configuration
+    │   │   ├── ReserveConfiguration.sol
+    │   │   └── UserConfiguration.sol
+    │   ├── logic
+    │   │   ├── GenericLogic.sol
+    │   │   ├── OFTLogic.sol
+    │   │   ├── ReserveLogic.sol
+    │   │   └── ValidationLogic.sol
+    │   └── types
+    │       └── DataTypes.sol
+    ├── tokenization
+    │   ├── DelegationAwareAToken.sol
+    │   ├── IncentivizedERC20.sol
+    │   ├── RToken.sol
+    │   └── VariableDebtToken.sol
+    ├── configuration
+    │   └── LendingPoolAddressesProvider.sol
+    ├── EventValidator.sol
+    ├── LendingPool.sol
+    ├── LendingPoolCollateralManager.sol
+    ├── LendingPoolConfigurator.sol
+    ├── LendingPoolStorage.sol
+    ├── LendingRateOracle.sol
+    ├── Router.sol
+    ├── RVaultAsset.sol
+    └── SuperAsset.sol
 ```
 
 ## nSLOC
 
 ```fs
-File                                                                   Lines of Code   
-=====================================================================================  
-src/libraries/configuration/ReserveConfiguration.sol                        139
-src/libraries/configuration/UserConfiguration.sol                           49
-src/libraries/logic/GenericLogic.sol                                        154
-src/libraries/logic/ReserveLogic.sol                                        200
-src/libraries/logic/ValidationLogic.sol                                     235
-src/libraries/types/DataTypes.sol                                           27
-src/tokenization/RToken.sol                                                 286
-src/tokenization/VariableDebtToken.sol                                      126
-src/LendingPool.sol                                                         572
-src/LendingPoolCollateralManager.sol                                        189
-src/LendingPoolConfigurator.sol                                             284
-src/LendingPoolStorage.sol                                                  14
-src/LendingRateOracle.sol                                                   22
-src/Router.sol                                                              254
-src/RVaultAsset.sol                                                         167
-src/SuperAsset.sol                                                          35
-=====================================================================================
-Total lines of code                                                         2753
+File                                                             Lines of Code
+=============================================================================
+src/libraries/configuration/ReserveConfiguration.sol                 121        
+src/libraries/configuration/UserConfiguration.sol                    49
+src/libraries/logic/GenericLogic.sol                                 168      
+src/libraries/logic/ReserveLogic.sol                                 180
+src/libraries/logic/ValidationLogic.sol                              214  
+src/libraries/types/DataTypes.sol                                    59
+src/tokenization/RToken.sol                                          277 
+src/tokenization/VariableDebtToken.sol                               128 
+src/tokenization/IncentivizedERC20.sol                               122  
+src/tokenization/DelegationAwareAToken.sol                           14
+src/configuration/LendingPoolAddressesProvider.sol                   137  
+src/libraries/logic/GenericLogic.sol                                 168     
+src/libraries/logic/OFTLogic.sol                                     20
+src/libraries/logic/ReserveLogic.sol                                 180     
+src/libraries/logic/ValidationLogic.sol                              214        
+src/libraries/EventValidator.sol                                     53
+src/LendingPool.sol                                                  486        
+src/LendingPoolCollateralManager.sol                                 193        
+src/LendingPoolConfigurator.sol                                      239        
+src/LendingPoolStorage.sol                                           15
+src/LendingRateOracle.sol                                            22
+src/Router.sol                                                       234        
+src/RVaultAsset.sol                                                  149        
+src/SuperAsset.sol                                                   59
+
+========================================================================
+Total lines of code                                                3501       
 
 ```
 

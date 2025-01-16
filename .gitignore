@@ -16,3 +16,4 @@ node_modules/
 .specstory/
 .gitpod.yml
 pnpm-lock.yaml
+count_lines.py
