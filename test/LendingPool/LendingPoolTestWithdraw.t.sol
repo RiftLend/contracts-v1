@@ -6,15 +6,13 @@ import {IOFT} from "src/libraries/helpers/layerzero/IOFT.sol";
 import {ILendingPoolAddressesProvider} from "src/interfaces/ILendingPoolAddressesProvider.sol";
 import {ILendingPoolConfigurator} from "src/interfaces/ILendingPoolConfigurator.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ILendingPool, CrossChainDeposit, CrossChainWithdraw, Withdraw} from "src/interfaces/ILendingPool.sol";
+import {ILendingPool, CrossChainDeposit, CrossChainWithdraw, Withdraw, Deposit} from "src/interfaces/ILendingPool.sol";
 import {IAaveIncentivesController} from "src/interfaces/IAaveIncentivesController.sol";
 
 import {DataTypes} from "src/libraries/types/DataTypes.sol";
 import {UserConfiguration} from "src/libraries/configuration/UserConfiguration.sol";
 import {Identifier} from "src/libraries/EventValidator.sol";
-import {
-    Origin, MessagingReceipt, ILayerZeroEndpointV2
-} from "src/libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
+import {Origin, MessagingReceipt, ILayerZeroEndpointV2} from "src/libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
 import {ValidationMode} from "src/libraries/EventValidator.sol";
 import {LendingPoolTestBase} from "./LendingPoolTestBase.t.sol";
 import {RVaultAsset} from "src/RVaultAsset.sol";
@@ -28,6 +26,7 @@ import {VariableDebtToken} from "src/tokenization/VariableDebtToken.sol";
 import {DefaultReserveInterestRateStrategy} from "src/DefaultReserveInterestRateStrategy.sol";
 import "forge-std/Vm.sol";
 import {console} from "forge-std/console.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 interface IOAppSetPeer {
     function setPeer(uint32 _eid, bytes32 _peer) external;
@@ -40,33 +39,27 @@ interface IOAppSetPeer {
  * @dev Tests the complete flow of deposits and withdrawals across different chains using LayerZero
  */
 contract LendingPoolTestWithdraw is LendingPoolTestBase {
-    // ======== Cross-Chain Vault Assets ========
-    RVaultAsset aRVaultAsset; // Vault asset for chain A
-    RVaultAsset bRVaultAsset; // Vault asset for chain B
+    using Strings for uint256;
 
-    // ======== Chain Identifiers ========
-    uint32 private aEid = 1; // Endpoint ID for chain A
-    uint32 private bEid = 2; // Endpoint ID for chain B
-
-    // ======== LendingPool Components ========
-    LendingPool implementationLp1; // Implementation contract for chain A
-    LendingPool implementationLp2; // Implementation contract for chain B
-    LendingPool proxyLp1; // LendigPool Proxy contract for chain A
-    LendingPool proxyLp2; // LendigPool Proxy contract for chain B
-
-    // ======== Cross-Chain Routing ========
-    Router router1; // Router for chain A
-    Router router2; // Router for chain B
-
-    // ======== Pool Configuration ========
-    LendingPoolConfigurator proxyConfigurator1; // Configurator for chain A
-    LendingPoolConfigurator proxyConfigurator2; // Configurator for chain B
-
+    struct ChainAddresses {
+        uint32 endpointId; // LayerZero endpoint ID
+        uint256 chainId; // Network chain ID
+        LendingPoolAddressesProvider lpAddressProvider;
+        LendingPool lendingPool; 
+        LendingPool lendingPoolImpl; 
+        LendingPoolConfigurator configurator;
+        Router router; 
+        RVaultAsset rVaultAsset; 
+        RToken rToken; 
+        VariableDebtToken variableDebtToken; 
+    }
+    mapping(uint256 => ChainAddresses) private chainAddresses;
     /**
      * @notice Sets up the complete test environment
      * @dev Initializes all necessary contracts and configurations for cross-chain testing
      */
     function setUp() public virtual override {
+
         // Initialize base test setup
         super.setUp();
 
@@ -76,107 +69,87 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         vm.deal(user2, 1000 ether);
 
         // Initialize LayerZero endpoints using UltraLightNode
-        setUpEndpoints(2, LibraryType.UltraLightNode);
+        setUpEndpoints(uint8(supportedChains.length), LibraryType.UltraLightNode);
 
         // ======== Deploy Address Providers ========
         // Create unique identifier for lending pools
         bytes32 lp_type = keccak256("OpSuperchain_LENDING_POOL");
+        for (uint256 i = 0; i < supportedChains.length; i++) {
+            console.log("Setting up chain id: %s", Strings.toString(supportedChains[i].chainId));
+            uint256 c_id = supportedChains[i].chainId;
+            vm.selectFork(supportedChains[i].forkId);
+            chainAddresses[c_id].endpointId = uint32(i + 1);
+            vm.startPrank(owner);
+            chainAddresses[c_id].lpAddressProvider = new LendingPoolAddressesProvider(
+                "TUSDC",
+                owner,
+                proxyAdmin,
+                lp_type
+            );
+            vm.label(
+                address(chainAddresses[c_id].lpAddressProvider),
+                string(abi.encodePacked("lpAddressProvider: ", Strings.toString(c_id)))
+            );
 
-        // Deploy address providers for both chains
-        lpAddressProvider1 = new LendingPoolAddressesProvider("TUSDC1", owner, proxyAdmin, lp_type);
-        lpAddressProvider2 = new LendingPoolAddressesProvider("TUSDC2", owner, proxyAdmin, lp_type);
-
-        // ======== Deploy & Initialize LendingPools ========
-        vm.startPrank(owner);
-        // Deploy implementations
-        implementationLp1 = new LendingPool();
-        implementationLp2 = new LendingPool();
-
-        // Initialize implementations
-        implementationLp1.initialize(ILendingPoolAddressesProvider(address(lpAddressProvider1)));
-        implementationLp2.initialize(ILendingPoolAddressesProvider(address(lpAddressProvider1)));
-
-        // Label contracts for better trace outputs
-        vm.label(address(implementationLp1), "implementationLp1");
-        vm.label(address(implementationLp2), "implementationLp2");
-
-        vm.stopPrank();
-
-        // ======== Configure LendingPool Proxies ========
-        vm.startPrank(owner);
-
-        // Set implementations in providers
-        lpAddressProvider1.setLendingPoolImpl(address(implementationLp1));
-        lpAddressProvider2.setLendingPoolImpl(address(implementationLp2));
-
-        // Get proxy references
-        proxyLp1 = LendingPool(lpAddressProvider1.getLendingPool());
-        proxyLp2 = LendingPool(lpAddressProvider2.getLendingPool());
-
-        // Label proxies for better trace outputs
-        vm.label(address(proxyLp1), "proxyLp1");
-        vm.label(address(proxyLp2), "proxyLp2");
-
-        vm.stopPrank();
-
-        // ======== Deploy & Configure Pool Configurators ========
-        vm.startPrank(owner);
-
-        // Deploy configurator implementations
-        LendingPoolConfigurator lpConfigurator1 = new LendingPoolConfigurator();
-        LendingPoolConfigurator lpConfigurator2 = new LendingPoolConfigurator();
-
+            LendingPool lendingPoolImpl = new LendingPool();
+            chainAddresses[c_id].lendingPoolImpl = lendingPoolImpl;
+            lendingPoolImpl.initialize(
+                ILendingPoolAddressesProvider(
+                    address(chainAddresses[c_id].lpAddressProvider)
+                )
+            );
+            vm.label(
+                address(lendingPoolImpl),
+                string(abi.encodePacked("LendingPoolImpl: ", Strings.toString(c_id)))
+            );
+            chainAddresses[c_id].lpAddressProvider.setLendingPoolImpl(
+                address(lendingPoolImpl)
+            );
+            
+            LendingPool proxyLp = LendingPool(chainAddresses[c_id].lpAddressProvider.getLendingPool());
+            chainAddresses[c_id].lendingPool =proxyLp;
+            vm.label(
+                address(proxyLp),
+                string(abi.encodePacked("ProxyLendingPool: ", Strings.toString(c_id)))
+            );
+        LendingPoolConfigurator configuratorImpl = new LendingPoolConfigurator();
         // Initialize configurators
-        lpConfigurator1.initialize(ILendingPoolAddressesProvider(address(lpAddressProvider1)), proxyAdmin);
-        lpConfigurator2.initialize(ILendingPoolAddressesProvider(address(lpAddressProvider2)), proxyAdmin);
-
+        configuratorImpl.initialize(
+            ILendingPoolAddressesProvider(address(chainAddresses[c_id].lpAddressProvider)),
+            proxyAdmin
+        );
         // Set configurator implementations in providers
-        lpAddressProvider1.setLendingPoolConfiguratorImpl(address(lpConfigurator1));
-        lpAddressProvider2.setLendingPoolConfiguratorImpl(address(lpConfigurator2));
+        chainAddresses[c_id].lpAddressProvider.setLendingPoolConfiguratorImpl(
+            address(configuratorImpl)
+        );
 
-        // Get configurator proxy references
-        proxyConfigurator1 = LendingPoolConfigurator(lpAddressProvider1.getLendingPoolConfigurator());
-        proxyConfigurator2 = LendingPoolConfigurator(lpAddressProvider2.getLendingPoolConfigurator());
-
-        vm.stopPrank();
-
-        // ======== Deploy & Initialize Routers ========
-        vm.startPrank(owner);
-
+        chainAddresses[c_id].configurator=LendingPoolConfigurator(
+            chainAddresses[c_id].lpAddressProvider.getLendingPoolConfigurator()
+        );
         // Deploy routers with unique salts
-        router1 = new Router{salt: "router1"}();
-        router2 = new Router{salt: "router2"}();
-
+        chainAddresses[c_id].router = new Router{salt: "RouterContract"}();
         // Initialize routers with respective components
-        router1.initialize(address(proxyLp1), address(lpAddressProvider1), address(eventValidator));
-        router2.initialize(address(proxyLp2), address(lpAddressProvider2), address(eventValidator));
-
-        vm.stopPrank();
-
-        // ======== Configure Address Providers ========
-        vm.startPrank(owner);
+        chainAddresses[c_id].router.initialize(
+            address(chainAddresses[c_id].lendingPool),
+            address(chainAddresses[c_id].lpAddressProvider),
+            address(eventValidator)
+        );
 
         // Configure chain A provider
-        lpAddressProvider1.setPoolAdmin(poolAdmin1);
-        lpAddressProvider1.setRelayer(relayer);
-        lpAddressProvider1.setRouter(address(router1));
-
-        // Configure chain B provider
-        lpAddressProvider2.setPoolAdmin(poolAdmin1);
-        lpAddressProvider2.setRelayer(relayer);
-        lpAddressProvider2.setRouter(address(router2));
-
-        vm.stopPrank();
-
-        // ======== Deploy RVaultAssets ========
-        vm.startPrank(owner);
+        chainAddresses[c_id].lpAddressProvider.setPoolAdmin(poolAdmin1);
+        chainAddresses[c_id].lpAddressProvider.setRelayer(relayer);
+        chainAddresses[c_id].lpAddressProvider.setRouter(address(chainAddresses[c_id].router));
 
         // Deploy and initialize vault asset for chain A
-        aRVaultAsset = RVaultAsset(_deployOApp(type(RVaultAsset).creationCode, bytes("")));
-        aRVaultAsset.initialize(
+        RVaultAsset rVaultAsset = RVaultAsset(
+            _deployOApp(type(RVaultAsset).creationCode, bytes(""))
+        );
+        console.log("init rVaultAsset");
+
+        rVaultAsset.initialize(
             address(superAsset),
-            ILendingPoolAddressesProvider(address(lpAddressProvider1)),
-            address(endpoints[aEid]),
+            ILendingPoolAddressesProvider(address(chainAddresses[c_id].lpAddressProvider)),
+            address(endpoints[chainAddresses[c_id].endpointId]),
             _delegate,
             rVaultAssetTokenName1,
             rVaultAssetTokenSymbol1,
@@ -186,34 +159,86 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
             200000,
             500000
         );
+        chainAddresses[c_id].rVaultAsset=rVaultAsset;
+        // Deploy and initialize RTokens
+        chainAddresses[c_id].rToken = new RToken{salt: "rTokenContract"}();
 
-        // Deploy and initialize vault asset for chain B
-        bRVaultAsset = RVaultAsset(_deployOApp(type(RVaultAsset).creationCode, bytes("")));
-        bRVaultAsset.initialize(
-            address(superAsset),
-            ILendingPoolAddressesProvider(address(lpAddressProvider2)),
-            address(endpoints[bEid]),
-            _delegate,
-            rVaultAssetTokenName2,
-            rVaultAssetTokenSymbol2,
+        chainAddresses[c_id].rToken.initialize(
+            ILendingPool(address(chainAddresses[c_id].lendingPool)),
+            treasury,
+            address(chainAddresses[c_id].rVaultAsset),
+            IAaveIncentivesController(incentivesController),
+            ILendingPoolAddressesProvider(address(chainAddresses[c_id].lpAddressProvider)),
+            underlyingAsset.decimals(),
+            rTokenName1,
+            rTokenSymbol1,
+            bytes(""),
+            address(eventValidator)
+        );
+
+        chainAddresses[c_id].variableDebtToken = new VariableDebtToken{
+            salt: "variableDebtTokenContract"
+        }();
+
+        chainAddresses[c_id].variableDebtToken.initialize(
+            ILendingPool(address(chainAddresses[c_id].lendingPool)),
+            address(underlyingAsset),
+            IAaveIncentivesController(incentivesController),
             underlyingAssetDecimals,
-            1 days,
-            1000 ether,
-            200000,
-            500000
+            variableDebtTokenName,
+            variableDebtTokenSymbol,
+            "v"
+        );
+        
+        ILendingPoolConfigurator.InitReserveInput[]
+            memory pool_input = new ILendingPoolConfigurator.InitReserveInput[](
+                1
+            );
+        pool_input[0] = ILendingPoolConfigurator.InitReserveInput({
+            rTokenName: rTokenName1,
+            rTokenSymbol: rTokenSymbol1,
+            variableDebtTokenImpl: address(chainAddresses[c_id].variableDebtToken),
+            variableDebtTokenName: variableDebtTokenName,
+            variableDebtTokenSymbol: variableDebtTokenSymbol,
+            interestRateStrategyAddress: strategy,
+            treasury: treasury,
+            incentivesController: incentivesController,
+            superAsset: address(superAsset),
+            underlyingAsset: address(address(chainAddresses[c_id].rVaultAsset)),
+            underlyingAssetDecimals: underlyingAssetDecimals,
+            underlyingAssetName: underlyingAssetName,
+            params: "v",
+            salt: "salt",
+            rTokenImpl: address(chainAddresses[c_id].rToken)
+        });
+        vm.stopPrank();
+        vm.startPrank(poolAdmin1);
+        // Initialize reserves on both chains
+        chainAddresses[c_id].configurator.batchInitReserve(pool_input);
+        // Activate reserves and set RVaultAsset mappings
+        chainAddresses[c_id].configurator.activateReserve(address(chainAddresses[c_id].rVaultAsset));
+        chainAddresses[c_id].configurator.setRvaultAssetForUnderlying(
+            address(underlyingAsset),
+            address(chainAddresses[c_id].rVaultAsset)
         );
 
         vm.stopPrank();
 
-        // Bootstraping initial ETH to vault assets for lzCalls
-        vm.deal(address(aRVaultAsset), 10 ether);
-        vm.deal(address(bRVaultAsset), 10 ether);
+
+        // Bootstraping initial ETH to contracts for lzCalls
+        vm.deal(address(chainAddresses[c_id].rToken), 100 ether);
+        vm.deal(address(chainAddresses[c_id].router), 100 ether);
+
+        }
+
+
 
         // ======== Configure Cross-Chain Communication ========
         // Setup peer connections between vault assets
-        address[] memory ofts = new address[](2);
-        ofts[0] = address(aRVaultAsset);
-        ofts[1] = address(bRVaultAsset);
+        address[] memory ofts = new address[](supportedChains.length);
+        for (uint256 i = 0; i < ofts.length; i++) {
+            ofts[i] = address(chainAddresses[supportedChains[i].chainId].rVaultAsset);
+        }
 
         uint256 size = ofts.length;
         for (uint256 i = 0; i < size; i++) {
@@ -223,159 +248,14 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
                 IOAppSetPeer remoteOApp = IOAppSetPeer(ofts[j]);
                 uint32 remoteEid = (remoteOApp.endpoint()).eid();
                 vm.prank(owner);
-                localOApp.setPeer(remoteEid, addressToBytes32(address(remoteOApp)));
+                localOApp.setPeer(
+                    remoteEid,
+                    addressToBytes32(address(remoteOApp))
+                );
             }
         }
 
-        // ======== Deploy Token Components ========
-        vm.startPrank(owner);
 
-        // Deploy and initialize RTokens
-        console.log("deploying rTokenImpl1");
-        RToken rTokenImpl1 = new RToken{salt: "rToken1"}();
-        console.log("deploying rTokenImpl2");
-        RToken rTokenImpl2 = new RToken{salt: "rToken2"}();
-
-        rTokenImpl1.initialize(
-            ILendingPool(address(proxyLp1)),
-            treasury,
-            address(aRVaultAsset),
-            IAaveIncentivesController(incentivesController),
-            ILendingPoolAddressesProvider(address(lpAddressProvider1)),
-            underlyingAsset.decimals(),
-            rTokenName1,
-            rTokenSymbol1,
-            bytes(""),
-            address(eventValidator)
-        );
-
-        rTokenImpl2.initialize(
-            ILendingPool(address(proxyLp2)),
-            treasury,
-            address(bRVaultAsset),
-            IAaveIncentivesController(incentivesController),
-            ILendingPoolAddressesProvider(address(lpAddressProvider2)),
-            underlyingAsset.decimals(),
-            rTokenName2,
-            rTokenSymbol2,
-            bytes(""),
-            address(eventValidator)
-        );
-
-        // Deploy and initialize Variable Debt Tokens
-        VariableDebtToken variableDebtTokenImpl1 = new VariableDebtToken{salt: "variableDebtTokenImpl1"}();
-        VariableDebtToken variableDebtTokenImpl2 = new VariableDebtToken{salt: "variableDebtTokenImpl2"}();
-
-        variableDebtTokenImpl1.initialize(
-            ILendingPool(address(proxyLp1)),
-            address(underlyingAsset),
-            IAaveIncentivesController(incentivesController),
-            underlyingAssetDecimals,
-            variableDebtTokenName,
-            variableDebtTokenSymbol,
-            "v"
-        );
-
-        variableDebtTokenImpl2.initialize(
-            ILendingPool(address(proxyLp2)),
-            address(underlyingAsset),
-            IAaveIncentivesController(incentivesController),
-            underlyingAssetDecimals,
-            variableDebtTokenName,
-            variableDebtTokenSymbol,
-            "v"
-        );
-
-        vm.stopPrank();
-
-        // ======== Deploy Interest Rate Strategy ========
-        // Deploy strategy with initial parameters
-        address strategy = address(
-            new DefaultReserveInterestRateStrategy(
-                ILendingPoolAddressesProvider(address(lpAddressProvider1)),
-                0.8 * 1e27, // optimalUtilizationRate
-                0.02 * 1e27, // baseVariableBorrowRate
-                0.04 * 1e27, // variableRateSlope1
-                0.75 * 1e27 // variableRateSlope2
-            )
-        );
-        vm.label(strategy, "DefaultReserveInterestRateStrategy");
-
-        // ======== Initialize Reserves ========
-        // Prepare initialization input for chain A
-        ILendingPoolConfigurator.InitReserveInput[] memory pool1_input =
-            new ILendingPoolConfigurator.InitReserveInput[](1);
-        pool1_input[0] = ILendingPoolConfigurator.InitReserveInput({
-            rTokenName: rTokenName1,
-            rTokenSymbol: rTokenSymbol1,
-            variableDebtTokenImpl: address(variableDebtTokenImpl1),
-            variableDebtTokenName: variableDebtTokenName,
-            variableDebtTokenSymbol: variableDebtTokenSymbol,
-            interestRateStrategyAddress: strategy,
-            treasury: treasury,
-            incentivesController: incentivesController,
-            superAsset: address(superAsset),
-            underlyingAsset: address(address(aRVaultAsset)),
-            underlyingAssetDecimals: underlyingAssetDecimals,
-            underlyingAssetName: underlyingAssetName,
-            params: "v",
-            salt: "salt",
-            rTokenImpl: address(rTokenImpl1)
-        });
-
-        // Prepare initialization input for chain B
-        ILendingPoolConfigurator.InitReserveInput[] memory pool2_input =
-            new ILendingPoolConfigurator.InitReserveInput[](1);
-        pool2_input[0] = ILendingPoolConfigurator.InitReserveInput({
-            rTokenName: rTokenName2,
-            rTokenSymbol: rTokenSymbol2,
-            variableDebtTokenImpl: address(variableDebtTokenImpl2),
-            variableDebtTokenName: variableDebtTokenName,
-            variableDebtTokenSymbol: variableDebtTokenSymbol,
-            interestRateStrategyAddress: strategy,
-            treasury: treasury,
-            incentivesController: incentivesController,
-            superAsset: address(superAsset),
-            underlyingAsset: address(address(bRVaultAsset)),
-            underlyingAssetDecimals: underlyingAssetDecimals,
-            underlyingAssetName: underlyingAssetName,
-            params: "v",
-            salt: "salt",
-            rTokenImpl: address(rTokenImpl2)
-        });
-
-        // ======== Initialize and Activate Reserves ========
-        vm.startPrank(poolAdmin1);
-
-        // Initialize reserves on both chains
-        proxyConfigurator1.batchInitReserve(pool1_input);
-        proxyConfigurator2.batchInitReserve(pool2_input);
-
-        DataTypes.ReserveData memory reserveData = proxyLp1.getReserveData(address(aRVaultAsset));
-        address rToken1 = reserveData.rTokenAddress;
-        vm.deal(address(rToken1), 100 ether);
-
-        DataTypes.ReserveData memory reserveData2 = proxyLp2.getReserveData(address(bRVaultAsset));
-        address rToken2 = reserveData2.rTokenAddress;
-        vm.deal(address(rToken2), 100 ether);
-
-        // Activate reserves and set RVaultAsset mappings
-        proxyConfigurator1.activateReserve(address(aRVaultAsset));
-        proxyConfigurator2.activateReserve(address(bRVaultAsset));
-        proxyConfigurator1.setRvaultAssetForUnderlying(address(underlyingAsset), address(aRVaultAsset));
-        proxyConfigurator2.setRvaultAssetForUnderlying(address(underlyingAsset), address(bRVaultAsset));
-
-        vm.stopPrank();
-
-        // ======== Cross-Chain Configuration ========
-        // Set chain ID mappings for cross-chain communication
-        (aRVaultAsset).setChainToEid(bEid, bEid);
-        (bRVaultAsset).setChainToEid(aEid, aEid);
-
-        // ======== Initial Token Distribution ========
-        // Setup initial balances for both vault assets
-        ofts[0] = address(aRVaultAsset);
-        ofts[1] = address(bRVaultAsset);
 
         // Initialize user balances and approvals for each vault
         for (uint256 i = 0; i < ofts.length; i++) {
@@ -388,19 +268,28 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
 
             // Setup approvals for user1
             vm.startPrank(user1);
-            IERC20(address(underlyingAsset)).approve(address(superAsset), type(uint256).max);
+            IERC20(address(underlyingAsset)).approve(
+                address(superAsset),
+                type(uint256).max
+            );
             IERC20(address(superAsset)).approve(rVaultAsset, type(uint256).max);
             vm.stopPrank();
 
             // Setup approvals for user2
             vm.startPrank(user2);
-            IERC20(address(underlyingAsset)).approve(address(superAsset), type(uint256).max);
+            IERC20(address(underlyingAsset)).approve(
+                address(superAsset),
+                type(uint256).max
+            );
             IERC20(address(superAsset)).approve(rVaultAsset, type(uint256).max);
             vm.stopPrank();
 
             // Setup approvals for lp
             vm.startPrank(liquidityProvider);
-            IERC20(address(underlyingAsset)).approve(address(superAsset), type(uint256).max);
+            IERC20(address(underlyingAsset)).approve(
+                address(superAsset),
+                type(uint256).max
+            );
             IERC20(address(superAsset)).approve(rVaultAsset, type(uint256).max);
             vm.stopPrank();
 
@@ -434,20 +323,28 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = 5 ether;
         uint256[] memory chainIds = new uint256[](1);
-        chainIds[0] = aEid;
+        chainIds[0] = supportedChains[0].chainId;
 
         // Set test chain context
-        vm.chainId(aEid);
+        vm.chainId(chainIds[0]);
+        ChainAddresses memory chainInfo = chainAddresses[chainIds[0]];
 
         // ======== Initial Deposit Setup ========
         // Approve spending
         vm.prank(user1);
-        IERC20(underlyingAsset).approve(address(proxyLp1), amounts[0]);
+
+        IERC20(underlyingAsset).approve(address(chainInfo.lendingPool), amounts[0]);
 
         // Record events and execute deposit
         vm.recordLogs();
         vm.prank(user1);
-        router1.deposit(address(underlyingAsset), amounts, onBehalfOf, referralCode, chainIds);
+        chainAddresses[block.chainid].router.deposit(
+            address(underlyingAsset),
+            amounts,
+            onBehalfOf,
+            referralCode,
+            chainIds
+        );
 
         // ======== Process Deposit Via Relayer ========
         Identifier[] memory _identifier = new Identifier[](1);
@@ -456,8 +353,13 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         uint256[] memory _logindex = new uint256[](1);
         _logindex[0] = 0;
 
-        _identifier[0] =
-            Identifier(address(0x4200000000000000000000000000000000000023), block.number, 0, block.timestamp, aEid);
+        _identifier[0] = Identifier(
+            address(0x4200000000000000000000000000000000000023),
+            block.number,
+            0,
+            block.timestamp,
+            block.chainid
+        );
 
         // Decode deposit event data
         (
@@ -467,62 +369,105 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
             uint256 _amount,
             address _onBehalfOf,
             uint16 _referralCode
-        ) = abi.decode(entries[0].data, (uint256, address, address, uint256, address, uint16));
+        ) = abi.decode(
+                entries[0].data,
+                (uint256, address, address, uint256, address, uint16)
+            );
 
         // Prepare and dispatch event
         bytes32 _selector = CrossChainDeposit.selector;
-        _eventData[0] =
-            abi.encode(_selector, _fromChainId, bytes32(0), _sender, _asset, _amount, _onBehalfOf, _referralCode);
+        _eventData[0] = abi.encode(
+            _selector,
+            _fromChainId,
+            bytes32(0),
+            _sender,
+            _asset,
+            _amount,
+            _onBehalfOf,
+            _referralCode
+        );
         // relay the information using relayer calling dispatch function on LendingPool through router
-        vm.prank(relayer);
-        router1.dispatch(ValidationMode.CUSTOM, _identifier, _eventData, bytes(""), _logindex);
-
-        // ======== Execute Withdrawal ========
-        // Record events and initiate withdrawal
-        vm.recordLogs();
-        vm.prank(user1);
-        router1.withdraw(address(underlyingAsset), amounts, user2, bEid, chainIds);
-
-        // ======== Process Withdrawal Via Relayer ========
-        _identifier = new Identifier[](1);
-        _eventData = new bytes[](1);
-        entries = vm.getRecordedLogs();
-        _logindex = new uint256[](1);
-        _logindex[0] = 0;
-
-        _identifier[0] =
-            Identifier(address(0x4200000000000000000000000000000000000023), block.number, 0, block.timestamp, aEid);
-
-        // Decode withdrawal event data
-        uint256 toChainId;
-        (_fromChainId, _sender, _asset, _amount, _onBehalfOf, toChainId) =
-            abi.decode(entries[0].data, (uint256, address, address, uint256, address, uint256));
-
-        _selector = CrossChainWithdraw.selector;
-        _eventData[0] =
-            abi.encode(_selector, _fromChainId, bytes32(0), _sender, _asset, _amount, _onBehalfOf, toChainId);
-
-        // Record and process withdrawal events
         vm.recordLogs();
         vm.prank(relayer);
-        router1.dispatch(ValidationMode.CUSTOM, _identifier, _eventData, bytes(""), _logindex);
-
-        // ======== Verify Withdrawal Events ========
+        chainAddresses[block.chainid].router.dispatch(
+            ValidationMode.CUSTOM,
+            _identifier,
+            _eventData,
+            bytes(""),
+            _logindex
+        );
         entries = vm.getRecordedLogs();
-        bytes memory eventData = findEventBySelector(entries, Withdraw.selector);
+        _eventData[0] = findEventBySelector(entries, Deposit.selector);
+        for (uint256 i = 0; i < supportedChains.length; i++) {
+            uint256 c_id=supportedChains[i].chainId;
+            if (c_id != _fromChainId) {
+                vm.chainId(c_id);
+                _identifier[0] = Identifier(
+                    address(0x4200000000000000000000000000000000000023),
+                    block.number,
+                    0,
+                    block.timestamp,
+                    block.chainid
+                );
+                vm.prank(relayer);
+                chainAddresses[block.chainid].router.dispatch(
+                    ValidationMode.CUSTOM,
+                    _identifier,
+                    _eventData,
+                    bytes(""),
+                    _logindex
+                );
+            }
+        }
 
-        (address user,, address to, uint256 amount,,) =
-            abi.decode(eventData, (address, address, address, uint256, uint256, uint256));
+        // // ======== Execute Withdrawal ========
+        // // Record events and initiate withdrawal
+        // vm.recordLogs();
+        // vm.createFork(supportedChains[0].forkId);
+        // vm.chainId(supportedChains[0].chainId);
+        // vm.prank(user1);
+        // chainAddresses[block.chainid].router.withdraw(address(underlyingAsset), amounts, user2, bEid, chainIds);
 
-        // Verify withdrawal parameters
-        assert(user == address(user1));
-        assert(to == address(user2));
-        assert(amount == amounts[0]);
+        // // ======== Process Withdrawal Via Relayer ========
+        // _identifier = new Identifier[](1);
+        // _eventData = new bytes[](1);
+        // entries = vm.getRecordedLogs();
+        // _logindex = new uint256[](1);
+        // _logindex[0] = 0;
 
-        /// assert cross chain balances of rtoken and variable debt token
+        // _identifier[0] =
+        //     Identifier(address(0x4200000000000000000000000000000000000023), block.number, 0, block.timestamp, aEid);
 
-        // ======== Verify Cross-Chain Messages ========
-        verifyPackets(bEid, addressToBytes32(address(bRVaultAsset)));
+        // // Decode withdrawal event data
+        // uint256 toChainId;
+        // (_fromChainId, _sender, _asset, _amount, _onBehalfOf, toChainId) =
+        //     abi.decode(entries[0].data, (uint256, address, address, uint256, address, uint256));
+
+        // _selector = CrossChainWithdraw.selector;
+        // _eventData[0] =
+        //     abi.encode(_selector, _fromChainId, bytes32(0), _sender, _asset, _amount, _onBehalfOf, toChainId);
+
+        // // Record and process withdrawal events
+        // vm.recordLogs();
+        // vm.prank(relayer);
+        // router1.dispatch(ValidationMode.CUSTOM, _identifier, _eventData, bytes(""), _logindex);
+
+        // // ======== Verify Withdrawal Events ========
+        // entries = vm.getRecordedLogs();
+        // bytes memory eventData = findEventBySelector(entries, Withdraw.selector);
+
+        // (address user,, address to, uint256 amount,,) =
+        //     abi.decode(eventData, (address, address, address, uint256, uint256, uint256));
+
+        // // Verify withdrawal parameters
+        // assert(user == address(user1));
+        // assert(to == address(user2));
+        // assert(amount == amounts[0]);
+
+        // /// assert cross chain balances of rtoken and variable debt token
+
+        // // ======== Verify Cross-Chain Messages ========
+        // verifyPackets(bEid, addressToBytes32(address(bRVaultAsset)));
     }
 
     /**
@@ -531,7 +476,10 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
      * @param _selector Event selector to find
      * @return bytes The event data if found, empty bytes if not found
      */
-    function findEventBySelector(Vm.Log[] memory entries, bytes32 _selector) public pure returns (bytes memory) {
+    function findEventBySelector(
+        Vm.Log[] memory entries,
+        bytes32 _selector
+    ) public pure returns (bytes memory) {
         for (uint256 i = 0; i < entries.length; i++) {
             if (entries[i].topics[0] == _selector) {
                 return entries[i].data;

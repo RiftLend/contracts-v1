@@ -120,8 +120,15 @@ contract Base is TestHelperOz5 {
     Router router;
     address rVaultAsset1;
     address rVaultAsset2;
-    address current_wethAddress;
+    address chain_b_current_wethAddress;
     EventValidator eventValidator;
+    address strategy;
+
+    struct ChainInfo{
+        uint256 forkId;
+        uint256 chainId;
+    }
+    ChainInfo[] supportedChains = new ChainInfo[](2);
 
     //  ######## Token metadata ########
     string public constant underlyingAssetName = "TUSDC";
@@ -142,6 +149,7 @@ contract Base is TestHelperOz5 {
     uint8 underlyingAssetDecimals = 6;
 
     function setUp() public virtual override {
+
         super.setUp();
         // vm.chainId(1);
         // ############## Load deploy config ##############
@@ -151,19 +159,25 @@ contract Base is TestHelperOz5 {
 
         // ############## Read deploy config variables ##############
         string memory chain_a_rpc = vm.parseTomlString(deployConfig, ".forks.chain_a_rpc_url");
-        address chain_a_cross_l2_prover_address =
-            vm.parseTomlAddress(deployConfig, ".forks.chain_a_cross_l2_prover_address");
-        current_wethAddress = vm.parseTomlAddress(deployConfig, ".forks.chain_a_weth");
+        address chain_a_cross_l2_prover_address =vm.parseTomlAddress(deployConfig, ".forks.chain_a_cross_l2_prover_address");
+        address chain_a_current_wethAddress = vm.parseTomlAddress(deployConfig, ".forks.chain_a_weth");
+        address chain_a_lzEndpoint = vm.parseTomlAddress(deployConfig, ".forks.chain_a_lz_endpoint_v2");
+
+        string memory chain_b_rpc = vm.parseTomlString(deployConfig, ".forks.chain_b_rpc_url");
+        address chain_b_cross_l2_prover_address =vm.parseTomlAddress(deployConfig, ".forks.chain_b_cross_l2_prover_address");
+        chain_b_current_wethAddress = vm.parseTomlAddress(deployConfig, ".forks.chain_b_weth");
+        address chain_b_lzEndpoint = vm.parseTomlAddress(deployConfig, ".forks.chain_b_lz_endpoint_v2");
+
+        supportedChains[0] = ChainInfo(vm.createFork(chain_a_rpc),1); // eth mainnet
+        supportedChains[1] = ChainInfo(vm.createFork(chain_b_rpc),1); // optimism mainnet
+
         treasury = vm.parseTomlAddress(deployConfig, ".treasury.address");
-        address chainALzEndpointV2 = vm.parseTomlAddress(deployConfig, ".forks.chain_a_lz_endpoint_v2");
 
         // ############## Create Fork to test ##############
-        // uint256 _forkId = vm.createSelectFork(chain_a_rpc);
-        vm.createSelectFork(chain_a_rpc);
+        vm.createSelectFork(chain_b_rpc); // By default op-maininet
 
         // ################ Deploy Event validator #################
-        vm.prank(owner);
-        eventValidator = new EventValidator((chain_a_cross_l2_prover_address));
+        eventValidator = new EventValidator((chain_b_cross_l2_prover_address));
 
         // ############# Deploy proxyAdmin ####################
         vm.prank(owner);
@@ -205,15 +219,15 @@ contract Base is TestHelperOz5 {
 
         // ################ Deploy LayerZeroEndpoint ################
 
-        lzEndpoint = EndpointV2(chainALzEndpointV2);
+        lzEndpoint = EndpointV2(chain_b_lzEndpoint);
 
         // ################ Deploy SuperAsset ################
         vm.prank(owner);
         superAsset =
-            new SuperAsset(address(underlyingAsset), superAssetTokenName, superAsseTokenSymbol, current_wethAddress);
+            new SuperAsset(address(underlyingAsset), superAssetTokenName, superAsseTokenSymbol, chain_b_current_wethAddress);
         vm.prank(owner);
         superAssetWeth =
-            new SuperAsset(address(current_wethAddress), superAssetTokenName, superAsseTokenSymbol, current_wethAddress);
+            new SuperAsset(address(chain_b_current_wethAddress), superAssetTokenName, superAsseTokenSymbol, chain_b_current_wethAddress);
 
         vm.label(address(superAsset), "superAsset");
 
@@ -309,7 +323,7 @@ contract Base is TestHelperOz5 {
         proxyConfigurator.activateReserve(address(rVaultAsset1));
 
         // ################ Deploy DefaultReserveInterestRateStrategy ################
-        address strategy = address(
+        strategy = address(
             new DefaultReserveInterestRateStrategy(
                 ILendingPoolAddressesProvider(address(lpAddressProvider1)),
                 0.8 * 1e27, // optimalUtilizationRate
