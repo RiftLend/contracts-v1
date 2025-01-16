@@ -92,7 +92,6 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         address eventValidator
     ) external override initializer {
         uint256 chainId;
-
         //solium-disable-next-line
         assembly {
             chainId := chainid()

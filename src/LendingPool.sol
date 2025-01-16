@@ -26,6 +26,7 @@ import {DataTypes} from "./libraries/types/DataTypes.sol";
 import {LendingPoolStorage} from "./LendingPoolStorage.sol";
 import {Predeploys} from "./libraries/Predeploys.sol";
 import {SuperPausable} from "./interop-std/src/utils/SuperPausable.sol";
+import {RToken} from "./tokenization/RToken.sol";
 
 contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     using WadRayMath for uint256;
@@ -135,7 +136,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
 
         // We now mint RTokens to the user as a receipt of their deposit
         (bool isFirstDeposit, uint256 mintMode, uint256 amountScaled) =
-            IRToken(rToken).mint(onBehalfOf, amount, reserve.liquidityIndex);
+            RToken(rToken).mint(onBehalfOf, amount, reserve.liquidityIndex);
         if (isFirstDeposit) {
             unchecked {
                 _usersConfig[onBehalfOf].setUsingAsCollateral(reserve.id, true);
