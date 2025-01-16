@@ -6,7 +6,7 @@ RiftLend is a multichain lending platform. Leveraging Aave V2's battle-tested ar
 
 This audit will be focused on core contracts of Riftlend being developed.
 
-The current branch for the latest changes is [tabish/nits](https://github.com/RiftLend/contracts-v1/tree/tabish/nits).
+The current branch for the latest changes is [main](https://github.com/RiftLend/contracts-v1/tree/main).
 
 ## Scope
 
