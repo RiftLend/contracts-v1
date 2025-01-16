@@ -2,22 +2,13 @@
 pragma solidity 0.8.25;
 
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
-import "src/interfaces/ILendingPool.sol";
 import {ILendingPoolCollateralManager} from "src/interfaces/ILendingPoolCollateralManager.sol";
 import {ISuperAsset} from "src/interfaces/ISuperAsset.sol";
 import {IRToken} from "src/interfaces/IRToken.sol";
 import {IRVaultAsset} from "src/interfaces/IRVaultAsset.sol";
 import {IVariableDebtToken} from "src/interfaces/IVariableDebtToken.sol";
-import {ISuperchainTokenBridge} from "src/interfaces/ISuperchainTokenBridge.sol";
 import {ILendingPoolAddressesProvider} from "src/interfaces/ILendingPoolAddressesProvider.sol";
 import "src/interfaces/ILendingPool.sol";
-import {ILendingPoolCollateralManager} from "src/interfaces/ILendingPoolCollateralManager.sol";
-import {ISuperAsset} from "src/interfaces/ISuperAsset.sol";
-import {IRToken} from "src/interfaces/IRToken.sol";
-import {IRVaultAsset} from "src/interfaces/IRVaultAsset.sol";
-import {IVariableDebtToken} from "src/interfaces/IVariableDebtToken.sol";
-import {ISuperchainTokenBridge} from "src/interfaces/ISuperchainTokenBridge.sol";
-import {ILendingPoolAddressesProvider} from "src/interfaces/ILendingPoolAddressesProvider.sol";
 
 import {Initializable} from "@solady/utils/Initializable.sol";
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
@@ -28,11 +19,6 @@ import {Predeploys} from "src/libraries/Predeploys.sol";
 import {EventValidator, ValidationMode, Identifier} from "src/libraries/EventValidator.sol";
 import {DataTypes} from "src/libraries/types/DataTypes.sol";
 import {ReserveLogic} from "src/libraries/logic/ReserveLogic.sol";
-import {Errors} from "src/libraries/helpers/Errors.sol";
-import {SuperPausable} from "src/interop-std/src/utils/SuperPausable.sol";
-import {Predeploys} from "src/libraries/Predeploys.sol";
-import {EventValidator, ValidationMode, Identifier} from "src/libraries/EventValidator.sol";
-import {DataTypes} from "src/libraries/types/DataTypes.sol";
 import {MessagingFee} from "src/libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
 
 contract Router is Initializable, SuperPausable {
@@ -121,7 +107,7 @@ contract Router is Initializable, SuperPausable {
         1  -1
         if (selector == Deposit.selector && _identifier.chainId != block.chainid) {
             (, address asset, uint256 amount, address onBehalfOf,, uint256 mintMode, uint256 amountScaled) =
-                abi.decode(_data[64:], (address, address, uint256, address, uint16, uint256, uint256));
+                abi.decode(_data[32:], (address, address, uint256, address, uint16, uint256, uint256));
             DataTypes.ReserveData memory reserve = lendingPool.getReserveData(asset);
             lendingPool.updateStates(asset, amount, 0, UPDATE_RATES_AND_STATES_MASK);
             IRToken(reserve.rTokenAddress).updateCrossChainBalance(onBehalfOf, amount, amountScaled, mintMode);
@@ -135,14 +121,14 @@ contract Router is Initializable, SuperPausable {
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*                    WITHDRAW DISPATCH                       */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-
         if (selector == Withdraw.selector && _identifier.chainId != block.chainid) {
-            (, address asset, address to, uint256 amount, uint256 mintMode, uint256 amountScaled) =
-                abi.decode(_data[64:], (address, address, address, uint256, uint256, uint256));
-            DataTypes.ReserveData memory reserve = lendingPool.getReserveData(asset);
-            lendingPool.updateStates(asset, 0, amount, UPDATE_RATES_AND_STATES_MASK);
-            IRToken(reserve.rTokenAddress).updateCrossChainBalance(to, amount, amountScaled, mintMode);
+            (address user, address rVaultAsset, address to, uint256 amount, uint256 mintMode, uint256 amountScaled) =
+                abi.decode(_data[32:], (address, address, address, uint256, uint256, uint256));
+            DataTypes.ReserveData memory reserve = lendingPool.getReserveData(rVaultAsset);
+            lendingPool.updateStates(rVaultAsset, 0, amount, UPDATE_RATES_AND_STATES_MASK);
+            IRToken(reserve.rTokenAddress).updateCrossChainBalance(user, amount, amountScaled, mintMode);
         }
+
         if (selector == CrossChainWithdraw.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
             (address sender, address asset, uint256 amount, address to, uint256 toChainId) =
                 abi.decode(_data[96:], (address, address, uint256, address, uint256));
@@ -235,8 +221,10 @@ contract Router is Initializable, SuperPausable {
             lendingPool.updateStates(debtAsset, 0, actualDebtToLiquidate, UPDATE_RATES_AND_STATES_MASK);
             if (!receiveRToken) {
                 DataTypes.ReserveData memory collateralReserve = lendingPool.getReserveData(collateralAsset);
-                IRToken(collateralReserve.rTokenAddress).updateCrossChainBalance(user, collateralRTokenBurned, 2);
                 lendingPool.updateStates(collateralAsset, 0, maxCollateralToLiquidate, UPDATE_RATES_AND_STATES_MASK);
+                IRToken(collateralReserve.rTokenAddress).updateCrossChainBalance(
+                    user, maxCollateralToLiquidate, collateralRTokenBurned, 2
+                );
             }
         }
         if (selector == CrossChainLiquidationCall.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {

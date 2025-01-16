@@ -236,56 +236,9 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         console.log("deploying rTokenImpl2");
         RToken rTokenImpl2 = new RToken{salt: "rToken2"}();
 
-        rTokenImpl1.initialize(
-            ILendingPool(address(proxyLp1)),
-            treasury,
-            address(aRVaultAsset),
-            IAaveIncentivesController(incentivesController),
-            ILendingPoolAddressesProvider(address(lpAddressProvider1)),
-            underlyingAsset.decimals(),
-            rTokenName1,
-            rTokenSymbol1,
-            bytes(""),
-            address(eventValidator)
-        );
-
-        rTokenImpl2.initialize(
-            ILendingPool(address(proxyLp2)),
-            treasury,
-            address(bRVaultAsset),
-            IAaveIncentivesController(incentivesController),
-            ILendingPoolAddressesProvider(address(lpAddressProvider2)),
-            underlyingAsset.decimals(),
-            rTokenName2,
-            rTokenSymbol2,
-            bytes(""),
-            address(eventValidator)
-        );
-
         // Deploy and initialize Variable Debt Tokens
         VariableDebtToken variableDebtTokenImpl1 = new VariableDebtToken{salt: "variableDebtTokenImpl1"}();
         VariableDebtToken variableDebtTokenImpl2 = new VariableDebtToken{salt: "variableDebtTokenImpl2"}();
-
-        variableDebtTokenImpl1.initialize(
-            ILendingPool(address(proxyLp1)),
-            address(underlyingAsset),
-            IAaveIncentivesController(incentivesController),
-            underlyingAssetDecimals,
-            variableDebtTokenName,
-            variableDebtTokenSymbol,
-            "v"
-        );
-
-        variableDebtTokenImpl2.initialize(
-            ILendingPool(address(proxyLp2)),
-            address(underlyingAsset),
-            IAaveIncentivesController(incentivesController),
-            underlyingAssetDecimals,
-            variableDebtTokenName,
-            variableDebtTokenSymbol,
-            "v"
-        );
-
         vm.stopPrank();
 
         // ======== Deploy Interest Rate Strategy ========
@@ -315,7 +268,7 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
             treasury: treasury,
             incentivesController: incentivesController,
             superAsset: address(superAsset),
-            underlyingAsset: address(address(aRVaultAsset)),
+            underlyingAsset: address(aRVaultAsset),
             underlyingAssetDecimals: underlyingAssetDecimals,
             underlyingAssetName: underlyingAssetName,
             params: "v",
@@ -353,6 +306,7 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
 
         DataTypes.ReserveData memory reserveData = proxyLp1.getReserveData(address(aRVaultAsset));
         address rToken1 = reserveData.rTokenAddress;
+        require(rToken1 != address(0), "RToken not initialized in reserves");
         vm.deal(address(rToken1), 100 ether);
 
         DataTypes.ReserveData memory reserveData2 = proxyLp2.getReserveData(address(bRVaultAsset));
@@ -474,11 +428,39 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         _eventData[0] =
             abi.encode(_selector, _fromChainId, bytes32(0), _sender, _asset, _amount, _onBehalfOf, _referralCode);
         // relay the information using relayer calling dispatch function on LendingPool through router
+        console.log("deposit dispatch ");
+        vm.recordLogs();
         vm.prank(relayer);
         router1.dispatch(ValidationMode.CUSTOM, _identifier, _eventData, bytes(""), _logindex);
 
+        entries = vm.getRecordedLogs();
+        bytes memory eventData;
+        eventData = findEventBySelector(entries, Deposit.selector);
+        address _user;
+        uint16 _referral;
+        uint256 _mintMode;
+        uint256 _amountScaled;
+
+        (_user, _asset, _amount, _onBehalfOf, _referral, _mintMode, _amountScaled) =
+            abi.decode(eventData, (address, address, uint256, address, uint16, uint256, uint256));
+
+        _eventData[0] =
+            abi.encode(Deposit.selector, _user, _asset, _amount, _onBehalfOf, _referral, _mintMode, _amountScaled);
+        // sync state of deposit for updating crosschain balances
+        console.log("sync state of deposit for updating crosschain balances");
+        vm.chainId(bEid);
+        vm.prank(relayer);
+        router1.dispatch(ValidationMode.CUSTOM, _identifier, _eventData, bytes(""), _logindex);
+
+        /// assert cross chain balances of rtoken
+        assert(
+            RToken(address(proxyLp1.getReserveData(address(aRVaultAsset)).rTokenAddress))
+                .totalCrosschainUnderlyingAssets() == _amount
+        );
+
         // ======== Execute Withdrawal ========
         // Record events and initiate withdrawal
+        vm.chainId(aEid);
         vm.recordLogs();
         vm.prank(user1);
         router1.withdraw(address(underlyingAsset), amounts, user2, bEid, chainIds);
@@ -503,15 +485,15 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
             abi.encode(_selector, _fromChainId, bytes32(0), _sender, _asset, _amount, _onBehalfOf, toChainId);
 
         // Record and process withdrawal events
+        console.log("withdraw dispatch");
         vm.recordLogs();
         vm.prank(relayer);
         router1.dispatch(ValidationMode.CUSTOM, _identifier, _eventData, bytes(""), _logindex);
-
         // ======== Verify Withdrawal Events ========
         entries = vm.getRecordedLogs();
-        bytes memory eventData = findEventBySelector(entries, Withdraw.selector);
+        eventData = findEventBySelector(entries, Withdraw.selector);
 
-        (address user,, address to, uint256 amount,,) =
+        (address user, address reserve, address to, uint256 amount, uint256 mode, uint256 amountScaled) =
             abi.decode(eventData, (address, address, address, uint256, uint256, uint256));
 
         // Verify withdrawal parameters
@@ -519,7 +501,16 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         assert(to == address(user2));
         assert(amount == amounts[0]);
 
-        /// assert cross chain balances of rtoken and variable debt token
+        _eventData[0] = abi.encode(Withdraw.selector, user, reserve, to, amount, mode, amountScaled);
+        vm.chainId(bEid);
+        vm.prank(relayer);
+        router1.dispatch(ValidationMode.CUSTOM, _identifier, _eventData, bytes(""), _logindex);
+
+        /// assert cross chain balances of rtoken
+        assert(
+            RToken(address(proxyLp1.getReserveData(address(aRVaultAsset)).rTokenAddress))
+                .totalCrosschainUnderlyingAssets() == 0
+        );
 
         // ======== Verify Cross-Chain Messages ========
         verifyPackets(bEid, addressToBytes32(address(bRVaultAsset)));
