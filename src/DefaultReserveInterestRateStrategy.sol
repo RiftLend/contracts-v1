@@ -97,7 +97,7 @@ contract DefaultReserveInterestRateStrategy is IReserveInterestRateStrategy {
         uint256 totalVariableDebt,
         uint256 reserveFactor
     ) external view override returns (uint256, uint256) {
-        uint256 availableLiquidity = IERC20(reserve).balanceOf(RToken);
+        uint256 availableLiquidity = IRToken(RToken)._crossChainTotalUnderlyingAsset();
         availableLiquidity = availableLiquidity + liquidityAdded - liquidityTaken;
 
         return calculateInterestRates(reserve, availableLiquidity, totalVariableDebt, reserveFactor);

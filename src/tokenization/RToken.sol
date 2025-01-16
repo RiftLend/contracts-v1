@@ -48,6 +48,8 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     IAaveIncentivesController internal _incentivesController;
     ILendingPoolAddressesProvider internal _addressesProvider;
     EventValidator internal _eventValidator;
+    mapping(address => uint256) public _crossChainUnderlyingAsset;
+    uint256 public _crossChainTotalUnderlyingAsset;
 
     modifier onlyLendingPool() {
         require(_msgSender() == address(_pool), Errors.CT_CALLER_MUST_BE_LENDING_POOL);
@@ -160,7 +162,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
      * @param mode The mode
      */
     // @audit
-    function updateCrossChainBalance(address user, uint256 amountScaled, uint256 mode)
+    function updateCrossChainBalance(address user, uint256 amount, uint256 amountScaled, uint256 mode)
         external
         override
         onlyLendingPool
@@ -168,9 +170,11 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         if (mode == 1) {
             crossChainUserBalance[user] += amountScaled;
             _totalCrossChainSupply += amountScaled;
+            _crossChainUnderlyingAsset[user] += amount;
         } else if (mode == 2) {
             _totalCrossChainSupply -= amountScaled;
             crossChainUserBalance[user] -= amountScaled;
+            _crossChainUnderlyingAsset[user] -= amount;
         }
     }
 
@@ -227,6 +231,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         uint256 amountScaled = amount.rayDiv(index);
         require(amountScaled != 0, Errors.CT_INVALID_MINT_AMOUNT);
         _mint(user, amountScaled);
+        _crossChainUnderlyingAsset[user] += amount;
 
         emit Transfer(address(0), user, amount);
         emit Mint(user, amount, index);
@@ -251,7 +256,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         }
 
         address treasury = _treasury;
-
+        _crossChainUnderlyingAsset[treasury] += amount;
         // Compared to the normal mint, we don't check for rounding errors.
         // The amount to mint can easily be very small since it is a fraction of the interest ccrued.
         // In that case, the treasury will experience a (very small) loss, but it

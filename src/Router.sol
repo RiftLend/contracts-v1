@@ -113,12 +113,18 @@ contract Router is Initializable, SuperPausable {
         /*                     DEPOSIT DISPATCH                       */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
+        A B
+        1 0 old amount
+          local balance of RVaultAsset
+        1 1
+          
+        1  -1
         if (selector == Deposit.selector && _identifier.chainId != block.chainid) {
             (, address asset, uint256 amount, address onBehalfOf,, uint256 mintMode, uint256 amountScaled) =
                 abi.decode(_data[64:], (address, address, uint256, address, uint16, uint256, uint256));
             DataTypes.ReserveData memory reserve = lendingPool.getReserveData(asset);
-            IRToken(reserve.rTokenAddress).updateCrossChainBalance(onBehalfOf, amountScaled, mintMode);
             lendingPool.updateStates(asset, amount, 0, UPDATE_RATES_AND_STATES_MASK);
+            IRToken(reserve.rTokenAddress).updateCrossChainBalance(onBehalfOf, amount, amountScaled, mintMode);
         }
         if (selector == CrossChainDeposit.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
             (address sender, address asset, uint256 amount, address onBehalfOf, uint16 referralCode) =
@@ -134,8 +140,8 @@ contract Router is Initializable, SuperPausable {
             (, address asset, address to, uint256 amount, uint256 mintMode, uint256 amountScaled) =
                 abi.decode(_data[64:], (address, address, address, uint256, uint256, uint256));
             DataTypes.ReserveData memory reserve = lendingPool.getReserveData(asset);
-            IRToken(reserve.rTokenAddress).updateCrossChainBalance(to, amountScaled, mintMode);
             lendingPool.updateStates(asset, 0, amount, UPDATE_RATES_AND_STATES_MASK);
+            IRToken(reserve.rTokenAddress).updateCrossChainBalance(to, amount, amountScaled, mintMode);
         }
         if (selector == CrossChainWithdraw.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
             (address sender, address asset, uint256 amount, address to, uint256 toChainId) =
