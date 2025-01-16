@@ -128,7 +128,7 @@ interface IRToken is IERC20, IScaledBalanceToken, IInitializableRToken {
      * @param amountScaled The amount scaled
      * @param mode 1 if minting, 2 if burning
      */
-    function updateCrossChainBalance(address user, uint256 amountScaled, uint256 mode) external;
+    function updateCrossChainBalance(address user, uint256 amount, uint256 amountScaled, uint256 mode) external;
 
     /**
      * @dev gets the cross chain balance of user
@@ -136,4 +136,6 @@ interface IRToken is IERC20, IScaledBalanceToken, IInitializableRToken {
      * @return The user balance
      */
     function getCrossChainUserBalance(address user) external view returns (uint256);
+
+    function totalCrosschainUnderlyingAssets() external view returns (uint256);
 }

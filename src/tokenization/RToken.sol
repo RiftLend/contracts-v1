@@ -48,6 +48,14 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     IAaveIncentivesController internal _incentivesController;
     ILendingPoolAddressesProvider internal _addressesProvider;
     EventValidator internal _eventValidator;
+    mapping(address => uint256) public crosschainUnderlyingAsset;
+    uint256 public totalCrosschainUnderlyingAssets;
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                  Custom Errors                             */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+    error NotRelayer();
+    error NotRouter();
 
     modifier onlyLendingPool() {
         require(_msgSender() == address(_pool), Errors.CT_CALLER_MUST_BE_LENDING_POOL);
@@ -59,8 +67,17 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         _;
     }
 
+    modifier onlyRouter() {
+        _onlyRouter();
+        _;
+    }
+
+    function _onlyRouter() internal view {
+        if (_addressesProvider.getRouter() != msg.sender) revert NotRouter();
+    }
+
     function _onlyRelayer() internal view {
-        require(_addressesProvider.getRelayer() == msg.sender, "!relayer");
+        if (_addressesProvider.getRelayer() != msg.sender) revert NotRelayer();
     }
 
     modifier onlyLendingPoolConfigurator() {
@@ -145,11 +162,15 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
             (address user, uint256 amount) = abi.decode(_data[32:], (address, uint256));
             _totalCrossChainSupply += amount;
             crossChainUserBalance[user] += amount;
+            crosschainUnderlyingAsset[user] += amount;
+            totalCrosschainUnderlyingAssets += amount;
         }
         if (selector == BalanceTransfer.selector && _identifier.chainId != block.chainid) {
             (address from, address to, uint256 amount,) = abi.decode(_data[32:], (address, address, uint256, uint256));
             crossChainUserBalance[from] -= amount;
             crossChainUserBalance[to] += amount;
+            crosschainUnderlyingAsset[from] -= amount;
+            crosschainUnderlyingAsset[to] -= amount;
         }
     }
 
@@ -159,17 +180,21 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
      * @param mode The mode
      */
     // @audit
-    function updateCrossChainBalance(address user, uint256 amountScaled, uint256 mode)
+    function updateCrossChainBalance(address user, uint256 amount, uint256 amountScaled, uint256 mode)
         external
         override
-        onlyLendingPool
+        onlyRouter
     {
         if (mode == 1) {
             crossChainUserBalance[user] += amountScaled;
             _totalCrossChainSupply += amountScaled;
+            crosschainUnderlyingAsset[user] += amount;
+            totalCrosschainUnderlyingAssets += amount;
         } else if (mode == 2) {
             _totalCrossChainSupply -= amountScaled;
             crossChainUserBalance[user] -= amountScaled;
+            crosschainUnderlyingAsset[user] -= amount;
+            totalCrosschainUnderlyingAssets -= amount;
         }
     }
 
