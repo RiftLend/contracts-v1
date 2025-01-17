@@ -8,7 +8,6 @@ import {DataTypes} from "../../src/libraries/types/DataTypes.sol";
 import {IRVaultAsset} from "../../src/interfaces/IRVaultAsset.sol";
 
 contract RVaultAssetTestBase is Base {
-
     event Transfer(address indexed from, address indexed to, uint256 value);
 
     /**

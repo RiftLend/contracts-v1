@@ -9,7 +9,6 @@ contract SuperAssetTestBase is Base {
     // Events to test
     event Transfer(address indexed from, address indexed to, uint256 value);
 
-
     function setUp() public override {
         super.setUp();
 

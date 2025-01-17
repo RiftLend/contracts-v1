@@ -13,7 +13,6 @@ import {ValidationMode} from "../../src/libraries/EventValidator.sol";
 contract LendingPoolTestBase is Base {
     using UserConfiguration for DataTypes.UserConfigurationMap;
 
-
     /// @dev tests that the user can deposit underlying asset to the pool
     /// @dev tests that the user config is updated correctly
     /// @dev tests that the rToken has the correct balance

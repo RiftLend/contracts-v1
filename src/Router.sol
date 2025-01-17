@@ -103,7 +103,7 @@ contract Router is Initializable, SuperPausable {
         // 1 0 old amount
         //   local balance of RVaultAsset
         // 1 1
-          
+
         // 1  -1
         if (selector == Deposit.selector && _identifier.chainId != block.chainid) {
             (, address asset, uint256 amount, address onBehalfOf,, uint256 mintMode, uint256 amountScaled) =
