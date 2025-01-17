@@ -185,10 +185,10 @@ contract Base is TestHelperOz5 {
         treasury = vm.parseTomlAddress(deployConfig, ".treasury.address");
 
         // ############## Create Fork to test ##############
-        vm.createSelectFork(chain_b_rpc); // By default op-maininet
+        vm.createSelectFork(chain_a_rpc); // By default op-maininet
 
         // ################ Deploy Event validator #################
-        eventValidator = new EventValidator((chain_b_cross_l2_prover_address));
+        eventValidator = new EventValidator((chain_a_cross_l2_prover_address));
 
         // ############# Deploy proxyAdmin ####################
         vm.prank(owner);
@@ -230,15 +230,15 @@ contract Base is TestHelperOz5 {
 
         // ################ Deploy LayerZeroEndpoint ################
 
-        lzEndpoint = EndpointV2(chain_b_lzEndpoint);
+        lzEndpoint = EndpointV2(chain_a_lzEndpoint);
 
         // ################ Deploy SuperAsset ################
         vm.prank(owner);
         superAsset =
-            new SuperAsset(address(underlyingAsset), superAssetTokenName, superAsseTokenSymbol, chain_b_wethAddress);
+            new SuperAsset(address(underlyingAsset), superAssetTokenName, superAsseTokenSymbol, chain_a_wethAddress);
         vm.prank(owner);
         superAssetWeth =
-            new SuperAsset(address(chain_b_wethAddress), superAssetTokenName, superAsseTokenSymbol, chain_b_wethAddress);
+            new SuperAsset(address(chain_a_wethAddress), superAssetTokenName, superAsseTokenSymbol, chain_a_wethAddress);
 
         vm.label(address(superAsset), "superAsset");
 

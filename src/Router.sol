@@ -143,11 +143,12 @@ contract Router is Initializable, SuperPausable {
             (address asset, uint256 amount,, address onBehalfOf,,, uint256 mintMode, uint256 amountScaled,) =
                 abi.decode(_data[32:], (address, uint256, address, address, uint256, uint256, uint256, uint256, uint16));
             DataTypes.ReserveData memory reserve = lendingPool.getReserveData(asset);
+            lendingPool.updateStates(asset, 0, amount, UPDATE_RATES_AND_STATES_MASK);
             IVariableDebtToken(reserve.variableDebtTokenAddress).updateCrossChainBalance(
                 onBehalfOf, amountScaled, mintMode
             );
 
-            lendingPool.updateStates(asset, 0, amount, UPDATE_RATES_AND_STATES_MASK);
+            
         }
         if (selector == CrossChainBorrow.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
             (

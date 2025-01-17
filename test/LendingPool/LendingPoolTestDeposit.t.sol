@@ -7,6 +7,7 @@ contract LendingPoolTestDeposit is LendingPoolTestBase {
     using UserConfiguration for DataTypes.UserConfigurationMap;
 
     function test_lpDeposit() public {
+        super.setUp();
         // ########### Prepare deposit params
         (uint256[] memory amounts, address onBehalfOf, uint16 referralCode, uint256[] memory chainIds) =
             getActionXConfig();
