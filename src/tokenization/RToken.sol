@@ -252,7 +252,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         uint256 amountScaled = amount.rayDiv(index);
         require(amountScaled != 0, Errors.CT_INVALID_MINT_AMOUNT);
         _mint(user, amountScaled);
-        _crossChainUnderlyingAsset[user] += amount;
+        crosschainUnderlyingAsset[user] += amount;
 
         emit Transfer(address(0), user, amount);
         emit Mint(user, amount, index);
@@ -277,7 +277,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         }
 
         address treasury = _treasury;
-        _crossChainUnderlyingAsset[treasury] += amount;
+        crosschainUnderlyingAsset[treasury] += amount;
         // Compared to the normal mint, we don't check for rounding errors.
         // The amount to mint can easily be very small since it is a fraction of the interest ccrued.
         // In that case, the treasury will experience a (very small) loss, but it

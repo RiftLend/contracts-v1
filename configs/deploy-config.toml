@@ -80,8 +80,14 @@ symbol = "SDTUSDC"
 salt = "ethers phoenix router"
 
 [forks]
-chain_a_rpc_url = "https://opt-mainnet.g.alchemy.com/v2/xFdbkJe3ZbpjHxU2qIpikVBgN7TIMyX8"
-chain_a_chain_id = 10
+chain_a_rpc_url = "https://eth-mainnet.g.alchemy.com/v2/xFdbkJe3ZbpjHxU2qIpikVBgN7TIMyX8"
+chain_a_chain_id = 1
 chain_a_cross_l2_prover_address="0x1CCb363c18484A568DCB0Ec37fE5ad716C1D6e77"
-chain_a_weth="0x4200000000000000000000000000000000000006"
+chain_a_weth="0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
 chain_a_lz_endpoint_v2="0x1a44076050125825900e736c501f859c50fE728c"
+
+chain_b_rpc_url = "https://opt-mainnet.g.alchemy.com/v2/xFdbkJe3ZbpjHxU2qIpikVBgN7TIMyX8"
+chain_b_chain_id = 10
+chain_b_cross_l2_prover_address="0x1CCb363c18484A568DCB0Ec37fE5ad716C1D6e77"
+chain_b_weth="0x4200000000000000000000000000000000000006"
+chain_b_lz_endpoint_v2="0x1a44076050125825900e736c501f859c50fE728c"

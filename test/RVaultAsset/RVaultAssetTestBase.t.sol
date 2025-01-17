@@ -8,8 +8,6 @@ import {DataTypes} from "../../src/libraries/types/DataTypes.sol";
 import {IRVaultAsset} from "../../src/interfaces/IRVaultAsset.sol";
 
 contract RVaultAssetTestBase is Base {
-    uint256 constant INITIAL_BALANCE = 1000 ether;
-    uint256 constant DEPOSIT_AMOUNT = 100 ether;
 
     event Transfer(address indexed from, address indexed to, uint256 value);
 

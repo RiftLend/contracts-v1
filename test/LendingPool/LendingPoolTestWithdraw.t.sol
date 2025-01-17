@@ -6,7 +6,7 @@ import {IOFT} from "src/libraries/helpers/layerzero/IOFT.sol";
 import {ILendingPoolAddressesProvider} from "src/interfaces/ILendingPoolAddressesProvider.sol";
 import {ILendingPoolConfigurator} from "src/interfaces/ILendingPoolConfigurator.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ILendingPool, CrossChainDeposit, CrossChainWithdraw, Withdraw} from "src/interfaces/ILendingPool.sol";
+import {ILendingPool, CrossChainDeposit, CrossChainWithdraw, Withdraw,Deposit} from "src/interfaces/ILendingPool.sol";
 import {IAaveIncentivesController} from "src/interfaces/IAaveIncentivesController.sol";
 
 import {DataTypes} from "src/libraries/types/DataTypes.sol";

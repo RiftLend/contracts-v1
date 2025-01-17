@@ -99,12 +99,12 @@ contract Router is Initializable, SuperPausable {
         /*                     DEPOSIT DISPATCH                       */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-        A B
-        1 0 old amount
-          local balance of RVaultAsset
-        1 1
+        // A B
+        // 1 0 old amount
+        //   local balance of RVaultAsset
+        // 1 1
           
-        1  -1
+        // 1  -1
         if (selector == Deposit.selector && _identifier.chainId != block.chainid) {
             (, address asset, uint256 amount, address onBehalfOf,, uint256 mintMode, uint256 amountScaled) =
                 abi.decode(_data[32:], (address, address, uint256, address, uint16, uint256, uint256));
