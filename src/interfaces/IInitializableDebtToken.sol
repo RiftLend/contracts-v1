@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 import {ILendingPool} from "./ILendingPool.sol";
 import {IAaveIncentivesController} from "./IAaveIncentivesController.sol";
+import {ILendingPoolAddressesProvider} from "./ILendingPoolAddressesProvider.sol";
 
 /**
  * @title IInitializableDebtToken
@@ -45,6 +46,7 @@ interface IInitializableDebtToken {
         ILendingPool pool,
         address underlyingAsset,
         IAaveIncentivesController incentivesController,
+        ILendingPoolAddressesProvider addressesProvider,
         uint8 debtTokenDecimals,
         string memory debtTokenName,
         string memory debtTokenSymbol,

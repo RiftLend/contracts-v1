@@ -100,6 +100,7 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
                 _pool,
                 input.underlyingAsset,
                 IAaveIncentivesController(input.incentivesController),
+                addressesProvider,
                 input.underlyingAssetDecimals,
                 input.variableDebtTokenName,
                 input.variableDebtTokenSymbol,

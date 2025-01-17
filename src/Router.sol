@@ -147,9 +147,8 @@ contract Router is Initializable, SuperPausable {
             IVariableDebtToken(reserve.variableDebtTokenAddress).updateCrossChainBalance(
                 onBehalfOf, amountScaled, mintMode
             );
-
-            
         }
+
         if (selector == CrossChainBorrow.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
             (
                 uint256 sendToChainId,

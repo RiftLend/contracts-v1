@@ -1,5 +1,13 @@
+/*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+/*                    License and Version                         */
+/*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.8.25;
+
+/*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+/*                    Protocol Imports                           */
+/*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
 import {ILendingPoolAddressesProvider} from "../src/interfaces/ILendingPoolAddressesProvider.sol";
 import {ILendingPoolConfigurator} from "../src/interfaces/ILendingPoolConfigurator.sol";
@@ -9,13 +17,20 @@ import {IAaveIncentivesController} from "../src/interfaces/IAaveIncentivesContro
 import {ILendingPool} from "../src/interfaces/ILendingPool.sol";
 import {IRVaultAsset} from "../src/interfaces/IRVaultAsset.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IncentivesController} from "./utils/IncentivesController.sol";
-import {MessagingFee, MessagingReceipt} from "../src/libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
-import {SendParam, OFTReceipt} from "../src/libraries/helpers/layerzero/IOFT.sol";
+/*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+/*                    Testing Imports                           */
+/*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
 import {Test} from "../lib/forge-std/src/Test.sol";
 import {console} from "../lib/forge-std/src/console.sol";
 import {TestERC20} from "./utils/TestERC20.sol";
+import {MockPriceOracle} from "./utils/MockPriceOracle.sol";
+import {TestHelperOz5} from "@layerzerolabs/test-devtools-evm-foundry/contracts/TestHelperOz5.sol";
+
+/*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+/*                    Core Contract Imports                     */
+/*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+import {IncentivesController} from "./utils/IncentivesController.sol";
 import {SuperAsset} from "../src/SuperAsset.sol";
 import {RToken} from "../src/tokenization/RToken.sol";
 import {RVaultAsset} from "../src/RVaultAsset.sol";
@@ -25,32 +40,28 @@ import {LendingPoolAddressesProvider} from "../src/configuration/LendingPoolAddr
 import {LendingPoolConfigurator} from "../src/LendingPoolConfigurator.sol";
 import {DefaultReserveInterestRateStrategy} from "../src/DefaultReserveInterestRateStrategy.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
-import {OFT} from "../src/libraries/helpers/layerzero/OFT.sol";
-
-import {EndpointV2} from "../src/libraries/helpers/layerzero/EndpointV2.sol";
 import {Router} from "../src/Router.sol";
 import {EventValidator} from "src/libraries/EventValidator.sol";
 import {DataTypes} from "../src/libraries/types/DataTypes.sol";
 
-// OApp imports
+/*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+/*                    LayerZero Imports                        */
+/*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+import {MessagingFee, MessagingReceipt} from "../src/libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
+import {SendParam, OFTReceipt} from "../src/libraries/helpers/layerzero/IOFT.sol";
+import {OFT} from "../src/libraries/helpers/layerzero/OFT.sol";
+import {EndpointV2} from "../src/libraries/helpers/layerzero/EndpointV2.sol";
 import {
     IOAppOptionsType3, EnforcedOptionParam
 } from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OAppOptionsType3.sol";
 import {OptionsBuilder} from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OptionsBuilder.sol";
-
-// OFT imports/
 import {OFTMsgCodec} from "src/libraries/helpers/layerzero/OFTMsgCodec.sol";
-
 import {OFTComposeMsgCodec} from "@layerzerolabs/oft-evm/contracts/libs/OFTComposeMsgCodec.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "forge-std/console.sol";
-import {TestHelperOz5} from "@layerzerolabs/test-devtools-evm-foundry/contracts/TestHelperOz5.sol";
-import {RVaultAsset} from "src/RVaultAsset.sol";
 
 contract Base is TestHelperOz5 {
-    //////////////////////////
-    //// Structs Helpers /////
-    /////////////////////////
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                    Structs Definition                        */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     struct temps {
         address owner;
@@ -75,57 +86,6 @@ contract Base is TestHelperOz5 {
         address incentivesController;
     }
 
-    //////////////////////////
-    ///// State variables ////
-    /////////////////////////
-    address testToken;
-    mapping(uint256 chainId => temps) public config;
-
-    ///////////////////////////
-    ///// Utility Addressse ///
-    ///////////////////////////
-
-    address owner = makeAddr("owner");
-    address poolAdmin1 = makeAddr("poolAdmin1");
-    address user1 = makeAddr("user1");
-    address user2 = makeAddr("user2");
-    address liquidityProvider = makeAddr("liquidityProvider");
-
-    address relayer = makeAddr("relayer");
-    address emergencyAdmin = makeAddr("emergencyAdmin");
-    address alice = makeAddr("alice");
-    address _delegate = makeAddr("_delegate");
-    uint256 constant INITIAL_BALANCE = 10000 ether;
-    uint256 constant DEPOSIT_AMOUNT = 100 ether;
-
-    //////////////////////////////
-    //// Placeholder Addresses ///
-    //////////////////////////////
-
-    address incentivesController;
-    address treasury;
-    LendingPool proxyLp;
-    LendingPool implementationLp;
-
-    SuperAsset superAsset;
-    SuperAsset superAssetWeth;
-
-    address proxyAdmin;
-    TestERC20 INR;
-    TestERC20 underlyingAsset;
-    LendingPoolConfigurator lpConfigurator;
-    LendingPoolConfigurator proxyConfigurator;
-    LendingPoolAddressesProvider lpAddressProvider1;
-    LendingPoolAddressesProvider lpAddressProvider2;
-
-    EndpointV2 lzEndpoint;
-    Router router;
-    address rVaultAsset1;
-    address rVaultAsset2;
-    address chain_b_wethAddress;
-    EventValidator eventValidator;
-    address strategy;
-
     struct ChainInfo {
         uint256 forkId;
         uint256 chainId;
@@ -134,9 +94,61 @@ contract Base is TestHelperOz5 {
         address crossL2Prover;
     }
 
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                    State Variables                           */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    address testToken;
+    mapping(uint256 chainId => temps) public config;
     ChainInfo[] supportedChains = new ChainInfo[](2);
 
-    //  ######## Token metadata ########
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                    Test Addresses                           */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    address owner = makeAddr("owner");
+    address poolAdmin1 = makeAddr("poolAdmin1");
+    address user1 = makeAddr("user1");
+    address user2 = makeAddr("user2");
+    address liquidityProvider = makeAddr("liquidityProvider");
+    address relayer = makeAddr("relayer");
+    address emergencyAdmin = makeAddr("emergencyAdmin");
+    address alice = makeAddr("alice");
+    address _delegate = makeAddr("_delegate");
+
+    uint256 constant INITIAL_BALANCE = 10000 ether;
+    uint256 constant DEPOSIT_AMOUNT = 100 ether;
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                    Contract Variables                        */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    address incentivesController;
+    address treasury;
+    address proxyAdmin;
+    address strategy;
+    address rVaultAsset1;
+    address rVaultAsset2;
+    address chain_b_wethAddress;
+
+    LendingPool proxyLp;
+    LendingPool implementationLp;
+    SuperAsset superAsset;
+    SuperAsset superAssetWeth;
+    TestERC20 INR;
+    TestERC20 underlyingAsset;
+    LendingPoolConfigurator lpConfigurator;
+    LendingPoolConfigurator proxyConfigurator;
+    LendingPoolAddressesProvider lpAddressProvider1;
+    LendingPoolAddressesProvider lpAddressProvider2;
+    EndpointV2 lzEndpoint;
+    Router router;
+    EventValidator eventValidator;
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                    Token Configuration                       */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
     string public constant underlyingAssetName = "TUSDC";
     string public constant underlyingAssetSymbol = "USDC";
     string public constant rTokenName1 = "rTUSDC1";
@@ -147,16 +159,19 @@ contract Base is TestHelperOz5 {
     string public constant rVaultAssetTokenSymbol2 = "rVaultAsset-rTUSDC2";
     string public constant rTokenName2 = "rTUSDC2";
     string public constant rTokenSymbol2 = "rTUSDC2";
-
     string public constant superAssetTokenName = "superTUSDC";
     string public constant superAsseTokenSymbol = "superTUSDC";
     string public constant variableDebtTokenName = "vDebt-TUSDC";
     string public constant variableDebtTokenSymbol = "vDBT-rTUSDC";
     uint8 underlyingAssetDecimals = 6;
 
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                    Setup Function                           */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
     function setUp() public virtual override {
         super.setUp();
-        // vm.chainId(1);
+
         // ############## Load deploy config ##############
         string memory deployConfigPath = vm.envOr("DEPLOY_CONFIG_PATH", string("/configs/deploy-config.toml"));
         string memory filePath = string.concat(vm.projectRoot(), deployConfigPath);
@@ -177,50 +192,58 @@ contract Base is TestHelperOz5 {
 
         supportedChains[0] = ChainInfo(
             vm.createFork(chain_a_rpc), 1, chain_a_lzEndpoint, chain_a_wethAddress, chain_a_cross_l2_prover_address
-        ); // eth mainnet
+        );
+
         supportedChains[1] = ChainInfo(
             vm.createFork(chain_b_rpc), 10, chain_b_lzEndpoint, chain_b_wethAddress, chain_b_cross_l2_prover_address
-        ); // optimism mainnet
+        );
 
         treasury = vm.parseTomlAddress(deployConfig, ".treasury.address");
 
         // ############## Create Fork to test ##############
-        vm.createSelectFork(chain_a_rpc); // By default op-maininet
+        vm.createSelectFork(chain_a_rpc);
 
-        // ################ Deploy Event validator #################
-        eventValidator = new EventValidator((chain_a_cross_l2_prover_address));
+        // ################ Deploy Components ################
+        eventValidator = new EventValidator(chain_a_cross_l2_prover_address);
 
-        // ############# Deploy proxyAdmin ####################
         vm.prank(owner);
         proxyAdmin = address(new ProxyAdmin{salt: "proxyAdmin"}(owner));
         vm.label(proxyAdmin, "proxyAdmin");
 
-        // ################ Deploy underlyingAsset #################
+        // ################ Deploy UnderlyingAsset ################
         vm.prank(owner);
         underlyingAsset = new TestERC20(underlyingAssetName, underlyingAssetSymbol, underlyingAssetDecimals);
         vm.label(address(underlyingAsset), "underlyingAsset");
 
-        // ################ Deploy LendingPoolAddressesProvider ################
+        /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+        /*              LendingPool Configuration                       */
+        /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+        // Deploy LendingPoolAddressesProvider
         bytes32 lp_type = keccak256("OpSuperchain_LENDING_POOL");
         lpAddressProvider1 = new LendingPoolAddressesProvider("TUSDC", owner, proxyAdmin, lp_type);
+
         lp_type = keccak256("ARB_LENDING_POOL");
         lpAddressProvider2 = new LendingPoolAddressesProvider("TUSDC", owner, proxyAdmin, lp_type);
 
-        // ################ Deploy LendingPool Implementation ################
+        // Deploy LendingPool Implementation
         vm.prank(owner);
         implementationLp = new LendingPool();
         vm.prank(owner);
         implementationLp.initialize(ILendingPoolAddressesProvider(address(lpAddressProvider1)));
         vm.label(address(implementationLp), "implementationLp");
 
-        // ################ Set LendingPoolImpl in LendingPoolAddressesProvider ################
+        // Set LendingPool Implementation
         vm.prank(owner);
         lpAddressProvider1.setLendingPoolImpl(address(implementationLp));
-
         proxyLp = LendingPool(lpAddressProvider1.getLendingPool());
         vm.label(address(proxyLp), "proxyLp");
 
-        // ################ Deploy Router ################
+        /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+        /*              Router and Oracle Setup                         */
+        /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+        // Deploy Router
         router = new Router{salt: "router"}();
         router.initialize(address(proxyLp), address(lpAddressProvider1), address(eventValidator));
         vm.deal(address(router), 100 ether);
@@ -228,25 +251,30 @@ contract Base is TestHelperOz5 {
         vm.label(address(lpAddressProvider1), "lpAddressProvider1");
         vm.label(address(lpAddressProvider2), "lpAddressProvider2");
 
-        // ################ Deploy LayerZeroEndpoint ################
+        // Deploy Oracle
+        MockPriceOracle oracle1 = new MockPriceOracle(18);
+        MockPriceOracle oracle2 = new MockPriceOracle(18);
 
+        // Setup LayerZero Endpoint
         lzEndpoint = EndpointV2(chain_a_lzEndpoint);
 
-        // ################ Deploy SuperAsset ################
+        /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+        /*              Asset Deployment                               */
+        /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+        // Deploy SuperAsset
         vm.prank(owner);
         superAsset =
             new SuperAsset(address(underlyingAsset), superAssetTokenName, superAsseTokenSymbol, chain_a_wethAddress);
+
         vm.prank(owner);
         superAssetWeth =
             new SuperAsset(address(chain_a_wethAddress), superAssetTokenName, superAsseTokenSymbol, chain_a_wethAddress);
-
         vm.label(address(superAsset), "superAsset");
 
-        // ################ Deploy RVaultAsset ################
+        // Deploy RVaultAsset
         vm.startPrank(owner);
-
         rVaultAsset1 = address(new RVaultAsset{salt: "rVaultAsset1Impl"}());
-
         IRVaultAsset(rVaultAsset1).initialize(
             address(superAsset),
             ILendingPoolAddressesProvider(address(lpAddressProvider1)),
@@ -260,6 +288,7 @@ contract Base is TestHelperOz5 {
             200000,
             500000
         );
+
         rVaultAsset2 = address(new RVaultAsset{salt: "rVaultAsset2Impl"}());
         IRVaultAsset(rVaultAsset2).initialize(
             address(underlyingAsset),
@@ -276,14 +305,17 @@ contract Base is TestHelperOz5 {
         );
         vm.stopPrank();
 
-        // ################ Deploy incentives controller ################
+        /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+        /*              Token Setup and Configuration                   */
+        /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+        // Deploy Incentives Controller
         vm.prank(owner);
         incentivesController = address(new IncentivesController{salt: "incentivesController"}());
 
-        // ################ Deploy RToken ################
+        // Deploy and Initialize RToken
         vm.prank(owner);
         RToken rToken = new RToken{salt: "rToken"}();
-
         vm.prank(owner);
         rToken.initialize(
             ILendingPool(address(proxyLp)),
@@ -298,42 +330,43 @@ contract Base is TestHelperOz5 {
             address(eventValidator)
         );
 
-        // ################ Deploy VariableDebtToken ################
+        /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+        /*              Pool Configuration                             */
+        /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+        // Set Addresses in LpAddressesProvider
+        vm.startPrank(owner);
+        lpAddressProvider1.setPoolAdmin(poolAdmin1);
+        lpAddressProvider1.setRelayer(relayer);
+        lpAddressProvider1.setRouter(address(router));
+        lpAddressProvider1.setPriceOracle(address(oracle1));
+        lpAddressProvider2.setPriceOracle(address(oracle2));
+        vm.stopPrank();
+
+        // Deploy VariableDebtToken
         vm.prank(owner);
         VariableDebtToken variableDebtTokenImpl = new VariableDebtToken{salt: "variableDebtTokenImpl"}();
-        vm.prank(owner);
-        variableDebtTokenImpl.initialize(
-            ILendingPool(address(implementationLp)),
-            address(underlyingAsset),
-            IAaveIncentivesController(incentivesController),
-            underlyingAssetDecimals,
-            variableDebtTokenName,
-            variableDebtTokenSymbol,
-            "v"
-        );
 
-        // ################ Set addresses in LpAddressesProvider ################
-        vm.prank(owner);
-        lpAddressProvider1.setPoolAdmin(poolAdmin1);
-        vm.prank(owner);
-        lpAddressProvider1.setRelayer(relayer);
-        vm.prank(owner);
-        lpAddressProvider1.setRouter(address(router));
-
-        // ################ Deploy LendingPoolConfigurator ################
+        // Deploy and Configure LendingPoolConfigurator
         lpConfigurator = new LendingPoolConfigurator();
         lpConfigurator.initialize(ILendingPoolAddressesProvider(address(lpAddressProvider1)), proxyAdmin);
 
-        // ################ Deploy proxy configurator ################
         vm.prank(owner);
         lpAddressProvider1.setLendingPoolConfiguratorImpl(address(lpConfigurator));
         proxyConfigurator = LendingPoolConfigurator(lpAddressProvider1.getLendingPoolConfigurator());
 
-        // ################ Activate Reserves ################
-        vm.prank(poolAdmin1);
-        proxyConfigurator.activateReserve(address(rVaultAsset1));
+        /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+        /*              Reserve Configuration                          */
+        /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-        // ################ Deploy DefaultReserveInterestRateStrategy ################
+        // Activate and Configure Reserve
+        vm.startPrank(poolAdmin1);
+        proxyConfigurator.activateReserve(address(rVaultAsset1));
+        proxyConfigurator.enableBorrowingOnReserve(address(rVaultAsset1));
+        proxyConfigurator.configureReserveAsCollateral(address(rVaultAsset1), 8000, 8000, 10500);
+        vm.stopPrank();
+
+        // Deploy Interest Rate Strategy
         strategy = address(
             new DefaultReserveInterestRateStrategy(
                 ILendingPoolAddressesProvider(address(lpAddressProvider1)),
@@ -344,28 +377,30 @@ contract Base is TestHelperOz5 {
             )
         );
         vm.label(strategy, "DefaultReserveInterestRateStrategy");
-        // ################ Set RVaultAsset for underlying ################
+
+        // Set RVaultAsset for Underlying
         vm.prank(poolAdmin1);
         proxyConfigurator.setRvaultAssetForUnderlying(address(underlyingAsset), address(rVaultAsset1));
 
-        // ################ Initialize reserve ################
-
+        // Initialize Reserve
         ILendingPoolConfigurator.InitReserveInput[] memory input = new ILendingPoolConfigurator.InitReserveInput[](1);
-        input[0].rTokenName = rTokenName1;
-        input[0].rTokenSymbol = rTokenSymbol1;
-        input[0].variableDebtTokenImpl = address(variableDebtTokenImpl);
-        input[0].variableDebtTokenName = variableDebtTokenName;
-        input[0].variableDebtTokenSymbol = variableDebtTokenSymbol;
-        input[0].interestRateStrategyAddress = strategy;
-        input[0].treasury = treasury;
-        input[0].incentivesController = incentivesController;
-        input[0].superAsset = address(superAsset);
-        input[0].underlyingAsset = address(rVaultAsset1);
-        input[0].underlyingAssetDecimals = underlyingAssetDecimals;
-        input[0].underlyingAssetName = underlyingAssetName;
-        input[0].params = "v";
-        input[0].salt = "salt";
-        input[0].rTokenImpl = address(rToken);
+        input[0] = ILendingPoolConfigurator.InitReserveInput({
+            rTokenName: rTokenName1,
+            rTokenSymbol: rTokenSymbol1,
+            variableDebtTokenImpl: address(variableDebtTokenImpl),
+            variableDebtTokenName: variableDebtTokenName,
+            variableDebtTokenSymbol: variableDebtTokenSymbol,
+            interestRateStrategyAddress: strategy,
+            treasury: treasury,
+            incentivesController: incentivesController,
+            superAsset: address(superAsset),
+            underlyingAsset: address(rVaultAsset1),
+            underlyingAssetDecimals: underlyingAssetDecimals,
+            underlyingAssetName: underlyingAssetName,
+            params: "v",
+            salt: "salt",
+            rTokenImpl: address(rToken)
+        });
 
         vm.prank(poolAdmin1);
         proxyConfigurator.batchInitReserve(input);

@@ -2,11 +2,13 @@
 pragma solidity 0.8.25;
 
 import {IVariableDebtToken} from "../interfaces/IVariableDebtToken.sol";
+import {ILendingPool} from "../interfaces/ILendingPool.sol";
+import {IAaveIncentivesController} from "../interfaces/IAaveIncentivesController.sol";
+import {ILendingPoolAddressesProvider} from "../interfaces/ILendingPoolAddressesProvider.sol";
+
 import {WadRayMath} from "../libraries/math/WadRayMath.sol";
 import {Errors} from "../libraries/helpers/Errors.sol";
 import {DebtTokenBase} from "./base/DebtTokenBase.sol";
-import {ILendingPool} from "../interfaces/ILendingPool.sol";
-import {IAaveIncentivesController} from "../interfaces/IAaveIncentivesController.sol";
 
 /**
  * @title VariableDebtToken
@@ -23,6 +25,14 @@ contract VariableDebtToken is DebtTokenBase, IVariableDebtToken {
     ILendingPool internal _pool;
     address internal _underlyingAsset;
     IAaveIncentivesController internal _incentivesController;
+    ILendingPoolAddressesProvider internal _addressesProvider;
+
+    error NotRouter();
+
+    modifier onlyRouter() {
+        if (_addressesProvider.getRouter() != msg.sender) revert NotRouter();
+        _;
+    }
 
     /**
      * @dev Initializes the debt token.
@@ -37,6 +47,7 @@ contract VariableDebtToken is DebtTokenBase, IVariableDebtToken {
         ILendingPool pool,
         address underlyingAsset,
         IAaveIncentivesController incentivesController,
+        ILendingPoolAddressesProvider addressesProvider,
         uint8 debtTokenDecimals,
         string memory debtTokenName,
         string memory debtTokenSymbol,
@@ -49,6 +60,7 @@ contract VariableDebtToken is DebtTokenBase, IVariableDebtToken {
         _pool = pool;
         _underlyingAsset = underlyingAsset;
         _incentivesController = incentivesController;
+        _addressesProvider = addressesProvider;
 
         emit Initialized(
             underlyingAsset,
@@ -90,11 +102,7 @@ contract VariableDebtToken is DebtTokenBase, IVariableDebtToken {
      * @param amountScaled The amount scaled
      * @param mode The mode
      */
-    function updateCrossChainBalance(address user, uint256 amountScaled, uint256 mode)
-        external
-        override
-        onlyLendingPool
-    {
+    function updateCrossChainBalance(address user, uint256 amountScaled, uint256 mode) external override onlyRouter {
         if (mode == 1) {
             crossChainUserBalance[user] += amountScaled;
             _totalCrossChainSupply += amountScaled;

@@ -28,6 +28,7 @@ import {VariableDebtToken} from "src/tokenization/VariableDebtToken.sol";
 import {DefaultReserveInterestRateStrategy} from "src/DefaultReserveInterestRateStrategy.sol";
 import "forge-std/Vm.sol";
 import {console} from "forge-std/console.sol";
+import {EventUtils} from "../utils/libraries/EventUtils.sol";
 
 interface IOAppSetPeer {
     function setPeer(uint32 _eid, bytes32 _peer) external;
@@ -435,7 +436,7 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
 
         entries = vm.getRecordedLogs();
         bytes memory eventData;
-        eventData = findEventBySelector(entries, Deposit.selector);
+        eventData = EventUtils.findEventBySelector(entries, Deposit.selector);
         address _user;
         uint16 _referral;
         uint256 _mintMode;
@@ -491,7 +492,7 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         router1.dispatch(ValidationMode.CUSTOM, _identifier, _eventData, bytes(""), _logindex);
         // ======== Verify Withdrawal Events ========
         entries = vm.getRecordedLogs();
-        eventData = findEventBySelector(entries, Withdraw.selector);
+        eventData = EventUtils.findEventBySelector(entries, Withdraw.selector);
 
         (address user, address reserve, address to, uint256 amount, uint256 mode, uint256 amountScaled) =
             abi.decode(eventData, (address, address, address, uint256, uint256, uint256));
@@ -514,20 +515,5 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
 
         // ======== Verify Cross-Chain Messages ========
         verifyPackets(bEid, addressToBytes32(address(bRVaultAsset)));
-    }
-
-    /**
-     * @notice Utility function to locate specific events in the event logs
-     * @param entries Array of event logs to search
-     * @param _selector Event selector to find
-     * @return bytes The event data if found, empty bytes if not found
-     */
-    function findEventBySelector(Vm.Log[] memory entries, bytes32 _selector) public pure returns (bytes memory) {
-        for (uint256 i = 0; i < entries.length; i++) {
-            if (entries[i].topics[0] == _selector) {
-                return entries[i].data;
-            }
-        }
-        return bytes("");
     }
 }

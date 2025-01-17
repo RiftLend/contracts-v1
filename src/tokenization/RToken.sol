@@ -222,9 +222,11 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         uint256 amountScaled = amount.rayDiv(index);
         require(amountScaled != 0, Errors.CT_INVALID_BURN_AMOUNT);
         _burn(user, amountScaled);
-
-        (, MessagingFee memory fee) =
-            IRVaultAsset(_underlyingAsset).getFeeQuote(receiverOfUnderlying, toChainId, amount);
+        MessagingFee memory fee;
+        // only get fee quote if sending to another chain
+        if (toChainId != block.chainid) {
+            (, fee) = IRVaultAsset(_underlyingAsset).getFeeQuote(receiverOfUnderlying, toChainId, amount);
+        }
         IRVaultAsset(_underlyingAsset).burn{value: fee.nativeFee}(receiverOfUnderlying, toChainId, amount);
 
         emit Transfer(user, address(0), amount);
@@ -419,8 +421,11 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         onlyLendingPool
         returns (uint256)
     {
-        (, MessagingFee memory fee) =
-            IRVaultAsset(_underlyingAsset).getFeeQuote(receiverOfUnderlying, toChainId, amount);
+        MessagingFee memory fee;
+        // only get fee quote if sending to another chain
+        if (toChainId != block.chainid) {
+            (, fee) = IRVaultAsset(_underlyingAsset).getFeeQuote(receiverOfUnderlying, toChainId, amount);
+        }
         IRVaultAsset(_underlyingAsset).burn{value: fee.nativeFee}(receiverOfUnderlying, toChainId, amount);
         return amount;
     }
