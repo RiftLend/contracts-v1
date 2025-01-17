@@ -122,7 +122,7 @@ contract Router is Initializable, SuperPausable {
         /*                    WITHDRAW DISPATCH                       */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
         if (selector == Withdraw.selector && _identifier.chainId != block.chainid) {
-            (address user, address rVaultAsset, address to, uint256 amount, uint256 mintMode, uint256 amountScaled) =
+            (address user, address rVaultAsset,, uint256 amount, uint256 mintMode, uint256 amountScaled) =
                 abi.decode(_data[32:], (address, address, address, uint256, uint256, uint256));
             DataTypes.ReserveData memory reserve = lendingPool.getReserveData(rVaultAsset);
             lendingPool.updateStates(rVaultAsset, 0, amount, UPDATE_RATES_AND_STATES_MASK);

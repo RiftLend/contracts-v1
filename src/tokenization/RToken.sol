@@ -54,8 +54,6 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                  Custom Errors                             */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-    error NotRelayer();
-    error NotRouter();
 
     modifier onlyLendingPool() {
         require(_msgSender() == address(_pool), Errors.CT_CALLER_MUST_BE_LENDING_POOL);
@@ -73,11 +71,11 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     }
 
     function _onlyRouter() internal view {
-        if (_addressesProvider.getRouter() != msg.sender) revert NotRouter();
+        require(_addressesProvider.getRouter() == msg.sender, Errors.ONLY_ROUTER_CALL);
     }
 
     function _onlyRelayer() internal view {
-        if (_addressesProvider.getRelayer() != msg.sender) revert NotRelayer();
+        require(_addressesProvider.getRelayer() == msg.sender, Errors.ONLY_RELAYER_CALL);
     }
 
     modifier onlyLendingPoolConfigurator() {

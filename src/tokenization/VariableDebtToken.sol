@@ -27,10 +27,8 @@ contract VariableDebtToken is DebtTokenBase, IVariableDebtToken {
     IAaveIncentivesController internal _incentivesController;
     ILendingPoolAddressesProvider internal _addressesProvider;
 
-    error NotRouter();
-
     modifier onlyRouter() {
-        if (_addressesProvider.getRouter() != msg.sender) revert NotRouter();
+        require(_addressesProvider.getRouter() = msg.sender, Errors.ONLY_ROUTER_CALL);
         _;
     }
 

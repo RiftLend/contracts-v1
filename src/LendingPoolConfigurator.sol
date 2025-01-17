@@ -43,7 +43,7 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
     }
 
     modifier onlyProxyAdminOwner() {
-        require(ProxyAdmin(proxyAdmin).owner() == msg.sender, "Not proxy admin owner");
+        require(ProxyAdmin(proxyAdmin).owner() == msg.sender, Errors.NOT_PROXY_ADMIN_OWNER);
         _;
     }
 

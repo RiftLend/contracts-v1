@@ -46,9 +46,6 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     /*                  Custom Errors                             */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    error ZeroParams();
-    error rVaultAssetNotFoundForAsset(address asset);
-
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                  Modifiers                                 */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -728,7 +725,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
 
     function getRVaultAssetOrRevert(address asset) public view returns (address rVaultAsset) {
         rVaultAsset = _rVaultAsset[asset];
-        if (rVaultAsset == address(0)) revert rVaultAssetNotFoundForAsset(asset);
+        require(rVaultAsset != address(0), Errors.RVAULT_NOT_FOUND_FOR_ASSET);
     }
 
     /**

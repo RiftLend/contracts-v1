@@ -103,6 +103,19 @@ library Errors {
     string public constant LP_NOT_CONTRACT = "78";
     string public constant SDT_STABLE_DEBT_OVERFLOW = "79";
     string public constant SDT_BURN_EXCEEDS_BALANCE = "80";
+    // RVaultAsset-specific errors starting from 81
+    string public constant OFT_SEND_FAILED = "81"; // 'OFT send operation failed'
+    string public constant ONLY_ROUTER_CALL = "82"; // 'Only the router can call this function'
+    string public constant BUNGEE_BRIDGING_FAILED = "83"; // 'Bungee bridging failed'
+    string public constant DEPOSIT_LIMIT_EXCEEDED = "84"; // 'Deposit limit exceeded'
+    string public constant WITHDRAW_COOLDOWN_PERIOD_NOT_ELAPSED = "85"; // 'Withdraw cooldown period has not elapsed'
+    string public constant UNAUTHORIZED = "86"; // 'Unauthorized action'
+    string public constant BUNGEE_TARGET_NOT_SUPPORTED = "87"; // 'Bungee target is not supported'
+    // Lp Configurator
+    string public constant NOT_PROXY_ADMIN_OWNER = "88";
+    string public constant ZERO_PARAMS = "89";
+    string public constant RVAULT_NOT_FOUND_FOR_ASSET = "90";
+    string public constant ONLY_RELAYER_CALL = "91"; //
 
     enum CollateralManagerErrors {
         NO_ERROR,

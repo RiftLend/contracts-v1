@@ -1,3 +1,5 @@
+pragma solidity 0.8.25;
+
 import {IPriceOracleGetter} from "src/interfaces/IPriceOracleGetter.sol";
 
 contract MockPriceOracle is IPriceOracleGetter {

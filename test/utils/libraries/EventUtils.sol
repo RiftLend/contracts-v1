@@ -1,4 +1,5 @@
 import "forge-std/Vm.sol";
+pragma solidity 0.8.25;
 
 library EventUtils {
     /**
