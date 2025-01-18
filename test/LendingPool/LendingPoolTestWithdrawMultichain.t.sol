@@ -358,7 +358,7 @@ pragma solidity 0.8.25;
 //             ValidationMode.CUSTOM, _identifier, _eventData, bytes(""), _logindex
 //         );
 //         entries = vm.getRecordedLogs();
-//         _eventData[0] = findEventBySelector(entries, Deposit.selector);
+//         _eventData[0] = findEventsBySelector(entries, Deposit.selector);
 //         console.log('syncing state');
 
 //         for (uint256 i = 0; i < supportedChains.length; i++) {
@@ -408,7 +408,7 @@ pragma solidity 0.8.25;
 
 //         // ======== Verify Withdrawal Events ========
 //         entries = vm.getRecordedLogs();
-//         bytes memory eventData = findEventBySelector(entries, Withdraw.selector);
+//         bytes memory eventData = findEventsBySelector(entries, Withdraw.selector);
 
 //         (address user,, address to, uint256 amount,,) =
 //             abi.decode(eventData, (address, address, address, uint256, uint256, uint256));
@@ -433,7 +433,7 @@ pragma solidity 0.8.25;
 //      * @param _selector Event selector to find
 //      * @return bytes The event data if found, empty bytes if not found
 //      */
-//     function findEventBySelector(Vm.Log[] memory entries, bytes32 _selector) public pure returns (bytes memory) {
+//     function findEventsBySelector(Vm.Log[] memory entries, bytes32 _selector) public pure returns (bytes memory) {
 //         for (uint256 i = 0; i < entries.length; i++) {
 //             if (entries[i].topics[0] == _selector) {
 //                 return entries[i].data;

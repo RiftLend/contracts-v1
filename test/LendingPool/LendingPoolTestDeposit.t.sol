@@ -68,7 +68,7 @@ contract LendingPoolTestDeposit is LendingPoolTestBase {
 
         entries = vm.getRecordedLogs();
         bytes memory eventData;
-        eventData = EventUtils.findEventBySelector(entries, Deposit.selector);
+        eventData = EventUtils.findEventsBySelector(entries, Deposit.selector)[0];
         address _user;
         uint16 _referral;
         uint256 _mintMode;

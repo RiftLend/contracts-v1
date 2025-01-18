@@ -436,7 +436,7 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
 
         entries = vm.getRecordedLogs();
         bytes memory eventData;
-        eventData = EventUtils.findEventBySelector(entries, Deposit.selector);
+        eventData = EventUtils.findEventsBySelector(entries, Deposit.selector)[0];
         address _user;
         uint16 _referral;
         uint256 _mintMode;
@@ -492,7 +492,7 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         router1.dispatch(ValidationMode.CUSTOM, _identifier, _eventData, bytes(""), _logindex);
         // ======== Verify Withdrawal Events ========
         entries = vm.getRecordedLogs();
-        eventData = EventUtils.findEventBySelector(entries, Withdraw.selector);
+        eventData = EventUtils.findEventsBySelector(entries, Withdraw.selector)[0];
 
         (address user, address reserve, address to, uint256 amount, uint256 mode, uint256 amountScaled) =
             abi.decode(eventData, (address, address, address, uint256, uint256, uint256));

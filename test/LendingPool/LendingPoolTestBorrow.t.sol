@@ -74,6 +74,15 @@ contract LendingPoolTestBorrow is LendingPoolTestDeposit {
         vm.recordLogs();
         vm.prank(relayer);
         router.dispatch(ValidationMode.CUSTOM, _identifier, _eventData, bytes(""), _logindex);
+        /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+        /*     Assert Cross-Chain  Variable Debt Token  Token Balance */
+        /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+        assert(
+            VariableDebtToken(address(proxyLp.getReserveData(address(rVaultAsset1)).variableDebtTokenAddress))
+                .crossChainUserBalance(user1) == amount
+        );
+
         entries = vm.getRecordedLogs();
 
         uint256 borrowRate;
@@ -81,7 +90,7 @@ contract LendingPoolTestBorrow is LendingPoolTestDeposit {
         uint256 amountScaled;
         address reserve;
 
-        eventData = EventUtils.findEventBySelector(entries, Borrow.selector);
+        eventData = EventUtils.findEventsBySelector(entries, Borrow.selector)[0];
 
         (reserve, amount, sender, onBehalfOf, sendToChainId, borrowRate, mintMode, amountScaled, referralCode) =
             abi.decode(eventData, (address, uint256, address, address, uint256, uint256, uint256, uint256, uint16));

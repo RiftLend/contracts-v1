@@ -501,7 +501,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
      * @return The reserve normalized variable debt
      */
     function getReserveNormalizedVariableDebt(address asset) external view returns (uint256) {
-        return _reserves[getRVaultAssetOrRevert(address(asset))].getNormalizedDebt();
+        return _reserves[asset].getNormalizedDebt();
     }
 
     /**
