@@ -28,7 +28,7 @@ contract VariableDebtToken is DebtTokenBase, IVariableDebtToken {
     ILendingPoolAddressesProvider internal _addressesProvider;
 
     modifier onlyRouter() {
-        require(_addressesProvider.getRouter() = msg.sender, Errors.ONLY_ROUTER_CALL);
+        require(_addressesProvider.getRouter() == msg.sender, Errors.ONLY_ROUTER_CALL);
         _;
     }
 
