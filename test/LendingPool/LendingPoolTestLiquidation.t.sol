@@ -52,10 +52,10 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
         }
         _borrow(amounts);
 
-        address oracle =(lpAddressProvider1.getPriceOracle());
-        uint256 price=MockPriceOracle(oracle).getAssetPrice(address(underlyingAsset));
+        address oracle = (lpAddressProvider1.getPriceOracle());
+        uint256 price = MockPriceOracle(oracle).getAssetPrice(address(underlyingAsset));
         vm.prank(owner);
-        MockPriceOracle(oracle).setPrice( price/2);
+        MockPriceOracle(oracle).setPrice(price / 2);
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*                    Cross-Chain Liquidation Setup                   */

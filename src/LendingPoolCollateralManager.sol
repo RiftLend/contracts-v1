@@ -165,7 +165,6 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
 
         uint256 collateralRTokenBurned = 0;
         if (receiveRToken) {
-            
             vars.liquidatorPreviousRTokenBalance = GenericLogic.getActionBasedUserBalance(
                 sender, address(vars.collateralRToken), DataTypes.Action_type.LIQUIDATION
             );

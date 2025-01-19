@@ -10,13 +10,14 @@ contract MockPriceOracle is IPriceOracleGetter {
     constructor() {
         admin = msg.sender;
     }
+
     function setPrice(uint256 _price) external {
-        console.log(msg.sender,admin);
+        console.log(msg.sender, admin);
         require(msg.sender == admin, "Unauthorized");
         price = _price;
     }
+
     function getAssetPrice(address asset) external view returns (uint256) {
         return price;
     }
-
 }

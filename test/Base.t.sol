@@ -353,8 +353,8 @@ contract Base is TestHelperOz5 {
         lpAddressProvider2.setLendingPoolCollateralManager(address(lpCollateralManager));
         lpAddressProvider1.setPriceOracle(address(oracle1));
         lpAddressProvider2.setPriceOracle(address(oracle2));
-        oracle1.setPrice( 10**underlyingAssetDecimals);
-        oracle2.setPrice( 1**underlyingAssetDecimals);
+        oracle1.setPrice(10 ** underlyingAssetDecimals);
+        oracle2.setPrice(1 ** underlyingAssetDecimals);
 
         vm.stopPrank();
 

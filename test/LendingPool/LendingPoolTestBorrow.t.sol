@@ -24,7 +24,8 @@ contract LendingPoolTestBorrow is LendingPoolTestDeposit {
         uint256[] memory _amounts = new uint256[](0);
         _borrow(_amounts);
     }
-    function _borrow(uint256[] memory _amounts) internal{
+
+    function _borrow(uint256[] memory _amounts) internal {
         test_lpDeposit();
         (uint256[] memory amounts, address onBehalfOf, uint16 referralCode, uint256[] memory chainIds) =
             getActionXConfig();

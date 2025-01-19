@@ -262,7 +262,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         DataTypes.ReserveData storage reserve = _reserves[rVaultDebtAsset];
         IERC20(debtAsset).safeTransferFrom(sender, address(this), debtToCover);
         if (pool_type == 1) ISuperAsset(reserve.superAsset).deposit(address(this), debtToCover);
-        
+
         IRVaultAsset(rVaultDebtAsset).mint(debtToCover, address(reserve.rTokenAddress));
 
         //solium-disable-next-lines
@@ -280,12 +280,9 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
 
         require(success, Errors.LP_LIQUIDATION_CALL_FAILED);
         if (!success) {
-        (uint256 returnCode, string memory returnMessage) = abi.decode(result, (uint256, string));        
-        require(returnCode == 0, string(abi.encodePacked(returnMessage)));
-
+            (uint256 returnCode, string memory returnMessage) = abi.decode(result, (uint256, string));
+            require(returnCode == 0, string(abi.encodePacked(returnMessage)));
         }
-
-        
     }
 
     struct FlashLoanLocalVars {
@@ -743,7 +740,4 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             _unpause();
         }
     }
-
-    
-
 }
