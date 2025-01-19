@@ -226,8 +226,7 @@ interface ILendingPool {
         address debtAsset,
         address user,
         uint256 debtToCover,
-        bool receiveRToken,
-        uint256 sendToChainId
+        bool receiveRToken
     ) external;
 
     function updateStates(address asset, uint256 depositAmount, uint256 withdrawAmount, bytes2 mask) external;

@@ -20,7 +20,6 @@ import {EventValidator, ValidationMode, Identifier} from "src/libraries/EventVal
 import {DataTypes} from "src/libraries/types/DataTypes.sol";
 import {ReserveLogic} from "src/libraries/logic/ReserveLogic.sol";
 import {MessagingFee} from "src/libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
-
 contract Router is Initializable, SuperPausable {
     using SafeERC20 for IERC20;
     using ReserveLogic for DataTypes.ReserveData;
@@ -233,6 +232,7 @@ contract Router is Initializable, SuperPausable {
                 );
             }
         }
+
         if (selector == CrossChainLiquidationCall.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
             (
                 address sender,
@@ -241,9 +241,10 @@ contract Router is Initializable, SuperPausable {
                 address user,
                 uint256 debtToCover,
                 bool receiveRToken
-            ) = abi.decode(_data[64:], (address, address, address, address, uint256, bool));
+            ) = abi.decode(_data[64:], ( address, address, address, address, uint256, bool));
+ 
             lendingPool.liquidationCall(
-                sender, collateralAsset, debtAsset, user, debtToCover, receiveRToken, block.chainid
+                sender, collateralAsset, debtAsset, user, debtToCover, receiveRToken
             );
         }
 

@@ -15,8 +15,12 @@ contract LendingPoolTestRepay is LendingPoolTestBorrow {
 
     function test_lpRepay() external {
         super.setUp();
-        test_lpBorrow();
-        (uint256[] memory amounts, address onBehalfOf,, uint256[] memory chainIds) = getActionXConfig();
+        uint256[] memory amounts;
+        address onBehalfOf;
+        uint256[] memory chainIds;
+
+        _borrow(amounts);
+        (amounts, onBehalfOf,, chainIds) = getActionXConfig();
 
         // Adjust Repay amounts
         for (uint256 i = 0; i < amounts.length; i++) {

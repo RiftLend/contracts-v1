@@ -57,6 +57,7 @@ import {
 import {OptionsBuilder} from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OptionsBuilder.sol";
 import {OFTMsgCodec} from "src/libraries/helpers/layerzero/OFTMsgCodec.sol";
 import {OFTComposeMsgCodec} from "@layerzerolabs/oft-evm/contracts/libs/OFTComposeMsgCodec.sol";
+import {LendingPoolCollateralManager} from "src/LendingPoolCollateralManager.sol";
 
 contract Base is TestHelperOz5 {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -111,6 +112,8 @@ contract Base is TestHelperOz5 {
     address user1 = makeAddr("user1");
     address user2 = makeAddr("user2");
     address liquidityProvider = makeAddr("liquidityProvider");
+    address liquidator = makeAddr("liquidator");
+
     address relayer = makeAddr("relayer");
     address emergencyAdmin = makeAddr("emergencyAdmin");
     address alice = makeAddr("alice");
@@ -252,8 +255,10 @@ contract Base is TestHelperOz5 {
         vm.label(address(lpAddressProvider2), "lpAddressProvider2");
 
         // Deploy Oracle
-        MockPriceOracle oracle1 = new MockPriceOracle(18);
-        MockPriceOracle oracle2 = new MockPriceOracle(18);
+        vm.prank(owner);
+        MockPriceOracle oracle1 = new MockPriceOracle();
+        vm.prank(owner);
+        MockPriceOracle oracle2 = new MockPriceOracle();
 
         // Setup LayerZero Endpoint
         lzEndpoint = EndpointV2(chain_a_lzEndpoint);
@@ -333,14 +338,24 @@ contract Base is TestHelperOz5 {
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*              Pool Configuration                             */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+        LendingPoolCollateralManager lpCollateralManager = new LendingPoolCollateralManager();
 
         // Set Addresses in LpAddressesProvider
         vm.startPrank(owner);
         lpAddressProvider1.setPoolAdmin(poolAdmin1);
         lpAddressProvider1.setRelayer(relayer);
         lpAddressProvider1.setRouter(address(router));
+        lpAddressProvider1.setLendingPoolCollateralManager(address(lpCollateralManager));
+
+        lpAddressProvider2.setPoolAdmin(poolAdmin1);
+        lpAddressProvider2.setRelayer(relayer);
+        lpAddressProvider2.setRouter(address(router));
+        lpAddressProvider2.setLendingPoolCollateralManager(address(lpCollateralManager));
         lpAddressProvider1.setPriceOracle(address(oracle1));
         lpAddressProvider2.setPriceOracle(address(oracle2));
+        oracle1.setPrice( 10**underlyingAssetDecimals);
+        oracle2.setPrice( 1**underlyingAssetDecimals);
+
         vm.stopPrank();
 
         // Deploy VariableDebtToken

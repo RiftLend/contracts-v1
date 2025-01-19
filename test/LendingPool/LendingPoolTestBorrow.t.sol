@@ -21,14 +21,22 @@ contract LendingPoolTestBorrow is LendingPoolTestDeposit {
 
     function test_lpBorrow() public {
         super.setUp();
+        uint256[] memory _amounts = new uint256[](0);
+        _borrow(_amounts);
+    }
+    function _borrow(uint256[] memory _amounts) internal{
         test_lpDeposit();
         (uint256[] memory amounts, address onBehalfOf, uint16 referralCode, uint256[] memory chainIds) =
             getActionXConfig();
-
-        // Adjust borrow amounts
-        for (uint256 i = 0; i < amounts.length; i++) {
-            amounts[i] = amounts[i] / 2; //only borrow 50% of the amount deposited
+        if (_amounts.length > 0) {
+            amounts = _amounts;
+        } else {
+            // Adjust borrow amounts
+            for (uint256 i = 0; i < amounts.length; i++) {
+                amounts[i] = amounts[i] / 2; //only borrow 50% of the amount deposited
+            }
         }
+
         uint256 sendToChainId = supportedChains[0].chainId;
         address asset = address(underlyingAsset);
 
@@ -74,6 +82,7 @@ contract LendingPoolTestBorrow is LendingPoolTestDeposit {
         vm.recordLogs();
         vm.prank(relayer);
         router.dispatch(ValidationMode.CUSTOM, _identifier, _eventData, bytes(""), _logindex);
+
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*     Assert Cross-Chain  Variable Debt Token  Token Balance */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/

@@ -93,7 +93,6 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
         DataTypes.ReserveData storage collateralReserve = _reserves[collateralRAsset];
         DataTypes.ReserveData storage debtReserve = _reserves[debtRAsset];
         DataTypes.UserConfigurationMap storage userConfig = _usersConfig[user];
-
         LiquidationCallLocalVars memory vars;
 
         (,,,, vars.healthFactor) = GenericLogic.calculateUserAccountData(
@@ -166,6 +165,7 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
 
         uint256 collateralRTokenBurned = 0;
         if (receiveRToken) {
+            
             vars.liquidatorPreviousRTokenBalance = GenericLogic.getActionBasedUserBalance(
                 sender, address(vars.collateralRToken), DataTypes.Action_type.LIQUIDATION
             );

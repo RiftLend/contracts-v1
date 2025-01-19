@@ -21,5 +21,7 @@ contract LendingPoolTestBase is Base {
         super.setUp();
         deal(address(underlyingAsset), user1, INITIAL_BALANCE);
         deal(address(underlyingAsset), user2, INITIAL_BALANCE);
+        deal(address(underlyingAsset), liquidator, INITIAL_BALANCE);
+        deal(address(underlyingAsset), liquidityProvider, INITIAL_BALANCE);
     }
 }
