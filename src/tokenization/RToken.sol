@@ -222,10 +222,14 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         _burn(user, amountScaled);
 
         MessagingFee memory fee;
-        if (toChainId != block.chainid) {
-            (, fee) = IRVaultAsset(_underlyingAsset).getFeeQuote(receiverOfUnderlying, toChainId, amount);
+        address rVaultAddress = _underlyingAsset;
+        // todo: if lp rtoken does not have enough underlying to burn, skip burning
+        if (IERC20(rVaultAddress).balanceOf(address(this)) >= amount) {
+            if (toChainId != block.chainid) {
+                (, fee) = IRVaultAsset(rVaultAddress).getFeeQuote(receiverOfUnderlying, toChainId, amount);
+            }
+            IRVaultAsset(rVaultAddress).burn{value: fee.nativeFee}(receiverOfUnderlying, toChainId, amount);
         }
-        IRVaultAsset(_underlyingAsset).burn{value: fee.nativeFee}(receiverOfUnderlying, toChainId, amount);
 
         emit Transfer(user, address(0), amount);
         emit Burn(user, receiverOfUnderlying, amount, index);

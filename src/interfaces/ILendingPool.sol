@@ -3,9 +3,9 @@ pragma solidity 0.8.25;
 
 import {ILendingPoolAddressesProvider} from "./ILendingPoolAddressesProvider.sol";
 import {ILendingPool} from "./ILendingPool.sol";
+import "../interfaces/ICrossL2Inbox.sol";
 
 import {DataTypes} from "../libraries/types/DataTypes.sol";
-import "../interfaces/ICrossL2Inbox.sol";
 
 /**
  * @dev Emitted on deposit()

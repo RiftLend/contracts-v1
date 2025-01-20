@@ -315,7 +315,6 @@ library ValidationLogic {
                 Errors.LPCM_SPECIFIED_CURRENCY_NOT_BORROWED_BY_USER
             );
         }
-
         return (uint256(Errors.CollateralManagerErrors.NO_ERROR), Errors.LPCM_NO_ERRORS);
     }
 

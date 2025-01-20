@@ -263,7 +263,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         IERC20(debtAsset).safeTransferFrom(sender, address(this), debtToCover);
         if (pool_type == 1) ISuperAsset(reserve.superAsset).deposit(address(this), debtToCover);
 
-        IRVaultAsset(rVaultDebtAsset).mint(debtToCover, address(reserve.rTokenAddress));
+        IRVaultAsset(rVaultDebtAsset).mint(debtToCover, address(this));
 
         //solium-disable-next-lines
         (bool success, bytes memory result) = collateralManager.delegatecall(

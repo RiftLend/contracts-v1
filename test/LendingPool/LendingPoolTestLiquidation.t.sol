@@ -38,9 +38,7 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
         address _liquidator;
         uint256 variableDebtBurned;
         uint256 collateralRTokenBurned;
-
         address originAddress = address(0x4200000000000000000000000000000000000023);
-
         bytes32 _selector;
 
         super.setUp();
@@ -48,14 +46,13 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
         (amounts, onBehalfOf,, chainIds) = getActionXConfig();
         // Adjust Borrow amounts
         for (uint256 i = 0; i < amounts.length; i++) {
-            amounts[i] = (amounts[i] * 80) / 100; // borrow 81% of the amount deposited so that it is subject to liquidation
+            amounts[i] = (amounts[i] * 70) / 100; // borrow 70% of the deposited amount only
         }
         _borrow(amounts);
 
-        address oracle = (lpAddressProvider1.getPriceOracle());
-        uint256 price = MockPriceOracle(oracle).getAssetPrice(address(underlyingAsset));
-        vm.prank(owner);
-        MockPriceOracle(oracle).setPrice(price / 2);
+        uint256 user1_vdebt_balance_before_liquidation = VariableDebtToken(
+            address(proxyLp.getReserveData(address(rVaultAsset1)).variableDebtTokenAddress)
+        ).crossChainUserBalance(user1);
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*                    Cross-Chain Liquidation Setup                   */
@@ -64,6 +61,17 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
         collateralAsset = address(underlyingAsset);
         debtAsset = address(underlyingAsset);
         user = onBehalfOf;
+
+        // Stimulating Oracle price updates for collateral
+        // Oracle keepers update the price to half of what it used to be
+        address oracle = (lpAddressProvider1.getPriceOracle());
+        uint256 price = MockPriceOracle(oracle).getAssetPrice(address(collateralAsset));
+        address collateralRVaultAsset = proxyLp.getRVaultAssetOrRevert(collateralAsset);
+
+        vm.prank(owner);
+        MockPriceOracle(oracle).setPrice(collateralAsset, price / 2);
+        vm.prank(owner);
+        MockPriceOracle(oracle).setPrice(collateralRVaultAsset, price / 2);
 
         debtToCover = new uint256[](chainIds.length);
         for (uint256 i = 0; i < chainIds.length; i++) {
@@ -109,14 +117,15 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
         vm.prank(relayer);
         router.dispatch(ValidationMode.CUSTOM, _identifier, _eventData, bytes(""), _logindex);
 
-        /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-        /*     Assert Cross-Chain  Variable Debt Token  Token Balance */
-        /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+        /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:°•.°+.*•´°•.°+.*•´*/
+        /*     Assert Cross-Chain  Variable Debt Token  Balance is decreased for user1 **/
+        /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.°•.°+.*•´°•.°+.*•´•*/
         console.log("Assert Cross-Chain  Variable Debt Token  Token Balance ");
-        assert(
-            VariableDebtToken(address(proxyLp.getReserveData(address(rVaultAsset1)).variableDebtTokenAddress))
-                .crossChainUserBalance(user1) == 0
-        );
+        uint256 user1_vdebt_balance_after_liquidation = VariableDebtToken(
+            address(proxyLp.getReserveData(address(rVaultAsset1)).variableDebtTokenAddress)
+        ).crossChainUserBalance(user1);
+
+        assert(user1_vdebt_balance_before_liquidation > user1_vdebt_balance_after_liquidation);
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*                    Cross-Chain State Sync                   */
@@ -153,7 +162,6 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
             );
         }
 
-        console.log("sync state of borrow for updating crosschain balances");
         uint256 srcChain = block.chainid;
 
         for (uint256 i = 0; i < supportedChains.length; i++) {

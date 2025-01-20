@@ -107,15 +107,12 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
 
         // Use local balance for variable debt token for debt reserve
         vars.userVariableDebt = IERC20(debtReserve.variableDebtTokenAddress).balanceOf(user);
-
         (vars.errorCode, vars.errorMsg) = ValidationLogic.validateLiquidationCall(
             collateralReserve, debtReserve, userConfig, vars.healthFactor, vars.userVariableDebt
         );
-
         if (Errors.CollateralManagerErrors(vars.errorCode) != Errors.CollateralManagerErrors.NO_ERROR) {
             return (vars.errorCode, vars.errorMsg);
         }
-
         vars.collateralRToken = IRToken(collateralReserve.rTokenAddress);
         vars.userCollateralBalance = GenericLogic.getActionBasedUserBalance(
             user, address(vars.collateralRToken), DataTypes.Action_type.LIQUIDATION
@@ -124,7 +121,6 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
         vars.maxLiquidatableDebt = (vars.userVariableDebt).percentMul(LIQUIDATION_CLOSE_FACTOR_PERCENT);
 
         vars.actualDebtToLiquidate = debtToCover > vars.maxLiquidatableDebt ? vars.maxLiquidatableDebt : debtToCover;
-
         (vars.maxCollateralToLiquidate, vars.debtAmountNeeded) = _calculateAvailableCollateralToLiquidate(
             collateralReserve,
             debtReserve,
@@ -180,7 +176,7 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
             collateralReserve.updateInterestRates(
                 collateralRAsset, address(vars.collateralRToken), 0, vars.maxCollateralToLiquidate
             );
-
+            // actual debt to be liquidated
             (, collateralRTokenBurned) = vars.collateralRToken.burn(
                 user, sender, block.chainid, vars.maxCollateralToLiquidate, collateralReserve.liquidityIndex
             );
@@ -194,15 +190,10 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
             emit ReserveUsedAsCollateralDisabled(collateralRAsset, user);
         }
 
-        // pay debt amount
-        IERC20(debtRAsset).transfer(debtReserve.rTokenAddress, vars.actualDebtToLiquidate);
-
         // refund excess debt asset
         if (debtToCover > vars.actualDebtToLiquidate) {
             uint256 refundAmount = debtToCover - vars.actualDebtToLiquidate;
-            IRVaultAsset(debtRAsset).withdraw(refundAmount, address(this), address(this));
-            if (pool_type == 1) ISuperAsset(debtReserve.superAsset).withdraw(sender, refundAmount);
-            else IERC20(IRVaultAsset(debtRAsset).asset()).transfer(sender, refundAmount);
+            IRVaultAsset(debtRAsset).withdraw(refundAmount, sender, address(this));
         }
 
         emit LiquidationCall(
