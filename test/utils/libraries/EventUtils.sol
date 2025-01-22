@@ -1,6 +1,6 @@
-import "forge-std/Vm.sol";
-
 pragma solidity 0.8.25;
+
+import "forge-std/Vm.sol";
 
 library EventUtils {
     /**

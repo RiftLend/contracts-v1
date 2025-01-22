@@ -192,8 +192,7 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
 
         // refund excess debt asset
         if (debtToCover > vars.actualDebtToLiquidate) {
-            uint256 refundAmount = debtToCover - vars.actualDebtToLiquidate;
-            IRVaultAsset(debtRAsset).withdraw(refundAmount, sender, address(this));
+            IRVaultAsset(debtRAsset).withdraw(debtToCover - vars.actualDebtToLiquidate, sender, address(this));
         }
 
         emit LiquidationCall(
