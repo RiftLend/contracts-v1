@@ -80,7 +80,7 @@ contract Base is TestHelperOz5 {
         address rTokenImpl;
         address variableDebtTokenImpl;
         address SuperAsset;
-        address aToken;
+        address rToken;
         address variableDebtToken;
         address interestRateStrategy;
         address treasury;

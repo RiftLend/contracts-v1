@@ -296,7 +296,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     }
 
     /**
-     * @dev Transfers rTokens in the event of a borrow being liquidated, in case the liquidators reclaims the aToken
+     * @dev Transfers rTokens in the event of a borrow being liquidated, in case the liquidators reclaims the rToken
      * - Only callable by the LendingPool
      * @param from The address getting liquidated, current owner of the rTokens
      * @param to The recipient
@@ -344,7 +344,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     }
 
     /**
-     * @dev calculates the total supply of the specific aToken
+     * @dev calculates the total supply of the specific rToken
      * since the balance of every single user increases over time, the total supply
      * does that too.
      * @return the current total supply
@@ -370,7 +370,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     }
 
     /**
-     * @dev Returns the address of the Aave treasury, receiving the fees on this aToken
+     * @dev Returns the address of the Aave treasury, receiving the fees on this rToken
      *
      */
     function RESERVE_TREASURY_ADDRESS() public view returns (address) {
@@ -378,7 +378,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     }
 
     /**
-     * @dev Returns the address of the underlying asset of this aToken (E.g. WETH for aWETH)
+     * @dev Returns the address of the underlying asset of this rToken (E.g. WETH for aWETH)
      *
      */
     function UNDERLYING_ASSET_ADDRESS() public view override returns (address) {
@@ -386,7 +386,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     }
 
     /**
-     * @dev Returns the address of the lending pool where this aToken is used
+     * @dev Returns the address of the lending pool where this rToken is used
      *
      */
     function POOL() public view returns (ILendingPool) {
@@ -432,7 +432,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     }
 
     /**
-     * @dev Invoked to execute actions on the aToken side after a repayment.
+     * @dev Invoked to execute actions on the rToken side after a repayment.
      * @param user The user executing the repayment
      * @param amount The amount getting repaid
      *

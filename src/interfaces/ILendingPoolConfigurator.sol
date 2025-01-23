@@ -42,13 +42,13 @@ interface ILendingPoolConfigurator {
     /**
      * @dev Emitted when a reserve is initialized.
      * @param asset The address of the underlying asset of the reserve
-     * @param aToken The address of the associated aToken contract
+     * @param rToken The address of the associated rToken contract
      * @param variableDebtToken The address of the associated variable rate debt token
      * @param interestRateStrategyAddress The address of the interest rate strategy for the reserve
      *
      */
     event ReserveInitialized(
-        address indexed asset, address indexed aToken, address variableDebtToken, address interestRateStrategyAddress
+        address indexed asset, address indexed rToken, address variableDebtToken, address interestRateStrategyAddress
     );
 
     /**
@@ -132,10 +132,10 @@ interface ILendingPoolConfigurator {
     event ReserveInterestRateStrategyChanged(address indexed asset, address strategy);
 
     /**
-     * @dev Emitted when an aToken implementation is upgraded
+     * @dev Emitted when an rToken implementation is upgraded
      * @param asset The address of the underlying asset of the reserve
-     * @param proxy The aToken proxy address
-     * @param implementation The new aToken implementation
+     * @param proxy The rToken proxy address
+     * @param implementation The new rToken implementation
      *
      */
     event RTokenUpgraded(address indexed asset, address indexed proxy, address indexed implementation);
@@ -144,7 +144,7 @@ interface ILendingPoolConfigurator {
      * @dev Emitted when the implementation of a variable debt token is upgraded
      * @param asset The address of the underlying asset of the reserve
      * @param proxy The variable debt token proxy address
-     * @param implementation The new aToken implementation
+     * @param implementation The new rToken implementation
      *
      */
     event VariableDebtTokenUpgraded(address indexed asset, address indexed proxy, address indexed implementation);

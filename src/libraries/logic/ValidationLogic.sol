@@ -319,7 +319,7 @@ library ValidationLogic {
     }
 
     /**
-     * @dev Validates an aToken transfer
+     * @dev Validates an rToken transfer
      * @param from The user from which the rTokens are being transferred
      * @param reservesData The state of all the reserves
      * @param userConfig The state of the user for the specific reserve

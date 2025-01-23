@@ -83,7 +83,7 @@ interface IRToken is IERC20, IScaledBalanceToken, IInitializableRToken {
     function mintToTreasury(uint256 amount, uint256 index) external returns (uint256, uint256);
 
     /**
-     * @dev Transfers rTokens in the event of a borrow being liquidated, in case the liquidators reclaims the aToken
+     * @dev Transfers rTokens in the event of a borrow being liquidated, in case the liquidators reclaims the rToken
      * @param from The address getting liquidated, current owner of the rTokens
      * @param to The recipient
      * @param value The amount of tokens getting transferred
@@ -104,7 +104,7 @@ interface IRToken is IERC20, IScaledBalanceToken, IInitializableRToken {
         returns (uint256);
 
     /**
-     * @dev Invoked to execute actions on the aToken side after a repayment.
+     * @dev Invoked to execute actions on the rToken side after a repayment.
      * @param user The user executing the repayment
      * @param amount The amount getting repaid
      *
@@ -118,7 +118,7 @@ interface IRToken is IERC20, IScaledBalanceToken, IInitializableRToken {
     function getIncentivesController() external view returns (IAaveIncentivesController);
 
     /**
-     * @dev Returns the address of the underlying asset of this aToken (E.g. WETH for aWETH)
+     * @dev Returns the address of the underlying asset of this rToken (E.g. WETH for aWETH)
      *
      */
     function UNDERLYING_ASSET_ADDRESS() external view returns (address);
