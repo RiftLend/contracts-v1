@@ -20,6 +20,7 @@ import {EventValidator, ValidationMode, Identifier} from "src/libraries/EventVal
 import {DataTypes} from "src/libraries/types/DataTypes.sol";
 import {ReserveLogic} from "src/libraries/logic/ReserveLogic.sol";
 import {MessagingFee} from "src/libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
+import {console} from "forge-std/console.sol";
 
 contract Router is Initializable, SuperPausable {
     using SafeERC20 for IERC20;
@@ -255,21 +256,38 @@ contract Router is Initializable, SuperPausable {
             selector == FlashLoan.selector && abi.decode(_data[32:64], (uint256)) != block.chainid
                 && abi.decode(_data[64:96], (bool))
         ) {
-            (, address asset, uint256 amount) = abi.decode(_data[96:160], (address, address, uint256));
+            (, address asset, uint256 amount,,,) =
+                abi.decode(_data[96:], (address, address, uint256, uint256, address, uint16));
             lendingPool.updateStates(asset, 0, amount, UPDATE_RATES_AND_STATES_MASK);
         }
-        if (selector == CrossChainInitiateFlashloan.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
-            (
-                address sender,
-                address receiverAddress,
-                address[] memory assets,
-                uint256[] memory amounts,
-                uint256[] memory modes,
-                address onBehalfOf,
-                bytes memory params,
-                uint16 referralCode
-            ) = abi.decode(_data[96:], (address, address, address[], uint256[], uint256[], address, bytes, uint16));
-            lendingPool.flashLoan(sender, receiverAddress, assets, amounts, modes, onBehalfOf, params, referralCode);
+
+        if (selector == CrossChainInitiateFlashloan.selector) {
+            (, DataTypes.InitiateFlashloanParams memory initiateFlashloanParams) =
+                abi.decode(_data, (bytes32, DataTypes.InitiateFlashloanParams));
+
+            address sender = initiateFlashloanParams.sender;
+            DataTypes.FlashloanParams memory flashloanParams = initiateFlashloanParams.flashloanParams;
+
+            if (flashloanParams.chainid == block.chainid) {
+                address[] memory assets = new address[](1);
+                uint256[] memory amounts = new uint256[](1);
+                uint256[] memory modes = new uint256[](1);
+                assets[0] = flashloanParams.asset;
+                amounts[0] = flashloanParams.amount;
+                modes[0] = flashloanParams.mode;
+
+                // Execute the flashloan with the decoded parameters
+                lendingPool.flashLoan(
+                    sender,
+                    flashloanParams.receiverAddress,
+                    assets,
+                    amounts,
+                    modes,
+                    flashloanParams.onBehalfOf,
+                    flashloanParams.params,
+                    flashloanParams.referralCode
+                );
+            }
         }
     }
 
@@ -401,28 +419,9 @@ contract Router is Initializable, SuperPausable {
         }
     }
 
-    function initiateFlashLoan(
-        uint256[] calldata chainIds,
-        address receiverAddress,
-        address[][] calldata assets,
-        uint256[][] calldata amounts,
-        uint256[][] calldata modes,
-        address onBehalfOf,
-        bytes[] calldata params,
-        uint16[] calldata referralCode
-    ) external whenNotPaused {
-        for (uint256 i = 0; i < chainIds.length; i++) {
-            emit CrossChainInitiateFlashloan(
-                chainIds[i],
-                msg.sender,
-                receiverAddress,
-                assets[i],
-                amounts[i],
-                modes[i],
-                onBehalfOf,
-                params[i],
-                referralCode[i]
-            );
+    function initiateFlashLoan(DataTypes.FlashloanParams[] calldata flashloanParams) external whenNotPaused {
+        for (uint256 i = 0; i < flashloanParams.length; i++) {
+            emit CrossChainInitiateFlashloan(DataTypes.InitiateFlashloanParams(msg.sender, flashloanParams[i]));
         }
     }
 

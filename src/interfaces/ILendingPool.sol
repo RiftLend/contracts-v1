@@ -180,17 +180,7 @@ event ReserveUsedAsCollateral(address user, address asset, bool useAsCollateral)
 
 event SetUserUseReserveAsCollateralCrossChain(uint256 chainId, address user, address asset, bool useAsCollateral);
 
-event CrossChainInitiateFlashloan(
-    uint256 chainId,
-    address sender,
-    address receiverAddress,
-    address[] assets,
-    uint256[] amounts,
-    uint256[] modes,
-    address onBehalfOf,
-    bytes params,
-    uint16 referralCode
-);
+event CrossChainInitiateFlashloan(DataTypes.InitiateFlashloanParams flashloanParams);
 
 interface ILendingPool {
     /**

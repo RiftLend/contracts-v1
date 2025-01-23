@@ -293,6 +293,7 @@ contract Base is TestHelperOz5 {
             200000,
             500000
         );
+        IRVaultAsset(rVaultAsset1).setMaxDepositLimit(100000 ether);
 
         rVaultAsset2 = address(new RVaultAsset{salt: "rVaultAsset2Impl"}());
         IRVaultAsset(rVaultAsset2).initialize(

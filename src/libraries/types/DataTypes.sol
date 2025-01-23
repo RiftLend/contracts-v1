@@ -69,4 +69,20 @@ library DataTypes {
         uint256 debtChainId;
         uint256 amount;
     }
+
+    struct FlashloanParams {
+        address asset;
+        uint256 amount;
+        uint256 mode;
+        bytes params;
+        uint16 referralCode;
+        uint256 chainid;
+        address receiverAddress;
+        address onBehalfOf;
+    }
+
+    struct InitiateFlashloanParams {
+        address sender;
+        FlashloanParams flashloanParams;
+    }
 }

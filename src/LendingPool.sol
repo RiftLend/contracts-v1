@@ -368,6 +368,15 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
                 );
 
                 IERC20(assets[vars.i]).safeTransferFrom(receiverAddress, address(this), vars.currentAmountPlusPremium);
+                IERC20(assets[vars.i]).approve(vars.currentAsset, vars.currentAmountPlusPremium);
+
+                address underlying = IRVaultAsset(vars.currentAsset).asset();
+
+                if (underlying != assets[vars.i] && pool_type == 1) {
+                    ISuperAsset(underlying).deposit(address(this), vars.currentAmountPlusPremium);
+                    IERC20(underlying).approve(vars.currentAsset, vars.currentAmountPlusPremium);
+                }
+
                 IRVaultAsset(vars.currentAsset).mint(vars.currentAmountPlusPremium, vars.currentrTokenAddress);
             } else {
                 // If the user chose to not return the funds, the system checks if there is enough collateral and

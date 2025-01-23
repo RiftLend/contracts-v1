@@ -87,6 +87,7 @@ interface IRVaultAsset {
     function provider() external view returns (address);
 
     function setChainToEid(uint256 _chainId, uint32 _eid) external;
+    function setMaxDepositLimit(uint256 _maxDeposit) external;
 
     function getFeeQuote(address receiverOfUnderlying, uint256 toChainId, uint256 amount)
         external

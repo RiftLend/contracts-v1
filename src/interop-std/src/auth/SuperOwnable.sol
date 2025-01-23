@@ -42,7 +42,7 @@ abstract contract SuperOwnable is Ownable, ISemver {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     modifier onlySuperAdmin() {
-        if (block.chainid != superAdminChainId) revert ChainNotSuperAdmin();
+        if (msg.sender == owner() && block.chainid != superAdminChainId) revert ChainNotSuperAdmin();
         _;
     }
 

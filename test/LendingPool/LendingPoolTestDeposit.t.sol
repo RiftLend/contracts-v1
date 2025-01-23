@@ -98,7 +98,7 @@ contract LendingPoolTestDeposit is LendingPoolTestBase {
         returns (uint256[] memory amounts, address onBehalfOf, uint16 referralCode, uint256[] memory chainIds)
     {
         amounts = new uint256[](1);
-        amounts[0] = 10 ether;
+        amounts[0] = DEPOSIT_AMOUNT;
         onBehalfOf = user1;
         referralCode = 0;
         chainIds = new uint256[](1);

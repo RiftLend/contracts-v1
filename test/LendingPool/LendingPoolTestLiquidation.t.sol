@@ -16,7 +16,6 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     function test_lpLiquidation() external {
-        uint256 amount;
         address sender;
         bytes memory eventData;
         uint256 chainId;
@@ -148,7 +147,7 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
                 variableDebtBurned,
                 collateralRTokenBurned
             ) = abi.decode(eventData, (address, address, address, uint256, uint256, address, bool, uint256, uint256));
-            _eventData[0] = abi.encode(
+            _eventData[index] = abi.encode(
                 _selector,
                 collateralAsset,
                 debtAsset,
