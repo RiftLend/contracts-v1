@@ -23,7 +23,7 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
         address collateralAsset;
         address debtAsset;
         address user;
-        bool receiveRToken = false;
+        bool receiveRToken = true;
         address onBehalfOf;
         Identifier[] memory _identifier;
         bytes[] memory _eventData;
@@ -39,6 +39,7 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
         uint256 collateralRTokenBurned;
         address originAddress = address(0x4200000000000000000000000000000000000023);
         bytes32 _selector;
+        uint256 liquidatorSentScaled;
 
         super.setUp();
 
@@ -52,6 +53,9 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
         uint256 user1_vdebt_balance_before_liquidation = VariableDebtToken(
             address(proxyLp.getReserveData(address(rVaultAsset1)).variableDebtTokenAddress)
         ).crossChainUserBalance(user1);
+        uint256 liquidator_rToken_balance_before_liquidation = RToken(
+            address(proxyLp.getReserveData(address(rVaultAsset1)).rTokenAddress)
+        ).crossChainUserBalance(liquidator);
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*                    Cross-Chain Liquidation Setup                   */
@@ -116,15 +120,6 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
         vm.prank(relayer);
         router.dispatch(ValidationMode.CUSTOM, _identifier, _eventData, bytes(""), _logindex);
 
-        /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:°•.°+.*•´°•.°+.*•´*/
-        /*     Assert Cross-Chain  Variable Debt Token  Balance is decreased for user1 **/
-        /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.°•.°+.*•´°•.°+.*•´•*/
-        console.log("Assert Cross-Chain  Variable Debt Token  Token Balance ");
-        uint256 user1_vdebt_balance_after_liquidation = VariableDebtToken(
-            address(proxyLp.getReserveData(address(rVaultAsset1)).variableDebtTokenAddress)
-        ).crossChainUserBalance(user1);
-
-        assert(user1_vdebt_balance_before_liquidation > user1_vdebt_balance_after_liquidation);
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*                    Cross-Chain State Sync                   */
@@ -145,8 +140,9 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
                 _liquidator,
                 receiveRToken,
                 variableDebtBurned,
-                collateralRTokenBurned
-            ) = abi.decode(eventData, (address, address, address, uint256, uint256, address, bool, uint256, uint256));
+                collateralRTokenBurned,
+                liquidatorSentScaled
+            ) = abi.decode(eventData, (address, address, address, uint256, uint256, address, bool, uint256, uint256,uint256));
             _eventData[index] = abi.encode(
                 _selector,
                 collateralAsset,
@@ -157,7 +153,8 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
                 _liquidator,
                 receiveRToken,
                 variableDebtBurned,
-                collateralRTokenBurned
+                collateralRTokenBurned,
+                liquidatorSentScaled
             );
         }
 
@@ -170,5 +167,19 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
                 router.dispatch(ValidationMode.CUSTOM, _identifier, _eventData, bytes(""), _logindex);
             }
         }
+        /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:°•.°+.*•´°•.°+.*•´*/
+        /*     Assert Cross-Chain  Variable Debt Token  Balance is decreased for user1 **/
+        /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.°•.°+.*•´°•.°+.*•´•*/
+        console.log("Assert Cross-Chain  Variable Debt Token  Token Balance ");
+        uint256 user1_vdebt_balance_after_liquidation = VariableDebtToken(
+            address(proxyLp.getReserveData(address(rVaultAsset1)).variableDebtTokenAddress)
+        ).crossChainUserBalance(user1);
+        uint256 liquidator_rToken_balance_after_liquidation = RToken(
+            address(proxyLp.getReserveData(address(rVaultAsset1)).rTokenAddress)
+        ).crossChainUserBalance(liquidator);
+
+        assert(user1_vdebt_balance_before_liquidation > user1_vdebt_balance_after_liquidation);
+        assert(liquidator_rToken_balance_after_liquidation > liquidator_rToken_balance_before_liquidation);
+
     }
 }

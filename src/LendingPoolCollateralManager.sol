@@ -160,10 +160,13 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
         );
 
         uint256 collateralRTokenBurned = 0;
+        uint256 liquidatorSentScaled;
         if (receiveRToken) {
             vars.liquidatorPreviousRTokenBalance = GenericLogic.getActionBasedUserBalance(
                 sender, address(vars.collateralRToken), DataTypes.Action_type.LIQUIDATION
             );
+            liquidatorSentScaled = vars.maxCollateralToLiquidate.rayDiv(collateralReserve.liquidityIndex);
+     
             vars.collateralRToken.transferOnLiquidation(user, sender, vars.maxCollateralToLiquidate);
 
             if (vars.liquidatorPreviousRTokenBalance == 0) {
@@ -171,6 +174,7 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
                 liquidatorConfig.setUsingAsCollateral(collateralReserve.id, true);
                 emit ReserveUsedAsCollateralEnabled(collateralRAsset, sender);
             }
+
         } else {
             collateralReserve.updateState();
             collateralReserve.updateInterestRates(
@@ -204,7 +208,8 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
             sender,
             receiveRToken,
             variableDebtBurned,
-            collateralRTokenBurned
+            collateralRTokenBurned,
+            liquidatorSentScaled
         );
 
         return (uint256(Errors.CollateralManagerErrors.NO_ERROR), Errors.LPCM_NO_ERRORS);

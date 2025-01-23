@@ -215,11 +215,12 @@ contract Router is Initializable, SuperPausable {
                 address user,
                 uint256 actualDebtToLiquidate,
                 uint256 maxCollateralToLiquidate,
-                , //liquidator
+                address liquidator,
                 bool receiveRToken,
                 uint256 variableDebtBurned,
-                uint256 collateralRTokenBurned
-            ) = abi.decode(_data[32:], (address, address, address, uint256, uint256, address, bool, uint256, uint256));
+                uint256 collateralRTokenBurned,
+                uint256 liquidatorSentScaled
+            ) = abi.decode(_data[32:], (address, address, address, uint256, uint256, address, bool, uint256, uint256,uint256));
 
             DataTypes.ReserveData memory debtReserve = lendingPool.getReserveData(debtAsset);
             IVariableDebtToken(debtReserve.variableDebtTokenAddress).updateCrossChainBalance(
@@ -231,6 +232,13 @@ contract Router is Initializable, SuperPausable {
                 lendingPool.updateStates(collateralAsset, 0, maxCollateralToLiquidate, UPDATE_RATES_AND_STATES_MASK);
                 IRToken(collateralReserve.rTokenAddress).updateCrossChainBalance(
                     user, maxCollateralToLiquidate, collateralRTokenBurned, 2
+                );
+            }
+            else{
+                DataTypes.ReserveData memory collateralReserve = lendingPool.getReserveData(collateralAsset);
+                lendingPool.updateStates(collateralAsset, 0, maxCollateralToLiquidate, UPDATE_RATES_AND_STATES_MASK);
+                IRToken(collateralReserve.rTokenAddress).updateCrossChainBalance(
+                    liquidator, maxCollateralToLiquidate, liquidatorSentScaled, 1
                 );
             }
         }

@@ -33,7 +33,8 @@ interface ILendingPoolCollateralManager {
         address liquidator,
         bool receiveRToken,
         uint256 variableDebtBurned,
-        uint256 collateralRTokenBurned
+        uint256 collateralRTokenBurned,
+        uint256 liquidatorSentScaled
     );
 
     /**
