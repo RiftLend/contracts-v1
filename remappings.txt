@@ -17,3 +17,5 @@ forge-std/=lib/forge-std/src/
 halmos-cheatcodes/=lib/openzeppelin-contracts/lib/halmos-cheatcodes/src/
 @solady/=lib/solady/src/
 @solady-test/=lib/solady/test/
+
+@socket/=lib/socket-protocol/contracts/

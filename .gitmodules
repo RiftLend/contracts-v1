@@ -19,3 +19,6 @@
 [submodule "packages/contracts/lib/layerzero-v1"]
 	path = packages/contracts/lib/layerzero-v1
 	url = https://github.com/LayerZero-Labs/layerzero-v1
+[submodule "lib/socket-protocol"]
+	path = lib/socket-protocol
+	url = https://github.com/SocketDotTech/socket-protocol

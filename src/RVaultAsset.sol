@@ -2,31 +2,24 @@
 pragma solidity 0.8.25;
 
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
-import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
 import {ILendingPoolAddressesProvider} from "src/interfaces/ILendingPoolAddressesProvider.sol";
 import {ISuperAsset} from "src/interfaces/ISuperAsset.sol";
 import {ILendingPool} from "src/interfaces/ILendingPool.sol";
-import {
-    Origin, MessagingReceipt, ILayerZeroEndpointV2
-} from "src/libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
+import {ISocket} from "@socket/interfaces/ISocket.sol";
+import {IAddressResolver} from "@socket/interfaces/IAddressResolver.sol";
 
 import {Initializable} from "@solady/utils/Initializable.sol";
 import {Ownable} from "@solady/auth/Ownable.sol";
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
-import {OFT} from "src/libraries/helpers/layerzero/OFT.sol";
-import {OFT} from "src/libraries/helpers/layerzero/OFT.sol";
 import {ERC20} from "@solady/tokens/ERC20.sol";
-import {SendParam, MessagingFee, OFTReceipt} from "src/libraries/helpers/layerzero/IOFT.sol";
 import {SuperOwnable} from "src/interop-std/src/auth/SuperOwnable.sol";
 import {DataTypes} from "src/libraries/types/DataTypes.sol";
-import {OFTLogic} from "src/libraries/logic/OFTLogic.sol";
-import {OptionsBuilder} from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OptionsBuilder.sol";
-import {OFTMsgCodec} from "src/libraries/helpers/layerzero/OFTMsgCodec.sol";
 import {Errors} from "src/libraries/helpers/Errors.sol";
+import {PlugBase} from "@socket/base/PlugBase.sol";
+import {AppGatewayBase} from "@socket/base/AppGatewayBase.sol";
 
-contract RVaultAsset is Initializable, SuperOwnable, OFT {
+contract RVaultAsset is Initializable, ERC20, SuperOwnable, PlugBase(address(0)), AppGatewayBase(address(0), address(0)) {
     using SafeERC20 for IERC20;
-    using OptionsBuilder for bytes;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                  State Variables                           */
@@ -39,14 +32,11 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
     uint8 internal _decimals;
     uint8 public pool_type; // 1 - superchain, unset for ethereum and arbitrum instances
     address public underlying;
-    uint128 lzComposeGasLimit;
-    uint128 lzReceiveGasLimit;
     uint256 public withdrawCoolDownPeriod;
     uint256 public maxDepositLimit;
 
     mapping(address user => uint256 balance) public balances;
     mapping(address => uint256) public _lastWithdrawalTime;
-    mapping(uint256 => uint32) public chainToEid;
     mapping(address => bool) public isSupportedBungeeTarget;
 
     uint256[50] __gap;
@@ -72,23 +62,20 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
 
     /// @param underlying_ - the underlying asset of the rVaultAsset
     /// @param provider_ - the provider of the rVaultAsset
-    /// @param lzEndpoint_ - the LayerZero endpoint of the rVaultAsset
-    /// @param delegate_ - the delegate of the rVaultAsset
     /// @param name_ - the name of the rVaultAsset
     /// @param symbol_ - the symbol of the rVaultAsset
     /// @param decimals_ - the decimals of the rVaultAsset
     function initialize(
         address underlying_,
         ILendingPoolAddressesProvider provider_,
-        address lzEndpoint_,
-        address delegate_,
         string memory name_,
         string memory symbol_,
         uint8 decimals_,
         uint256 withdrawCoolDownPeriod_,
         uint256 maxDepositLimit_,
-        uint128 lzReceiveGasLimit_,
-        uint128 lzComposeGasLimit_
+        address _socket,
+        address _auctionManager,
+        address _addressResolver
     ) external initializer {
         underlying = underlying_;
         provider = provider_;
@@ -99,11 +86,12 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
         _decimals = decimals_;
         withdrawCoolDownPeriod = withdrawCoolDownPeriod_;
         maxDepositLimit = maxDepositLimit_;
-        lzReceiveGasLimit = lzReceiveGasLimit_;
-        lzComposeGasLimit = lzComposeGasLimit_;
 
         _initializeSuperOwner(uint64(block.chainid), msg.sender);
-        OFT__Init(lzEndpoint_, delegate_, decimals_);
+        socket__ = ISocket(_socket);
+        auctionManager = _auctionManager;
+        isCallSequential = true;
+        addressResolver = IAddressResolver(_addressResolver);
     }
 
     /// @param shares - the amount of shares to mint
@@ -191,82 +179,50 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
         IERC20(_asset).safeTransfer(_recipient, _amount);
     }
 
-    function _send(SendParam memory _sendParam, MessagingFee memory _fee, address _refundAddress)
-        internal
-        returns (MessagingReceipt memory msgReceipt, OFTReceipt memory oftReceipt)
-    {
-        // @dev Builds the options and OFT message to quote in the endpoint.
-        (bytes memory message, bytes memory options) = _buildMsgAndOptions(_sendParam, 0);
-
-        // @dev Sends the message to the LayerZero endpoint and returns the LayerZero msg receipt.
-        msgReceipt = _lzSend(_sendParam.dstEid, message, options, _fee, _refundAddress);
-        require(!(msgReceipt.guid == 0 && msgReceipt.nonce == 0), Errors.OFT_SEND_FAILED);
-
-        // @dev Formulate the OFT receipt.
-        oftReceipt = OFTReceipt(0, 0);
-
-        emit OFTSent(msgReceipt.guid, _sendParam.dstEid, msg.sender, 0, 0);
+    function setSocket(address newSocket_) external onlyOwner {
+        _setSocket(newSocket_);
     }
 
-    function lzReceive(
-        Origin calldata _origin,
-        bytes32 _guid,
-        bytes calldata _message,
-        address, /*_executor*/
-        bytes calldata /*_extraData*/
-    ) public payable override {
-        (address receiverOfUnderlying, uint256 amount, address oftTxCaller) = OFTLogic.decodeMessage(_message);
-        require(msg.sender == address(endpoint) || oftTxCaller == address(this), Errors.UNAUTHORIZED);
-        if (_getPeerOrRevert(_origin.srcEid) != _origin.sender) {
-            revert OnlyPeer(_origin.srcEid, _origin.sender);
-        }
+    function connectSocket(
+        address appGateway_,
+        address socket_,
+        address switchboard_
+    ) external onlyOwner {
+        // TODO: discuss about ownable ...
+        // _claimOwner(socket_);
+        _connectSocket(appGateway_, socket_, switchboard_);
+    }
 
+    function _sock(address sender, address receiverOfUnderlying, uint256 amount) internal async onlySocket {
+        _burn(sender, amount);
+        
         uint256 payAmount = amount;
         if (totalAssets() < amount) {
             payAmount = totalAssets();
-            super._mint(receiverOfUnderlying, amount - payAmount);
+            _mint(receiverOfUnderlying, amount - payAmount);
         }
         if (pool_type == 1) {
             ISuperAsset(underlying).withdraw(receiverOfUnderlying, payAmount);
         } else {
             IERC20(underlying).safeTransfer(receiverOfUnderlying, payAmount);
         }
-
-        emit OFTReceived(_guid, _origin.srcEid, address(0), 0);
     }
 
-    /// @notice also write the invariant for bridging ie. sumof RVaultAsset + sumof underlying (source) = sumof RVaultAsset + sumof underlying (source)
     function bridge(address receiverOfUnderlying, uint256 toChainId, uint256 amount) external payable onlyRouter {
         _bridge(receiverOfUnderlying, toChainId, amount);
     }
 
     function _bridge(address receiverOfUnderlying, uint256 toChainId, uint256 amount) internal {
-        _burn(msg.sender, amount);
         if (toChainId != block.chainid) {
-            (SendParam memory sendParam, MessagingFee memory fee) = getFeeQuote(receiverOfUnderlying, toChainId, amount);
-            _send(sendParam, fee, payable(address(this)));
+            _sock(msg.sender, receiverOfUnderlying, amount);
         } else {
+            _burn(msg.sender, amount);
             if (pool_type == 1) {
                 ISuperAsset(underlying).withdraw(receiverOfUnderlying, amount);
             } else {
                 IERC20(underlying).safeTransfer(receiverOfUnderlying, amount);
             }
         }
-    }
-
-    function getFeeQuote(address receiverOfUnderlying, uint256 toChainId, uint256 amount)
-        public
-        view
-        returns (SendParam memory sendParam, MessagingFee memory)
-    {
-        bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(lzReceiveGasLimit, 0)
-            .addExecutorLzComposeOption(0, lzComposeGasLimit, 0);
-
-        bytes memory compose_message = OFTLogic.encodeMessage(receiverOfUnderlying, amount);
-        sendParam = SendParam(
-            chainToEid[toChainId], bytes32(uint256(uint160(address(this)))), 0, 0, options, compose_message, ""
-        );
-        return (sendParam, quoteSend(sendParam, false));
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -280,20 +236,6 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
 
     function setWithdrawCoolDownPeriod(uint256 _withdrawCoolDownPeriod) public onlySuperAdmin {
         withdrawCoolDownPeriod = _withdrawCoolDownPeriod;
-    }
-    // Setter function for chain to EID mapping
-
-    function setChainToEid(uint256 _chainId, uint32 _eid) public onlySuperAdmin {
-        chainToEid[_chainId] = _eid;
-    }
-    // setters for setting lzReceiveGasLimit and lzComposeGasLimit
-
-    function setLzReceiveGasLimit(uint128 _lzReceiveGasLimit) public onlySuperAdmin {
-        lzReceiveGasLimit = _lzReceiveGasLimit;
-    }
-
-    function setLzComposeGasLimit(uint128 _lzComposeGasLimit) public onlySuperAdmin {
-        lzComposeGasLimit = _lzComposeGasLimit;
     }
 
     // setter for isSupported bungee target ( also a toggler by design)
@@ -391,25 +333,5 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
 
     function maxRedeem(address _owner) external view returns (uint256) {
         return balanceOf(_owner);
-    }
-
-    function _setOwner(address newOwner) internal override(Ownable, SuperOwnable) {
-        SuperOwnable._setOwner(newOwner);
-    }
-
-    /*..•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-    /*                  SUPER OWNABLE FUNCTIONS                   */
-    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-
-    function completeOwnershipHandover(address pendingOwner) public payable override(SuperOwnable, Ownable) {
-        SuperOwnable.completeOwnershipHandover(pendingOwner);
-    }
-
-    function renounceOwnership() public payable override(SuperOwnable, Ownable) {
-        SuperOwnable.renounceOwnership();
-    }
-
-    function transferOwnership(address newOwner) public payable override(SuperOwnable, Ownable) {
-        SuperOwnable.transferOwnership(newOwner);
     }
 }
