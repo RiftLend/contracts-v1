@@ -166,7 +166,7 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
                 sender, address(vars.collateralRToken), DataTypes.Action_type.LIQUIDATION
             );
             liquidatorSentScaled = vars.maxCollateralToLiquidate.rayDiv(collateralReserve.liquidityIndex);
-     
+
             vars.collateralRToken.transferOnLiquidation(user, sender, vars.maxCollateralToLiquidate);
 
             if (vars.liquidatorPreviousRTokenBalance == 0) {
@@ -174,7 +174,6 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
                 liquidatorConfig.setUsingAsCollateral(collateralReserve.id, true);
                 emit ReserveUsedAsCollateralEnabled(collateralRAsset, sender);
             }
-
         } else {
             collateralReserve.updateState();
             collateralReserve.updateInterestRates(

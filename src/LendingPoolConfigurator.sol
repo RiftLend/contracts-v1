@@ -303,34 +303,22 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
     }
 
     /**
-     * @dev Freezes a reserve. A frozen reserve doesn't allow any new deposit, borrow or rate swap
+     * @dev Freezes or unfreeze a reserve. A frozen reserve doesn't allow any new deposit, borrow or rate swap
      *  but allows repayments, liquidations, rate rebalances and withdrawals
      * @param asset The address of the underlying asset of the reserve
      *
      */
-    function freezeReserve(address asset) external onlyPoolAdmin {
+    function toggleReserveFreeze(address asset, bool shouldFreeze) external onlyPoolAdmin {
         DataTypes.ReserveConfigurationMap memory currentConfig = pool.getConfiguration(asset);
 
-        currentConfig.setFrozen(true);
+        currentConfig.setFrozen(shouldFreeze);
 
         pool.setConfiguration(asset, currentConfig.data);
-
-        emit ReserveFrozen(asset);
-    }
-
-    /**
-     * @dev Unfreezes a reserve
-     * @param asset The address of the underlying asset of the reserve
-     *
-     */
-    function unfreezeReserve(address asset) external onlyPoolAdmin {
-        DataTypes.ReserveConfigurationMap memory currentConfig = pool.getConfiguration(asset);
-
-        currentConfig.setFrozen(false);
-
-        pool.setConfiguration(asset, currentConfig.data);
-
-        emit ReserveUnfrozen(asset);
+        if (shouldFreeze) {
+            emit ReserveFrozen(asset);
+        } else {
+            emit ReserveUnfrozen(asset);
+        }
     }
 
     /**

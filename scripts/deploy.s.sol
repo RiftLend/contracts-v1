@@ -3,7 +3,6 @@ pragma solidity 0.8.25;
 
 import {ILendingPoolConfigurator} from "src/interfaces/ILendingPoolConfigurator.sol";
 import {ILendingPoolAddressesProvider} from "src/interfaces/ILendingPoolAddressesProvider.sol";
-
 import {Script, console} from "forge-std/Script.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
@@ -19,321 +18,348 @@ import {L2NativeSuperchainERC20} from "src/libraries/op/L2NativeSuperchainERC20.
 import {Router} from "src/Router.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {MockLayerZeroEndpointV2} from "../test/utils/MockLayerZeroEndpointV2.sol";
+import {TestERC20} from "../test/utils/TestERC20.sol";
+import {MockPriceOracle} from "../test/utils/MockPriceOracle.sol";
+import {EventValidator} from "src/libraries/EventValidator.sol";
+import {LendingPoolCollateralManager} from "src/LendingPoolCollateralManager.sol";
+import {RVaultAsset} from "src/RVaultAsset.sol";
 
-/// @dev the owner and deployer are currently the same.
-/// @notice for EventValidation library change the prover address to be deployed on each chain. - https://docs.polymerlabs.org/docs/build/start/
 contract LendingPoolDeployer is Script {
     string deployConfig;
-
     address treasury;
     address incentivesController;
+    address crossL2ProverAddress;
+    address currentChainWethAddress;
+    address relayer;
+    address poolAdmin;
+    address ownerAddress;
+    address lzEndpoint;
+    address lzDelegate;
 
     struct DeployedContracts {
-        address underlying;
         address lendingPoolImpl;
+        address lendingPool;
+        address underlying;
+        address superAsset;
+        address rVaultAsset;
         address rTokenImpl;
         address variableDebtTokenImpl;
         address proxyAdmin;
         address lendingPoolAddressesProvider;
-        address superAsset;
-        address lendingPool;
         address lendingPoolConfigurator;
         address defaultReserveInterestRateStrategy;
         address lendingRateOracle;
         address router;
         address routerImpl;
+        address eventValidator;
+        address lpCollateralManager;
     }
 
     DeployedContracts deployedContracts;
 
     constructor() {
         string memory deployConfigPath = vm.envOr("DEPLOY_CONFIG_PATH", string("/configs/deploy-config.toml"));
-        string memory filePath = string.concat(vm.projectRoot(), deployConfigPath);
-        deployConfig = vm.readFile(filePath);
+        deployConfig = vm.readFile(string.concat(vm.projectRoot(), deployConfigPath));
     }
 
     modifier broadcast() {
-        vm.startBroadcast(msg.sender);
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        vm.startBroadcast(deployerPrivateKey);
+
         _;
         vm.stopBroadcast();
     }
 
-    function setUp() public {}
-
     function run() public {
+        console.log("this", address(this));
+        // vm.createSelectFork(vm.parseTomlString(deployConfig, ".forks.chain_c_rpc_url"));
+
         treasury = vm.parseTomlAddress(deployConfig, ".treasury.address");
         incentivesController = vm.parseTomlAddress(deployConfig, ".incentives_controller.address");
+        crossL2ProverAddress = vm.parseTomlAddress(deployConfig, ".forks.chain_c_cross_l2_prover_address");
+        currentChainWethAddress = vm.parseTomlAddress(deployConfig, ".forks.chain_c_weth");
+        relayer = vm.parseTomlAddress(deployConfig, ".relayer.address");
+        poolAdmin = vm.parseTomlAddress(deployConfig, ".pool_admin.address");
+        ownerAddress = vm.parseTomlAddress(deployConfig, ".owner.address");
+        lzEndpoint = vm.parseTomlAddress(deployConfig, ".forks.chain_c_lz_endpoint_v2");
+        lzDelegate = vm.parseTomlAddress(deployConfig, ".forks.chain_c_lz_delegate");
+
         deployFullLendingPool();
         outputDeploymentResult();
     }
 
     function deployFullLendingPool() public broadcast {
-        // Deploy contracts using CREATE2
-        (address underlying) = deployL2NativeSuperchainERC20();
-        (address rTokenImpl) = deployRTokenImpl();
-        (address variableDebtTokenImpl) = deployVariableDebtTokenImpl();
-        (address proxyAdmin) = deployProxyAdmin();
-        (address lpAddressProvider) = deployLendingPoolAddressesProvider(proxyAdmin);
-        (address superAsset) = deploySuperAsset(underlying);
-        (address implementationLp) = deployLendingPoolImpl();
-        (address lpConfigurator) = deployLendingPoolConfigurator();
-        (address strategy) = deployDefaultReserveInterestRateStrategy(lpAddressProvider);
-        (address oracle) = deployLendingRateOracle();
+        deployedContracts.underlying = deployUnderlying();
+        deployedContracts.superAsset = deploySuperAsset();
+        deployedContracts.proxyAdmin = deployProxyAdmin();
+        deployedContracts.lendingPoolAddressesProvider = deployLendingPoolAddressesProvider();
+        deployedContracts.lendingPoolImpl = deployContract("LendingPool", ".lending_pool_impl.salt", "");
+        deployedContracts.lendingPoolConfigurator =
+            deployContract("LendingPoolConfigurator", ".lending_pool_configurator.salt", "");
+        deployedContracts.defaultReserveInterestRateStrategy =
+            deployDefaultReserveInterestRateStrategy(deployedContracts.lendingPoolAddressesProvider);
+        deployedContracts.lendingRateOracle =
+            deployContractWithArgs("MockPriceOracle", ".lending_rate_oracle.salt", abi.encode(ownerAddress));
 
-        // Set up proxy and configurator
-        ILendingPoolAddressesProvider lpAddressProvider_ = ILendingPoolAddressesProvider(lpAddressProvider);
-        lpAddressProvider_.setLendingPoolImpl(address(implementationLp));
-        LendingPool proxyLp = LendingPool(lpAddressProvider_.getLendingPool());
-        (address router, address routerImpl) = deployRouter(proxyAdmin, address(proxyLp), lpAddressProvider);
-        lpAddressProvider_.setPoolAdmin(msg.sender);
-        lpAddressProvider_.setLendingPoolConfiguratorImpl(address(lpConfigurator));
+        ILendingPoolAddressesProvider lpAddressProvider =
+            ILendingPoolAddressesProvider(deployedContracts.lendingPoolAddressesProvider);
+
+        lpAddressProvider.setLendingPoolImpl(deployedContracts.lendingPoolImpl);
+        LendingPool proxyLp = LendingPool(lpAddressProvider.getLendingPool());
+        deployedContracts.lendingPool = address(proxyLp);
+        deployedContracts.lpCollateralManager = address(new LendingPoolCollateralManager());
+        deployedContracts.eventValidator = deployEventValidator();
+
+        (deployedContracts.router, deployedContracts.routerImpl) = deployRouter();
+
+        deployedContracts.rVaultAsset = deployRVaultAsset();
+        deployedContracts.rTokenImpl = deployContract("RToken", ".rToken.salt", "");
+        vm.parseTomlString(deployConfig, ".variableDebtToken.salt");
+        deployedContracts.variableDebtTokenImpl = deployContract("VariableDebtToken", ".variableDebtToken.salt", "");
+        RVaultAsset(deployedContracts.rVaultAsset).initialize(
+            address(deployedContracts.superAsset),
+            ILendingPoolAddressesProvider(address(deployedContracts.lendingPoolAddressesProvider)),
+            lzEndpoint,
+            lzDelegate,
+            vm.parseTomlString(deployConfig, ".rvault_asset.name"),
+            vm.parseTomlString(deployConfig, ".rvault_asset.symbol"),
+            uint8(vm.parseTomlUint(deployConfig, ".underlying.decimals")),
+            1 days,
+            1000 ether,
+            200000,
+            500000
+        );
+
+        //
+        // Set critical protocol params
+
+        lpAddressProvider.setPoolAdmin(ownerAddress);
+        lpAddressProvider.setRelayer(relayer);
+        lpAddressProvider.setPriceOracle(deployedContracts.lendingRateOracle);
+        lpAddressProvider.setLendingPoolConfiguratorImpl(deployedContracts.lendingPoolConfigurator);
+        // Configure reserve parameters
+        LendingPoolConfigurator(deployedContracts.lendingPoolConfigurator).initialize(
+            lpAddressProvider, deployedContracts.proxyAdmin
+        );
+
+        lpAddressProvider.setLendingPoolCollateralManager(deployedContracts.lpCollateralManager);
+
+        LendingPoolConfigurator lendingPoolConfigurator =
+            LendingPoolConfigurator(lpAddressProvider.getLendingPoolConfigurator());
+
+        // Initialize core protocol components
+        LendingPool(deployedContracts.lendingPoolImpl).initialize(lpAddressProvider);
+
+        // Configure LayerZero parameters
+        uint256 maxDepositLimit = vm.parseTomlUint(deployConfig, ".rvault_asset.max_deposit_limit");
+        RVaultAsset(deployedContracts.rVaultAsset).setMaxDepositLimit(maxDepositLimit);
+
+        // Initialize price oracle values
+        MockPriceOracle(deployedContracts.lendingRateOracle).setPrice(deployedContracts.underlying, 1 ether);
+
+        lendingPoolConfigurator.activateReserve(deployedContracts.rVaultAsset);
+        lendingPoolConfigurator.enableBorrowingOnReserve(deployedContracts.rVaultAsset);
+        lendingPoolConfigurator.configureReserveAsCollateral(
+            deployedContracts.rVaultAsset,
+            8000, // LTV
+            8000, // Liquidation threshold
+            10500 // Liquidation bonus
+        );
+
+        // Link underlying asset to its rVault
+        lendingPoolConfigurator.setRvaultAssetForUnderlying(deployedContracts.underlying, deployedContracts.rVaultAsset);
+        configureReserves(lpAddressProvider);
+
+        // handing over to true admins
+        lpAddressProvider.setPoolAdmin(poolAdmin);
+        // transfer ownership of lendingPoolAddressesProvider
+        ILendingPoolAddressesProvider(deployedContracts.lendingPoolAddressesProvider).setProxyAdmin(
+            deployedContracts.proxyAdmin
+        );
+    }
+
+    function configureReserves(ILendingPoolAddressesProvider lpAddressProvider) internal {
         LendingPoolConfigurator proxyConfigurator =
-            LendingPoolConfigurator(lpAddressProvider_.getLendingPoolConfigurator());
-        lpAddressProvider_.setLendingRateOracle(address(oracle));
+            LendingPoolConfigurator(lpAddressProvider.getLendingPoolConfigurator());
+        // Initialize reserve with token ecosystem
 
-        ILendingPoolConfigurator.InitReserveInput[] memory input = new ILendingPoolConfigurator.InitReserveInput[](1);
-        input[0] = ILendingPoolConfigurator.InitReserveInput({
-            rTokenImpl: address(rTokenImpl),
-            variableDebtTokenImpl: address(variableDebtTokenImpl),
-            underlyingAssetDecimals: uint8(vm.parseTomlUint(deployConfig, ".token.decimals")),
-            interestRateStrategyAddress: address(strategy),
-            underlyingAsset: address(underlying),
+        ILendingPoolConfigurator.InitReserveInput[] memory reserves = new ILendingPoolConfigurator.InitReserveInput[](1);
+        reserves[0] = ILendingPoolConfigurator.InitReserveInput({
+            rTokenName: vm.parseTomlString(deployConfig, ".rToken.name"),
+            rTokenSymbol: vm.parseTomlString(deployConfig, ".rToken.symbol"),
+            variableDebtTokenImpl: deployedContracts.variableDebtTokenImpl,
+            variableDebtTokenName: vm.parseTomlString(deployConfig, ".variableDebtToken.name"),
+            variableDebtTokenSymbol: vm.parseTomlString(deployConfig, ".variableDebtToken.symbol"),
+            interestRateStrategyAddress: deployedContracts.defaultReserveInterestRateStrategy,
             treasury: treasury,
             incentivesController: incentivesController,
-            superAsset: address(superAsset),
-            underlyingAssetName: vm.parseTomlString(deployConfig, ".token.name"),
-            rTokenName: vm.parseTomlString(deployConfig, ".RToken1.name"),
-            rTokenSymbol: vm.parseTomlString(deployConfig, ".RToken1.symbol"),
-            variableDebtTokenName: vm.parseTomlString(deployConfig, ".variableDebtToken1.name"),
-            variableDebtTokenSymbol: vm.parseTomlString(deployConfig, ".variableDebtToken1.symbol"),
-            params: "0x10",
-            salt: _implSalt(vm.parseTomlString(deployConfig, ".deploy_config.salt"))
+            superAsset: deployedContracts.superAsset,
+            underlyingAsset: deployedContracts.rVaultAsset,
+            underlyingAssetDecimals: uint8(vm.parseTomlUint(deployConfig, ".underlying.decimals")),
+            underlyingAssetName: vm.parseTomlString(deployConfig, ".underlying.name"),
+            params: "v1",
+            salt: "initial",
+            rTokenImpl: deployedContracts.rTokenImpl
         });
-        proxyConfigurator.batchInitReserve(input);
 
-        deployedContracts = DeployedContracts({
-            underlying: underlying,
-            lendingPoolImpl: implementationLp,
-            rTokenImpl: rTokenImpl,
-            variableDebtTokenImpl: variableDebtTokenImpl,
-            proxyAdmin: proxyAdmin,
-            lendingPoolAddressesProvider: lpAddressProvider,
-            superAsset: superAsset,
-            lendingPool: address(proxyLp),
-            lendingPoolConfigurator: address(proxyConfigurator),
-            defaultReserveInterestRateStrategy: strategy,
-            lendingRateOracle: oracle,
-            router: router,
-            routerImpl: routerImpl
-        });
+        proxyConfigurator.batchInitReserve(reserves);
     }
 
     function _implSalt(string memory salt) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(salt));
     }
 
-    function outputDeploymentResult() public {
+    function outputDeploymentResult() internal {
         console.log("Outputting deployment result");
-
         string memory obj = "result";
-        vm.serializeAddress(obj, "deployedAddress", deployedContracts.underlying);
-        vm.serializeAddress(obj, "ownerAddress", vm.parseTomlAddress(deployConfig, ".token.owner_address"));
 
-        vm.serializeAddress(obj, "RTokenAddress", deployedContracts.rTokenImpl);
-        vm.serializeAddress(obj, "variableDebtTokenAddress", deployedContracts.variableDebtTokenImpl);
-        vm.serializeAddress(obj, "proxyAdminAddress", deployedContracts.proxyAdmin);
-        vm.serializeAddress(obj, "lendingPoolAddressesProviderAddress", deployedContracts.lendingPoolAddressesProvider);
-        vm.serializeAddress(obj, "superAssetAddress", deployedContracts.superAsset);
-        vm.serializeAddress(obj, "lendingPoolAddress", deployedContracts.lendingPool);
-        vm.serializeAddress(obj, "lendingPoolConfiguratorAddress", deployedContracts.lendingPoolConfigurator);
+        vm.serializeAddress(obj, "underlying", deployedContracts.underlying);
+        vm.serializeAddress(obj, "rTokenImpl", deployedContracts.rTokenImpl);
+        vm.serializeAddress(obj, "variableDebtTokenImpl", deployedContracts.variableDebtTokenImpl);
+        vm.serializeAddress(obj, "proxyAdmin", deployedContracts.proxyAdmin);
+        vm.serializeAddress(obj, "lendingPoolAddressesProvider", deployedContracts.lendingPoolAddressesProvider);
+        vm.serializeAddress(obj, "superAsset", deployedContracts.superAsset);
+        vm.serializeAddress(obj, "lendingPool", deployedContracts.lendingPool);
+        vm.serializeAddress(obj, "lendingPoolConfigurator", deployedContracts.lendingPoolConfigurator);
         vm.serializeAddress(
-            obj, "defaultReserveInterestRateStrategyAddress", deployedContracts.defaultReserveInterestRateStrategy
+            obj, "defaultReserveInterestRateStrategy", deployedContracts.defaultReserveInterestRateStrategy
         );
-        vm.serializeAddress(obj, "lendingRateOracleAddress", deployedContracts.lendingRateOracle);
-        vm.serializeAddress(obj, "routerAddress", deployedContracts.router);
-        string memory jsonOutput = vm.serializeAddress(obj, "routerImplAddress", deployedContracts.routerImpl);
+        vm.serializeAddress(obj, "lendingRateOracle", deployedContracts.lendingRateOracle);
+        string memory jsonOutput = vm.serializeAddress(obj, "router", deployedContracts.router);
 
         vm.writeJson(jsonOutput, "deployment.json");
     }
 
-    function deployL2NativeSuperchainERC20() public returns (address addr_) {
-        string memory salt = vm.parseTomlString(deployConfig, ".token.salt");
-        address ownerAddr_ = vm.parseTomlAddress(deployConfig, ".token.owner_address");
-        string memory name = vm.parseTomlString(deployConfig, ".token.name");
-        string memory symbol = vm.parseTomlString(deployConfig, ".token.symbol");
-        uint256 decimals = vm.parseTomlUint(deployConfig, ".token.decimals");
-        require(decimals <= type(uint8).max, "decimals exceeds uint8 range");
-        bytes memory initCode = abi.encodePacked(
-            type(L2NativeSuperchainERC20).creationCode, abi.encode(ownerAddr_, name, symbol, uint8(decimals))
-        );
-        address preComputedAddress = vm.computeCreate2Address(_implSalt(salt), keccak256(initCode));
-        if (preComputedAddress.code.length > 0) {
-            console.log(
-                "L2NativeSuperchainERC20 already deployed at %s", preComputedAddress, "on chain id: ", block.chainid
-            );
-            addr_ = preComputedAddress;
-        } else {
-            addr_ =
-                address(new L2NativeSuperchainERC20{salt: _implSalt(salt)}(ownerAddr_, name, symbol, uint8(decimals)));
-            console.log("Deployed L2NativeSuperchainERC20 at address: ", addr_, "on chain id: ", block.chainid);
-        }
-    }
-
-    function deployRTokenImpl() public returns (address addr_) {
-        string memory salt = vm.parseTomlString(deployConfig, ".RTokenImpl.salt");
-        bytes memory initCode = type(RToken).creationCode;
-        address preComputedAddress = vm.computeCreate2Address(_implSalt(salt), keccak256(initCode));
-        if (preComputedAddress.code.length > 0) {
-            console.log("RToken already deployed at %s", preComputedAddress, "on chain id: ", block.chainid);
-            addr_ = preComputedAddress;
-        } else {
-            addr_ = address(new RToken{salt: _implSalt(salt)}());
-            console.log("Deployed RToken Impl at address: ", addr_, "on chain id: ", block.chainid);
-        }
-    }
-
-    function deployRouter(address _proxyAdmin, address _lendingPool, address _addressesProvider)
-        public
-        returns (address router, address routerImpl)
+    function deployContract(string memory contractName, string memory saltKey, bytes memory constructorArgs)
+        internal
+        returns (address)
     {
-        string memory salt = vm.parseTomlString(deployConfig, ".router.salt");
-        bytes32 bsalt = _implSalt(salt);
-        bytes memory initCode = type(Router).creationCode;
-        address preComputedAddress = vm.computeCreate2Address(bsalt, keccak256(initCode));
-        if (preComputedAddress.code.length > 0) {
-            console.log("Router Impl already deployed at %s", preComputedAddress, "on chain id: ", block.chainid);
-            routerImpl = preComputedAddress;
-        } else {
-            routerImpl = address(new Router{salt: bsalt}());
-            console.log("Deployed Router Impl at address: ", routerImpl, "on chain id: ", block.chainid);
-        }
-
-        bytes memory initializerData =
-            abi.encodeWithSelector(Router.initialize.selector, _lendingPool, _addressesProvider);
-
-        TransparentUpgradeableProxy proxy =
-            new TransparentUpgradeableProxy{salt: bsalt}(routerImpl, _proxyAdmin, initializerData);
-        router = address(proxy);
-
-        console.log("Deployed Router Proxy at address: ", router, "on chain id: ", block.chainid);
+        bytes memory creationCode = _getCreationCode(contractName);
+        return _deployWithCreate2(contractName, saltKey, creationCode, constructorArgs);
     }
 
-    function deployLendingPoolImpl() public returns (address addr_) {
-        string memory salt = vm.parseTomlString(deployConfig, ".lending_pool_impl.salt");
-        bytes memory initCode = type(LendingPool).creationCode;
-        address preComputedAddress = vm.computeCreate2Address(_implSalt(salt), keccak256(initCode));
-        if (preComputedAddress.code.length > 0) {
-            console.log("LendingPool already deployed at %s", preComputedAddress, "on chain id: ", block.chainid);
-            addr_ = preComputedAddress;
-        } else {
-            addr_ = address(new LendingPool{salt: _implSalt(salt)}());
-            console.log("Deployed LendingPool at address: ", addr_, "on chain id: ", block.chainid);
-        }
+    function deployContractWithArgs(string memory contractName, string memory saltKey, bytes memory constructorArgs)
+        internal
+        returns (address)
+    {
+        bytes memory creationCode = _getCreationCode(contractName);
+        return _deployWithCreate2(contractName, saltKey, creationCode, constructorArgs);
     }
 
-    function deployVariableDebtTokenImpl() public returns (address addr_) {
-        string memory salt = vm.parseTomlString(deployConfig, ".variableDebtTokenImpl.salt");
-        bytes memory initCode = type(VariableDebtToken).creationCode;
-        address preComputedAddress = vm.computeCreate2Address(_implSalt(salt), keccak256(initCode));
-        if (preComputedAddress.code.length > 0) {
-            console.log("VariableDebtToken already deployed at %s", preComputedAddress, "on chain id: ", block.chainid);
-            addr_ = preComputedAddress;
-        } else {
-            addr_ = address(new VariableDebtToken{salt: _implSalt(salt)}());
-            console.log("Deployed VariableDebtToken at address: ", addr_, "on chain id: ", block.chainid);
+    function _getCreationCode(string memory contractName) internal pure returns (bytes memory) {
+        if (keccak256(bytes(contractName)) == keccak256(bytes("RToken"))) {
+            return type(RToken).creationCode;
         }
+        if (keccak256(bytes(contractName)) == keccak256(bytes("Router"))) {
+            return type(Router).creationCode;
+        }
+
+        if (keccak256(bytes(contractName)) == keccak256(bytes("VariableDebtToken"))) {
+            return type(VariableDebtToken).creationCode;
+        }
+        if (keccak256(bytes(contractName)) == keccak256(bytes("LendingPool"))) {
+            return type(LendingPool).creationCode;
+        }
+        if (keccak256(bytes(contractName)) == keccak256(bytes("LendingPoolConfigurator"))) {
+            return type(LendingPoolConfigurator).creationCode;
+        }
+        if (keccak256(bytes(contractName)) == keccak256(bytes("MockPriceOracle"))) {
+            return type(MockPriceOracle).creationCode;
+        }
+
+        revert("Unknown contract");
     }
 
-    function deployLendingPoolAddressesProvider(address _proxyAdmin) public returns (address addr_) {
-        string memory salt = vm.parseTomlString(deployConfig, ".lending_pool_addresses_provider.salt");
-        address ownerAddr_ = vm.parseTomlAddress(deployConfig, ".lending_pool_addresses_provider.owner_address");
-        string memory marketId_ = vm.parseTomlString(deployConfig, ".lending_pool_addresses_provider.marketId");
-        bytes memory initCode = abi.encodePacked(
-            type(LendingPoolAddressesProvider).creationCode, abi.encode(marketId_, ownerAddr_, _proxyAdmin)
+    function _deployWithCreate2(
+        string memory contractName,
+        string memory saltKey,
+        bytes memory creationCode,
+        bytes memory constructorArgs
+    ) internal returns (address) {
+        string memory salt = vm.parseTomlString(deployConfig, saltKey);
+        bytes memory initCode = abi.encodePacked(creationCode, constructorArgs);
+        bytes32 saltBytes = _implSalt(salt);
+        address preComputedAddress = vm.computeCreate2Address(saltBytes, keccak256(initCode));
+
+        if (preComputedAddress.code.length > 0) {
+            console.log("%s already deployed at %s", contractName, preComputedAddress);
+            return preComputedAddress;
+        }
+
+        address addr;
+        assembly {
+            addr := create2(0, add(initCode, 0x20), mload(initCode), saltBytes)
+            if iszero(extcodesize(addr)) { revert(0, 0) }
+        }
+        console.log("Deployed %s at: %s", contractName, addr);
+        return addr;
+    }
+
+    function deployUnderlying() internal returns (address) {
+        return _deployWithCreate2(
+            "TestERC20",
+            ".underlying.salt",
+            type(TestERC20).creationCode,
+            abi.encode(
+                vm.parseTomlString(deployConfig, ".underlying.name"),
+                vm.parseTomlString(deployConfig, ".underlying.symbol"),
+                vm.parseTomlUint(deployConfig, ".underlying.decimals")
+            )
         );
-        address preComputedAddress = vm.computeCreate2Address(_implSalt(salt), keccak256(initCode));
-        if (preComputedAddress.code.length > 0) {
-            console.log(
-                "LendingPoolAddressesProvider already deployed at %s",
-                preComputedAddress,
-                "on chain id: ",
-                block.chainid
-            );
-            addr_ = preComputedAddress;
-        } else {
-            // ToDo: Add lending pool deployment here
-            bytes32 lendingPool = bytes32(uint256(0));
-            addr_ = address(
-                new LendingPoolAddressesProvider{salt: _implSalt(salt)}(marketId_, ownerAddr_, _proxyAdmin, lendingPool)
-            );
-            console.log("Deployed LendingPoolAddressesProvider at address: ", addr_, "on chain id: ", block.chainid);
-        }
+    }
+    //deply event validator
+
+    function deployEventValidator() internal returns (address) {
+        return _deployWithCreate2(
+            "EventValidator",
+            ".event_validator.salt",
+            type(EventValidator).creationCode,
+            abi.encode(crossL2ProverAddress)
+        );
     }
 
-    function deploySuperAsset(address underlying) public returns (address addr_) {
-        string memory salt = vm.parseTomlString(deployConfig, ".superchain_asset_1.salt");
-        string memory name = vm.parseTomlString(deployConfig, ".superchain_asset_1.name");
-        string memory symbol = vm.parseTomlString(deployConfig, ".superchain_asset_1.symbol");
-
-        //Todo: add correct weth address here
-        address weth = address(0);
-
-        bytes memory initCode =
-            abi.encodePacked(type(SuperAsset).creationCode, abi.encode(underlying, name, symbol, weth));
-        address preComputedAddress = vm.computeCreate2Address(_implSalt(salt), keccak256(initCode));
-        if (preComputedAddress.code.length > 0) {
-            console.log("SuperAsset already deployed at %s", preComputedAddress, "on chain id: ", block.chainid);
-            addr_ = preComputedAddress;
-        } else {
-            addr_ = address(new SuperAsset{salt: _implSalt(salt)}(underlying, name, symbol, weth));
-            console.log("Deployed SuperAsset at address: ", addr_, "on chain id: ", block.chainid);
-        }
+    function deploySuperAsset() internal returns (address) {
+        return _deployWithCreate2(
+            "SuperAsset",
+            ".superToken.salt",
+            type(SuperAsset).creationCode,
+            abi.encode(
+                deployedContracts.underlying,
+                vm.parseTomlString(deployConfig, ".superToken.name"),
+                vm.parseTomlString(deployConfig, ".superToken.symbol"),
+                currentChainWethAddress
+            )
+        );
     }
 
-    function deployLendingPool() public returns (address addr_) {
-        string memory salt = vm.parseTomlString(deployConfig, ".deploy_config.salt");
-        bytes memory initCode = type(LendingPool).creationCode;
-        address preComputedAddress = vm.computeCreate2Address(_implSalt(salt), keccak256(initCode));
-        if (preComputedAddress.code.length > 0) {
-            console.log("LendingPool already deployed at %s", preComputedAddress, "on chain id: ", block.chainid);
-            addr_ = preComputedAddress;
-        } else {
-            addr_ = address(new LendingPool{salt: _implSalt(salt)}());
-            console.log("Deployed LendingPool at address: ", addr_, "on chain id: ", block.chainid);
-        }
+    function deployRVaultAsset() internal returns (address) {
+        return _deployWithCreate2("RVaultAsset", ".rvault_asset.salt", type(RVaultAsset).creationCode, "");
     }
 
-    function deployProxyAdmin() public returns (address addr_) {
-        string memory salt = vm.parseTomlString(deployConfig, ".proxy_admin.salt");
-        address ownerAddr_ = vm.parseTomlAddress(deployConfig, ".proxy_admin.owner_address");
-        bytes memory initCode = type(ProxyAdmin).creationCode;
-        address preComputedAddress = vm.computeCreate2Address(_implSalt(salt), keccak256(initCode));
-        if (preComputedAddress.code.length > 0) {
-            console.log("ProxyAdmin already deployed at %s", preComputedAddress, "on chain id: ", block.chainid);
-            addr_ = preComputedAddress;
-        } else {
-            addr_ = address(new ProxyAdmin{salt: _implSalt(salt)}(ownerAddr_));
-            console.log("Deployed ProxyAdmin at address: ", addr_, "on chain id: ", block.chainid);
-        }
+    function deployProxyAdmin() internal returns (address) {
+        return _deployWithCreate2(
+            "ProxyAdmin", ".proxy_admin.salt", type(ProxyAdmin).creationCode, abi.encode(ownerAddress)
+        );
     }
 
-    function deployLendingPoolConfigurator() public returns (address addr_) {
-        string memory salt = vm.parseTomlString(deployConfig, ".lending_pool_configurator.salt");
-        bytes memory initCode = type(LendingPoolConfigurator).creationCode;
-        address preComputedAddress = vm.computeCreate2Address(_implSalt(salt), keccak256(initCode));
-        if (preComputedAddress.code.length > 0) {
-            console.log(
-                "LendingPoolConfigurator already deployed at %s", preComputedAddress, "on chain id: ", block.chainid
-            );
-            addr_ = preComputedAddress;
-        } else {
-            addr_ = address(new LendingPoolConfigurator{salt: _implSalt(salt)}());
-            console.log("Deployed LendingPoolConfigurator at address: ", addr_, "on chain id: ", block.chainid);
-        }
+    function deployLendingPoolAddressesProvider() internal returns (address) {
+        bytes32 lpType = keccak256(bytes(vm.parseTomlString(deployConfig, ".lending_pool_addresses_provider.lpType")));
+
+        return _deployWithCreate2(
+            "LendingPoolAddressesProvider",
+            ".lending_pool_addresses_provider.salt",
+            type(LendingPoolAddressesProvider).creationCode,
+            abi.encode(
+                vm.parseTomlString(deployConfig, ".lending_pool_addresses_provider.marketId"),
+                ownerAddress,
+                ownerAddress,
+                lpType
+            )
+        );
     }
 
-    function deployDefaultReserveInterestRateStrategy(address lpAddressProvider) public returns (address addr_) {
-        string memory salt = vm.parseTomlString(deployConfig, ".default_reserve_interest_rate_strategy.salt");
+    function deployDefaultReserveInterestRateStrategy(address lpAddressProvider) internal returns (address) {
+        ILendingPoolAddressesProvider provider = ILendingPoolAddressesProvider(lpAddressProvider);
         uint256 optimalUtilizationRate =
             vm.parseTomlUint(deployConfig, ".default_reserve_interest_rate_strategy.optimalUtilizationRate");
         uint256 baseVariableBorrowRate =
@@ -342,52 +368,35 @@ contract LendingPoolDeployer is Script {
             vm.parseTomlUint(deployConfig, ".default_reserve_interest_rate_strategy.variableRateSlope1");
         uint256 variableRateSlope2 =
             vm.parseTomlUint(deployConfig, ".default_reserve_interest_rate_strategy.variableRateSlope2");
-        bytes memory initCode = abi.encodePacked(
+
+        bytes memory constructorArgs =
+            abi.encode(provider, optimalUtilizationRate, baseVariableBorrowRate, variableRateSlope1, variableRateSlope2);
+
+        return _deployWithCreate2(
+            "DefaultReserveInterestRateStrategy",
+            ".default_reserve_interest_rate_strategy.salt",
             type(DefaultReserveInterestRateStrategy).creationCode,
-            abi.encode(
-                ILendingPoolAddressesProvider(lpAddressProvider),
-                optimalUtilizationRate,
-                baseVariableBorrowRate,
-                variableRateSlope1,
-                variableRateSlope2
-            )
+            constructorArgs
         );
-        address preComputedAddress = vm.computeCreate2Address(_implSalt(salt), keccak256(initCode));
-        if (preComputedAddress.code.length > 0) {
-            console.log(
-                "DefaultReserveInterestRateStrategy already deployed at %s",
-                preComputedAddress,
-                "on chain id: ",
-                block.chainid
-            );
-            addr_ = preComputedAddress;
-        } else {
-            addr_ = address(
-                new DefaultReserveInterestRateStrategy{salt: _implSalt(salt)}(
-                    ILendingPoolAddressesProvider(lpAddressProvider),
-                    optimalUtilizationRate,
-                    baseVariableBorrowRate,
-                    variableRateSlope1,
-                    variableRateSlope2
-                )
-            );
-            console.log(
-                "Deployed DefaultReserveInterestRateStrategy at address: ", addr_, "on chain id: ", block.chainid
-            );
-        }
     }
 
-    function deployLendingRateOracle() public returns (address addr_) {
-        string memory salt = vm.parseTomlString(deployConfig, ".lending_rate_oracle.salt");
-        address ownerAddr_ = vm.parseTomlAddress(deployConfig, ".lending_rate_oracle.owner_address");
-        bytes memory initCode = abi.encodePacked(type(LendingRateOracle).creationCode, abi.encode(ownerAddr_));
-        address preComputedAddress = vm.computeCreate2Address(_implSalt(salt), keccak256(initCode));
-        if (preComputedAddress.code.length > 0) {
-            console.log("LendingRateOracle already deployed at %s", preComputedAddress, "on chain id: ", block.chainid);
-            addr_ = preComputedAddress;
-        } else {
-            addr_ = address(new LendingRateOracle{salt: _implSalt(salt)}(ownerAddr_));
-            console.log("Deployed LendingRateOracle at address: ", addr_, "on chain id: ", block.chainid);
-        }
+    function deployRouter() internal returns (address, address) {
+        // Deploy implementation
+        address routerImpl = deployContract("Router", ".router.salt", "");
+
+        // Deploy proxy
+        string memory salt = vm.parseTomlString(deployConfig, ".router.salt");
+        bytes memory initData = abi.encodeWithSelector(
+            Router.initialize.selector,
+            deployedContracts.lendingPool,
+            deployedContracts.lendingPoolAddressesProvider,
+            deployedContracts.eventValidator
+        );
+
+        TransparentUpgradeableProxy proxy =
+            new TransparentUpgradeableProxy{salt: _implSalt(salt)}(routerImpl, deployedContracts.proxyAdmin, initData);
+
+        console.log("Deployed Router Proxy at: %s", address(proxy));
+        return (address(proxy), routerImpl);
     }
 }

@@ -1,17 +1,16 @@
 pragma solidity 0.8.25;
 
 import {IPriceOracleGetter} from "src/interfaces/IPriceOracleGetter.sol";
+import {Ownable} from "@solady/auth/Ownable.sol";
 
-contract MockPriceOracle is IPriceOracleGetter {
-    address admin;
+contract MockPriceOracle is Ownable, IPriceOracleGetter {
     mapping(address => uint256) public prices;
 
-    constructor() {
-        admin = msg.sender;
+    constructor(address owner) {
+        _setOwner(owner);
     }
 
-    function setPrice(address asset, uint256 _price) external {
-        require(msg.sender == admin, "Unauthorized");
+    function setPrice(address asset, uint256 _price) external onlyOwner {
         prices[asset] = _price;
     }
 

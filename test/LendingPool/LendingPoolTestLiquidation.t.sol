@@ -120,7 +120,6 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
         vm.prank(relayer);
         router.dispatch(ValidationMode.CUSTOM, _identifier, _eventData, bytes(""), _logindex);
 
-
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*                    Cross-Chain State Sync                   */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -142,7 +141,9 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
                 variableDebtBurned,
                 collateralRTokenBurned,
                 liquidatorSentScaled
-            ) = abi.decode(eventData, (address, address, address, uint256, uint256, address, bool, uint256, uint256,uint256));
+            ) = abi.decode(
+                eventData, (address, address, address, uint256, uint256, address, bool, uint256, uint256, uint256)
+            );
             _eventData[index] = abi.encode(
                 _selector,
                 collateralAsset,
@@ -180,6 +181,5 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
 
         assert(user1_vdebt_balance_before_liquidation > user1_vdebt_balance_after_liquidation);
         assert(liquidator_rToken_balance_after_liquidation > liquidator_rToken_balance_before_liquidation);
-
     }
 }

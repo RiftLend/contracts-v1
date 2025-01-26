@@ -256,9 +256,9 @@ contract Base is TestHelperOz5 {
 
         // Deploy Oracle
         vm.prank(owner);
-        MockPriceOracle oracle1 = new MockPriceOracle();
+        MockPriceOracle oracle1 = new MockPriceOracle(owner);
         vm.prank(owner);
-        MockPriceOracle oracle2 = new MockPriceOracle();
+        MockPriceOracle oracle2 = new MockPriceOracle(owner);
 
         // Setup LayerZero Endpoint
         lzEndpoint = EndpointV2(chain_a_lzEndpoint);

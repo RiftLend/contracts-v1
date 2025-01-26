@@ -105,15 +105,15 @@ abstract contract SuperOwnable is Ownable, ISemver {
         emit CrosschainOwnershipTransferred(previousOwner, newOwner);
     }
 
-    function transferOwnership(address newOwner) public payable virtual override onlyOwner onlySuperAdmin {
+    function transferOwnership(address newOwner) public payable virtual override onlySuperAdmin {
         super.transferOwnership(newOwner);
     }
 
-    function renounceOwnership() public payable virtual override onlyOwner onlySuperAdmin {
+    function renounceOwnership() public payable virtual override onlySuperAdmin {
         super.renounceOwnership();
     }
 
-    function completeOwnershipHandover(address pendingOwner) public payable virtual override onlyOwner onlySuperAdmin {
+    function completeOwnershipHandover(address pendingOwner) public payable virtual override onlySuperAdmin {
         super.completeOwnershipHandover(pendingOwner);
     }
 

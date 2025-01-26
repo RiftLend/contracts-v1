@@ -116,6 +116,11 @@ library Errors {
     string public constant ZERO_PARAMS = "89";
     string public constant RVAULT_NOT_FOUND_FOR_ASSET = "90";
     string public constant ONLY_RELAYER_CALL = "91"; //
+    string public constant LP_FLASHLOAN_FAILED = "92";
+    string public constant BORROW_FAILED = "93";
+    string public constant UPDATE_STATES_FAILED = "94";
+    string public constant ONLY_SELF_CALL = "95";
+    string public constant ONLY_ROUTER_OR_SELF_CALL = "96";
 
     enum CollateralManagerErrors {
         NO_ERROR,

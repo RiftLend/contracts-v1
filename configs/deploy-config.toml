@@ -1,51 +1,58 @@
 [deploy_config]
-salt = "ethers phoenix"
-chains = ["op_chain_a","op_chain_b"]
+salt = "riftlend"
+chains = ["eth_mainnet","op_mainnet","sepolia-eth"]
+[owner]
+address = "0xf9E5bFE615853BC0ce310Dd3187277B0bbAC112c"
 
-[token]
-salt = "ethers phoenix"
-owner_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
-name = "TestSuperchainERC20"
-symbol = "TSU"
+[underlying]
+salt = "Riftlend underlying"
+name = "TestUSDC"
+symbol = "TUSDC"
 decimals = 18
 
-[rTokenImpl]
-salt = "ethers phoenix rTokenImpl"
+[superToken]
+salt = "Riftlend SuperToken"
+name = "superTestUSDC"
+symbol = "STUSDC"
+decimals = 18
 
-[stableDebtTokenImpl]
-salt = "ethers phoenix stableDebtTokenImpl"
+[rvault_asset]
+salt="riftlend RVaultAsset"
+max_deposit_limit=86400
+name = "rVaultAsset-TUSDC"
+symbol = "rVaultAsset-rTUSDC"
 
-[variableDebtTokenImpl]
-salt = "ethers phoenix variableDebtTokenImpl"
+[rToken]
+salt = "riftlend rTokenImpl"
+name = "rToken-TestUSDC"
+symbol = "rTUSDC"
+decimals = 18
+
+[variableDebtToken]
+salt = "riftlend vdebt"
+name = "variableDebt-TUSDC"
+symbol = "vdebt-TUSDC"
 
 [lending_pool_addresses_provider]
-salt = "ethers phoenix lpap"
-owner_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
-marketId = "TSU Market"
+salt = "riftlend lpap"
+marketId = "TUSDC Market"
+lpType="OpSuperchain_LENDING_POOL"
 
 [proxy_admin]
-salt = "ethers phoenix proxyAdmin"
-owner_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+salt = "riftlend proxyAdmin"
 
-[superchain_asset_1]
-salt = "ethers phoenix sa1"
-owner_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
-name = "SuperTestSuperchainERC20"
-symbol = "STSU"
-decimals = 18
-# TODO:Add correct lz addresses
-lzEndpoint = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
-lzDelegate = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+[pool_admin]
+address="0xf9E5bFE615853BC0ce310Dd3187277B0bbAC112c"
 
 
 [lending_pool_impl]
-salt = "ethers phoenix laimpl"
+salt = "riftlend laimpl"
 
 [lending_pool_configurator]
-salt = "ethers phoenix lpc"
+salt = "riftlend lpc"
 
 [default_reserve_interest_rate_strategy]
-salt = "ethers phoenix drirs"
+salt = "riftlend drirs"
 # These are random values. TODO these should be in ray terms
 optimalUtilizationRate = 1
 baseVariableBorrowRate = 2
@@ -55,29 +62,24 @@ stableRateSlope1 = 4
 stableRateSlope2 = 5
 
 [lending_rate_oracle]
-salt = "ethers phoenix lro"
-owner_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+salt = "riftlend lro"
+owner_address = "0xf9E5bFE615853BC0ce310Dd3187277B0bbAC112c"
+
+[event_validator]
+salt="Riftlend EventValidator"
+
+[relayer]
+address="0x1234567890123456789012345678901234567890"
 
 [treasury]
-address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+address = "0x9234567890123456789012345678901234567899"
 
 [incentives_controller]
-address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+address = "0xf40Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 
-[aToken1]
-name = "A-TestSuperchainERC20"
-symbol = "ATUSDC"
-
-[variableDebtToken1]
-name = "VDebt-TestSuperchainERC20"
-symbol = "VDTUSDC"
-
-[stableDebtToken1]
-name = "SDebt-TestSuperchainERC20"
-symbol = "SDTUSDC"
 
 [router]
-salt = "ethers phoenix router"
+salt = "riftlend router"
 
 [forks]
 chain_a_rpc_url = "https://eth-mainnet.g.alchemy.com/v2/xFdbkJe3ZbpjHxU2qIpikVBgN7TIMyX8"
@@ -85,9 +87,17 @@ chain_a_chain_id = 1
 chain_a_cross_l2_prover_address="0x1CCb363c18484A568DCB0Ec37fE5ad716C1D6e77"
 chain_a_weth="0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
 chain_a_lz_endpoint_v2="0x1a44076050125825900e736c501f859c50fE728c"
+chain_a_lz_delegate="0xf9E5bFE615853BC0ce310Dd3187277B0bbAC112c"
 
 chain_b_rpc_url = "https://opt-mainnet.g.alchemy.com/v2/xFdbkJe3ZbpjHxU2qIpikVBgN7TIMyX8"
 chain_b_chain_id = 10
 chain_b_cross_l2_prover_address="0x1CCb363c18484A568DCB0Ec37fE5ad716C1D6e77"
 chain_b_weth="0x4200000000000000000000000000000000000006"
 chain_b_lz_endpoint_v2="0x1a44076050125825900e736c501f859c50fE728c"
+
+chain_c_rpc_url = "https://opt-sepolia.g.alchemy.com/v2/xFdbkJe3ZbpjHxU2qIpikVBgN7TIMyX8"
+chain_c_chain_id = 11155420
+chain_c_cross_l2_prover_address="0xb8AcB3FE3117A67b665Bc787c977623612f8a461"
+chain_c_weth="0xC355F97a3Aa2808Acb536E555764b8FB26fB4b37"
+chain_c_lz_endpoint_v2="0x6EDCE65403992e310A62460808c4b910D972f10f"
+chain_c_lz_delegate="0xf9E5bFE615853BC0ce310Dd3187277B0bbAC112c"

@@ -77,4 +77,8 @@ interface ILendingPoolAddressesProvider {
     function setRouter(address router) external;
 
     function getPoolType() external view returns (uint8);
+
+    function transferOwnership(address newOwner) external;
+
+    function setProxyAdmin(address proxyAdmin) external;
 }

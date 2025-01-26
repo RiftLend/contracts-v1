@@ -4,8 +4,33 @@ pragma solidity 0.8.25;
 import {ILendingPoolAddressesProvider} from "./ILendingPoolAddressesProvider.sol";
 import {ILendingPool} from "./ILendingPool.sol";
 import "../interfaces/ICrossL2Inbox.sol";
+import {IFlashLoanReceiver} from "src/interfaces/IFlashLoanReceiver.sol";
 
 import {DataTypes} from "../libraries/types/DataTypes.sol";
+
+struct FlashLoanLocalVars {
+    IFlashLoanReceiver receiver;
+    address oracle;
+    uint256 i;
+    address currentAsset;
+    address currentrTokenAddress;
+    uint256 currentAmount;
+    uint256 currentPremium;
+    uint256 currentAmountPlusPremium;
+    address debtToken;
+}
+
+struct ExecuteBorrowParams {
+    address asset;
+    address user;
+    address onBehalfOf;
+    uint256 sendToChainId;
+    uint256 amount;
+    address rVaultAsset;
+    address rTokenAddress;
+    uint16 referralCode;
+    bool releaseUnderlying;
+}
 
 /**
  * @dev Emitted on deposit()
@@ -206,8 +231,6 @@ interface ILendingPool {
 
     function swapBorrowRateMode(address sender, address asset, uint256 rateMode) external;
 
-    function setUserUseReserveAsCollateral(address sender, address asset, bool useAsCollateral) external;
-
     function setRvaultAssetForUnderlying(address asset, address rVaultAsset) external;
 
     function liquidationCall(
@@ -235,19 +258,6 @@ interface ILendingPool {
 
     function setConfiguration(Identifier calldata _identifier, bytes calldata _data) external;
 
-    // View functions
-    function getUserAccountData(address user)
-        external
-        view
-        returns (
-            uint256 totalCollateralETH,
-            uint256 totalDebtETH,
-            uint256 availableBorrowsETH,
-            uint256 currentLiquidationThreshold,
-            uint256 ltv,
-            uint256 healthFactor
-        );
-
     function getConfiguration(address asset) external view returns (DataTypes.ReserveConfigurationMap memory);
 
     function getUserConfiguration(address user) external view returns (DataTypes.UserConfigurationMap memory);
@@ -264,9 +274,9 @@ interface ILendingPool {
 
     function getRVaultAssetOrRevert(address asset) external view returns (address rVaultAsset);
 
-    function FLASHLOAN_PREMIUM_TOTAL() external view returns (uint256);
+    function _flashLoanPremiumTotal() external view returns (uint256);
 
-    function MAX_NUMBER_RESERVES() external view returns (uint256);
+    function _maxNumberOfReserves() external view returns (uint256);
 
     function finalizeTransfer(
         address asset,
