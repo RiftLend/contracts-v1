@@ -188,7 +188,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         ValidationLogic.validateRepay(reserve, amount, debt);
 
         uint256 paybackAmount;
-        if (amount <= paybackAmount) {
+        if (amount <= debt) {
             paybackAmount = amount;
         } else {
             paybackAmount = debt;
