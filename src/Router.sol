@@ -167,13 +167,15 @@ contract Router is Initializable, SuperPausable {
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
         if (selector == Repay.selector && _identifier.chainId != block.chainid) {
-            (address asset, uint256 amount,, address repayer, uint256 mintMode, uint256 amountBurned) =
+            // emit Repay(asset, paybackAmount, onBehalfOf, sender, mode, amountBurned);
+
+            (address asset, uint256 amount, address onBehalfOf,, uint256 mintMode, uint256 amountBurned) =
                 abi.decode(_data[32:], (address, uint256, address, address, uint256, uint256));
             address rVaultAsset = lendingPool.getRVaultAssetOrRevert(asset);
             DataTypes.ReserveData memory reserve = lendingPool.getReserveData(rVaultAsset);
             lendingPool.updateStates(rVaultAsset, amount, 0, UPDATE_RATES_AND_STATES_MASK);
             IVariableDebtToken(reserve.variableDebtTokenAddress).updateCrossChainBalance(
-                repayer, amountBurned, mintMode
+                onBehalfOf, amountBurned, mintMode
             );
         } else if (selector == CrossChainRepay.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
             (address sender, address asset, uint256 amount, address onBehalfOf, uint256 debtChainId) =
