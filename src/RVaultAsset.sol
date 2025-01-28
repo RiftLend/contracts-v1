@@ -22,7 +22,6 @@ import {DataTypes} from "src/libraries/types/DataTypes.sol";
 import {OFTLogic} from "src/libraries/logic/OFTLogic.sol";
 import {OptionsBuilder} from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OptionsBuilder.sol";
 import {OFTMsgCodec} from "src/libraries/helpers/layerzero/OFTMsgCodec.sol";
-import {Errors} from "src/libraries/helpers/Errors.sol";
 
 contract RVaultAsset is Initializable, SuperOwnable, OFT {
     using SafeERC20 for IERC20;
@@ -51,6 +50,17 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
 
     uint256[50] __gap;
 
+    error ONLY_ROUTER_CALL();
+    error DEPOSIT_LIMIT_EXCEEDED();
+    error BUNGEE_TARGET_NOT_SUPPORTED();
+    error WITHDRAW_COOLDOWN_PERIOD_NOT_ELAPSED();
+    error BUNGEE_BRIDGING_FAILED();
+    error UNAUTHORIZED_ASSET();
+    error OFT_SEND_FAILED();
+    error UNAUTHORIZED_SENDER();
+
+
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           Events                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -62,7 +72,9 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     modifier onlyRouter() {
-        require(provider.getRouter() == msg.sender, Errors.ONLY_ROUTER_CALL);
+        if (provider.getRouter() != msg.sender) 
+            revert ONLY_ROUTER_CALL();
+        
         _;
     }
 
@@ -115,7 +127,7 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
     /// @param assets - the amount of assets to deposit
     /// @param receiver - the address to which the assets are deposited
     function deposit(uint256 assets, address receiver) public returns (uint256) {
-        require(totalAssets() + assets <= maxDepositLimit, Errors.DEPOSIT_LIMIT_EXCEEDED);
+        if(totalAssets() + assets > maxDepositLimit) revert DEPOSIT_LIMIT_EXCEEDED();
 
         balances[receiver] += assets;
         super._mint(receiver, assets);
@@ -146,10 +158,9 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
     /// @param _receiver - the address to which the underlying is to be sent
     /// @param _owner - the address of the owner of the rVaultAsset
     function withdraw(uint256 _assets, address _receiver, address _owner) public returns (uint256 shares) {
-        require(
-            block.timestamp - _lastWithdrawalTime[_owner] >= withdrawCoolDownPeriod,
-            Errors.WITHDRAW_COOLDOWN_PERIOD_NOT_ELAPSED
-        );
+        if(
+            block.timestamp - _lastWithdrawalTime[_owner] < withdrawCoolDownPeriod            
+        ) revert WITHDRAW_COOLDOWN_PERIOD_NOT_ELAPSED();
         _lastWithdrawalTime[_owner] = block.timestamp;
         shares = _assets;
         if (msg.sender != _owner) _spendAllowance(_owner, msg.sender, shares);
@@ -169,14 +180,14 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
         address _underlying,
         uint256 _underlyingAmount
     ) external onlySuperAdmin {
-        require(isSupportedBungeeTarget[_bungeeTarget], Errors.BUNGEE_TARGET_NOT_SUPPORTED);
+        if(!isSupportedBungeeTarget[_bungeeTarget]) revert BUNGEE_TARGET_NOT_SUPPORTED();
         if (pool_type == 1) {
             ISuperAsset(_underlying).withdraw(address(this), _underlyingAmount);
         }
 
         IERC20(_underlying).approve(_bungeeAllowanceTarget, _underlyingAmount);
         (bool success,) = _bungeeTarget.call(txData);
-        require(success, Errors.BUNGEE_BRIDGING_FAILED);
+        if(!success) revert BUNGEE_BRIDGING_FAILED();
 
         emit CrossChainBridgeUnderlyingSent(txData, block.timestamp);
     }
@@ -187,7 +198,7 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
     /// @param _recipient - address to which the underlying is to be sent
     /// @param _amount - amount of underlying to be sent
     function withdrawTokens(address _asset, address _recipient, uint256 _amount) external onlyOwner {
-        require(_asset == underlying, Errors.UNAUTHORIZED);
+        if(_asset != underlying) revert UNAUTHORIZED_ASSET();
         IERC20(_asset).safeTransfer(_recipient, _amount);
     }
 
@@ -200,7 +211,7 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
 
         // @dev Sends the message to the LayerZero endpoint and returns the LayerZero msg receipt.
         msgReceipt = _lzSend(_sendParam.dstEid, message, options, _fee, _refundAddress);
-        require(!(msgReceipt.guid == 0 && msgReceipt.nonce == 0), Errors.OFT_SEND_FAILED);
+        if(msgReceipt.guid == 0 && msgReceipt.nonce == 0) revert OFT_SEND_FAILED();
 
         // @dev Formulate the OFT receipt.
         oftReceipt = OFTReceipt(0, 0);
@@ -216,7 +227,7 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
         bytes calldata /*_extraData*/
     ) public payable override {
         (address receiverOfUnderlying, uint256 amount, address oftTxCaller) = OFTLogic.decodeMessage(_message);
-        require(msg.sender == address(endpoint) || oftTxCaller == address(this), Errors.UNAUTHORIZED);
+        if(msg.sender != address(endpoint) && oftTxCaller != address(this)) revert UNAUTHORIZED_SENDER();
         if (_getPeerOrRevert(_origin.srcEid) != _origin.sender) {
             revert OnlyPeer(_origin.srcEid, _origin.sender);
         }

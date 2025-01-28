@@ -7,7 +7,7 @@ import {IAaveIncentivesController} from "../interfaces/IAaveIncentivesController
 import {ILendingPoolAddressesProvider} from "../interfaces/ILendingPoolAddressesProvider.sol";
 
 import {WadRayMath} from "../libraries/math/WadRayMath.sol";
-import {Errors} from "../libraries/helpers/Errors.sol";
+import {CT_INVALID_MINT_AMOUNT,ONLY_ROUTER_CALL,CT_INVALID_BURN_AMOUNT} from "../libraries/helpers/Errors.sol";
 import {DebtTokenBase} from "./base/DebtTokenBase.sol";
 
 /**
@@ -28,7 +28,7 @@ contract VariableDebtToken is DebtTokenBase, IVariableDebtToken {
     ILendingPoolAddressesProvider internal _addressesProvider;
 
     modifier onlyRouter() {
-        require(_addressesProvider.getRouter() == msg.sender, Errors.ONLY_ROUTER_CALL);
+        require(_addressesProvider.getRouter() == msg.sender, ONLY_ROUTER_CALL);
         _;
     }
 
@@ -133,7 +133,7 @@ contract VariableDebtToken is DebtTokenBase, IVariableDebtToken {
 
         uint256 previousBalance = super.balanceOf(onBehalfOf);
         uint256 amountScaled = amount.rayDiv(index);
-        require(amountScaled != 0, Errors.CT_INVALID_MINT_AMOUNT);
+        require(amountScaled != 0, CT_INVALID_MINT_AMOUNT);
 
         _mint(onBehalfOf, amountScaled);
 
@@ -158,7 +158,7 @@ contract VariableDebtToken is DebtTokenBase, IVariableDebtToken {
         returns (uint256, uint256)
     {
         uint256 amountScaled = amount.rayDiv(index);
-        require(amountScaled != 0, Errors.CT_INVALID_BURN_AMOUNT);
+        require(amountScaled != 0, CT_INVALID_BURN_AMOUNT);
 
         _burn(user, amountScaled);
 

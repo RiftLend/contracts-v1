@@ -13,7 +13,7 @@ import "src/interfaces/ILendingPool.sol";
 import {Initializable} from "@solady/utils/Initializable.sol";
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
 import {ReserveLogic} from "src/libraries/logic/ReserveLogic.sol";
-import {Errors} from "src/libraries/helpers/Errors.sol";
+import {LP_CALLER_NOT_LENDING_POOL_CONFIGURATOR} from "src/libraries/helpers/Errors.sol";
 import {SuperPausable} from "src/interop-std/src/utils/SuperPausable.sol";
 import {Predeploys} from "src/libraries/Predeploys.sol";
 import {EventValidator, ValidationMode, Identifier} from "src/libraries/EventValidator.sol";
@@ -26,38 +26,37 @@ contract Router is Initializable, SuperPausable {
     using SafeERC20 for IERC20;
     using ReserveLogic for DataTypes.ReserveData;
 
-    bytes2 public constant UPDATE_RATES_AND_STATES_MASK = bytes2(uint16(3));
-    uint256 public constant ROUTER_REVISION = 0x1;
+    bytes2 internal constant UPDATE_RATES_AND_STATES_MASK = bytes2(uint16(3));
+    uint256 internal constant ROUTER_REVISION = 0x1;
 
-    ILendingPool public lendingPool;
-    ILendingPoolAddressesProvider public addressesProvider;
-    address public relayer;
-    EventValidator public eventValidator;
-    uint8 pool_type;
+    ILendingPool internal lendingPool;
+    ILendingPoolAddressesProvider internal addressesProvider;
+    address internal relayer;
+    EventValidator internal eventValidator;
+    uint8 internal pool_type;
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                  Custom Erros                              */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    error NOT_RELAYER();
+    error LP_CALLER_NOT_LENDING_POOL_CONFIGURATOR();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                  Modifiers                                 */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     modifier onlyRelayer() {
-        _onlyRelayer();
+        if(addressesProvider.getRelayer()!= msg.sender) revert NOT_RELAYER();
         _;
-    }
-
-    function _onlyRelayer() internal view {
-        require(addressesProvider.getRelayer() == msg.sender, "!relayer");
     }
 
     modifier onlyLendingPoolConfigurator() {
-        _onlyLendingPoolConfigurator();
+        if (addressesProvider.getLendingPoolConfigurator() != msg.sender) revert LP_CALLER_NOT_LENDING_POOL_CONFIGURATOR();
         _;
     }
 
-    function _onlyLendingPoolConfigurator() internal view {
-        require(
-            addressesProvider.getLendingPoolConfigurator() == msg.sender, Errors.LP_CALLER_NOT_LENDING_POOL_CONFIGURATOR
-        );
-    }
+    
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                  External Functions                        */

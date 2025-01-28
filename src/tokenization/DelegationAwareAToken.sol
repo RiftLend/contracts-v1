@@ -3,7 +3,6 @@ pragma solidity 0.8.25;
 
 import {ILendingPool} from "../interfaces/ILendingPool.sol";
 import {IDelegationToken} from "../interfaces/IDelegationToken.sol";
-import {Errors} from "../libraries/helpers/Errors.sol";
 import {RToken} from "./RToken.sol";
 
 /**
@@ -12,8 +11,11 @@ import {RToken} from "./RToken.sol";
  * @author Aave
  */
 contract DelegationAwareRToken is RToken {
+
+    error CALLER_NOT_POOL_ADMIN();
+
     modifier onlyPoolAdmin() {
-        require(_msgSender() == ILendingPool(_pool).getAddressesProvider().getPoolAdmin(), Errors.CALLER_NOT_POOL_ADMIN);
+        if(_msgSender() != ILendingPool(_pool).getAddressesProvider().getPoolAdmin()) revert CALLER_NOT_POOL_ADMIN();
         _;
     }
 

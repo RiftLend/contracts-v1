@@ -18,7 +18,6 @@ import {
 } from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import {ReserveConfiguration} from "./libraries/configuration/ReserveConfiguration.sol";
-import {Errors} from "./libraries/helpers/Errors.sol";
 import {PercentageMath} from "./libraries/math/PercentageMath.sol";
 import {DataTypes} from "./libraries/types/DataTypes.sol";
 
@@ -36,19 +35,27 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
     ILendingPoolAddressesProvider internal addressesProvider;
     ILendingPool internal pool;
     address internal proxyAdmin;
+    string public constant LPCM_NO_ERRORS = "46";
+
+    error CALLER_NOT_POOL_ADMIN();
+    error NOT_PROXY_ADMIN_OWNER();
+    error LPC_CALLER_NOT_EMERGENCY_ADMIN();
+    error LPC_INVALID_CONFIGURATION();
+    error LPC_RESERVE_LIQUIDITY_NOT_0();
+
 
     modifier onlyPoolAdmin() {
-        require(addressesProvider.getPoolAdmin() == msg.sender, Errors.CALLER_NOT_POOL_ADMIN);
+        if(addressesProvider.getPoolAdmin() != msg.sender) revert CALLER_NOT_POOL_ADMIN();
         _;
     }
 
     modifier onlyProxyAdminOwner() {
-        require(ProxyAdmin(proxyAdmin).owner() == msg.sender, Errors.NOT_PROXY_ADMIN_OWNER);
+        if(ProxyAdmin(proxyAdmin).owner() != msg.sender ) revert NOT_PROXY_ADMIN_OWNER();
         _;
     }
 
     modifier onlyEmergencyAdmin() {
-        require(addressesProvider.getEmergencyAdmin() == msg.sender, Errors.LPC_CALLER_NOT_EMERGENCY_ADMIN);
+        if(addressesProvider.getEmergencyAdmin() != msg.sender) revert LPC_CALLER_NOT_EMERGENCY_ADMIN();
         _;
     }
 
@@ -240,21 +247,21 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
         //validation of the parameters: the LTV can
         //only be lower or equal than the liquidation threshold
         //(otherwise a loan against the asset would cause instantaneous liquidation)
-        require(ltv <= liquidationThreshold, Errors.LPC_INVALID_CONFIGURATION);
+        if(ltv > liquidationThreshold) revert LPC_INVALID_CONFIGURATION();
 
         if (liquidationThreshold != 0) {
             //liquidation bonus must be bigger than 100.00%, otherwise the liquidator would receive less
             //collateral than needed to cover the debt
-            require(liquidationBonus > PercentageMath.PERCENTAGE_FACTOR, Errors.LPC_INVALID_CONFIGURATION);
+            if(liquidationBonus <= PercentageMath.PERCENTAGE_FACTOR) revert LPC_INVALID_CONFIGURATION();
 
             //if threshold * bonus is less than PERCENTAGE_FACTOR, it's guaranteed that at the moment
             //a loan is taken there is enough collateral available to cover the liquidation bonus
-            require(
-                liquidationThreshold.percentMul(liquidationBonus) <= PercentageMath.PERCENTAGE_FACTOR,
-                Errors.LPC_INVALID_CONFIGURATION
-            );
+            if(
+                liquidationThreshold.percentMul(liquidationBonus) > PercentageMath.PERCENTAGE_FACTOR                
+            ) revert LPC_INVALID_CONFIGURATION();
         } else {
-            require(liquidationBonus == 0, Errors.LPC_INVALID_CONFIGURATION);
+
+            if(liquidationBonus != 0) revert LPC_INVALID_CONFIGURATION();
             //if the liquidation threshold is being set to 0,
             // the reserve is being disabled as collateral. To do so,
             //we need to ensure no liquidity is deposited
@@ -387,6 +394,6 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
 
         uint256 availableLiquidity = IERC20(asset).balanceOf(reserveData.rTokenAddress);
 
-        require(availableLiquidity == 0 && reserveData.currentLiquidityRate == 0, Errors.LPC_RESERVE_LIQUIDITY_NOT_0);
+        if(!(availableLiquidity == 0 && reserveData.currentLiquidityRate == 0)) revert LPC_RESERVE_LIQUIDITY_NOT_0();
     }
 }

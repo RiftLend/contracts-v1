@@ -14,7 +14,6 @@ import {IRVaultAsset} from "./interfaces/IRVaultAsset.sol";
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
 import {Initializable} from "@solady/utils/Initializable.sol";
 import {Helpers} from "./libraries/helpers/Helpers.sol";
-import {Errors} from "./libraries/helpers/Errors.sol";
 import {WadRayMath} from "./libraries/math/WadRayMath.sol";
 import {PercentageMath} from "./libraries/math/PercentageMath.sol";
 import {ReserveLogic} from "./libraries/logic/ReserveLogic.sol";
@@ -43,25 +42,35 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     uint256 public constant _flashLoanPremiumTotal = 9;
     uint256 public constant _maxNumberOfReserves = 128;
 
+    error LP_LIQUIDATION_CALL_FAILED();
+    error LP_CALLER_NOT_LENDING_POOL_CONFIGURATOR();
+    error ONLY_ROUTER_CALL();
+    error ONLY_ROUTER_OR_SELF_CALL();
+    error LP_INVALID_FLASH_LOAN_EXECUTOR_RETURN();
+    error LP_CALLER_MUST_BE_AN_RTOKEN();
+    error LP_NOT_CONTRACT();
+    error LP_NO_MORE_RESERVES_ALLOWED();
+    error RVAULT_NOT_FOUND_FOR_ASSET();
+
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                  Modifiers                                 */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    function onlyLendingPoolConfigurator() internal {
-        require(
-            _addressesProvider.getLendingPoolConfigurator() == msg.sender,
-            Errors.LP_CALLER_NOT_LENDING_POOL_CONFIGURATOR
-        );
+    function onlyLendingPoolConfigurator() internal view{
+        if(
+            _addressesProvider.getLendingPoolConfigurator() != msg.sender
+        ) revert LP_CALLER_NOT_LENDING_POOL_CONFIGURATOR();
     }
 
-    function onlyRouter() internal {
-        require(_addressesProvider.getRouter() == msg.sender, Errors.ONLY_ROUTER_CALL);
+    function onlyRouter() internal view {
+        if(_addressesProvider.getRouter() != msg.sender) revert ONLY_ROUTER_CALL();
     }
 
-    function onlyRouterOrSelf() internal {
-        require(
-            _addressesProvider.getRouter() == msg.sender || msg.sender == address(this), Errors.ONLY_ROUTER_OR_SELF_CALL
-        );
+    function onlyRouterOrSelf() internal view {
+        if(
+            !(_addressesProvider.getRouter() == msg.sender || msg.sender == address(this))
+        ) revert ONLY_ROUTER_OR_SELF_CALL();
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -245,7 +254,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             )
         );
 
-        require(success, Errors.LP_LIQUIDATION_CALL_FAILED);
+        if(!success) revert LP_LIQUIDATION_CALL_FAILED();
         if (!success) {
             (uint256 returnCode, string memory returnMessage) = abi.decode(result, (uint256, string));
             require(returnCode == 0, string(abi.encodePacked(returnMessage)));
@@ -302,10 +311,9 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             IRToken(rTokenAddresses[vars.i]).transferUnderlyingTo(receiverAddress, amounts[vars.i], block.chainid);
         }
 
-        require(
-            vars.receiver.executeOperation(assets, amounts, premiums, sender, params),
-            Errors.LP_INVALID_FLASH_LOAN_EXECUTOR_RETURN
-        );
+        if(
+            !vars.receiver.executeOperation(assets, amounts, premiums, sender, params)            
+        ) revert LP_INVALID_FLASH_LOAN_EXECUTOR_RETURN();
 
         bool borrowExecuted = false;
         for (vars.i = 0; vars.i < assets.length; vars.i++) {
@@ -457,7 +465,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         uint256 balanceFromBefore,
         uint256 balanceToBefore
     ) external whenNotPaused {
-        require(msg.sender == _reserves[asset].rTokenAddress, Errors.LP_CALLER_MUST_BE_AN_RTOKEN);
+        if(msg.sender != _reserves[asset].rTokenAddress) revert LP_CALLER_MUST_BE_AN_RTOKEN();
 
         ValidationLogic.validateTransfer(
             from, _reserves, _usersConfig[from], _reservesList, _reservesCount, _addressesProvider.getPriceOracle()
@@ -500,7 +508,8 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     ) external {
         onlyLendingPoolConfigurator();
 
-        require(asset.code.length > 0, Errors.LP_NOT_CONTRACT);
+        if(asset.code.length == 0) revert LP_NOT_CONTRACT();
+
         _reserves[asset].init(rTokenAddress, superAsset, variableDebtAddress, interestRateStrategyAddress);
         IERC20(IRVaultAsset(asset).asset()).approve(asset, type(uint256).max);
         if (pool_type == 1) {
@@ -602,7 +611,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     function _addReserveToList(address asset) internal {
         uint256 reservesCount = _reservesCount;
 
-        require(reservesCount < _maxNumberOfReserves, Errors.LP_NO_MORE_RESERVES_ALLOWED);
+        if(reservesCount >= _maxNumberOfReserves) revert LP_NO_MORE_RESERVES_ALLOWED();
 
         bool reserveAlreadyAdded = _reserves[asset].id != 0 || _reservesList[0] == asset;
 
@@ -616,7 +625,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
 
     function getRVaultAssetOrRevert(address asset) public view returns (address rVaultAsset) {
         rVaultAsset = _rVaultAsset[asset];
-        require(rVaultAsset != address(0), Errors.RVAULT_NOT_FOUND_FOR_ASSET);
+        if(rVaultAsset == address(0)) revert RVAULT_NOT_FOUND_FOR_ASSET();
     }
 
     /**

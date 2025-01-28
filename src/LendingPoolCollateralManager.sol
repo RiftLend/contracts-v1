@@ -15,7 +15,7 @@ import {GenericLogic} from "./libraries/logic/GenericLogic.sol";
 import {Helpers} from "./libraries/helpers/Helpers.sol";
 import {WadRayMath} from "./libraries/math/WadRayMath.sol";
 import {PercentageMath} from "./libraries/math/PercentageMath.sol";
-import {Errors} from "./libraries/helpers/Errors.sol";
+import {CollateralManagerErrors,LPCM_NO_ERRORS} from "./libraries/helpers/Errors.sol";
 import {ValidationLogic} from "./libraries/logic/ValidationLogic.sol";
 import {ReserveLogic} from "./libraries/logic/ReserveLogic.sol";
 import {ReserveConfiguration} from "./libraries/configuration/ReserveConfiguration.sol";
@@ -107,12 +107,10 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
 
         // Use local balance for variable debt token for debt reserve
         vars.userVariableDebt = IERC20(debtReserve.variableDebtTokenAddress).balanceOf(user);
-        (vars.errorCode, vars.errorMsg) = ValidationLogic.validateLiquidationCall(
+        ValidationLogic.validateLiquidationCall(
             collateralReserve, debtReserve, userConfig, vars.healthFactor, vars.userVariableDebt
         );
-        if (Errors.CollateralManagerErrors(vars.errorCode) != Errors.CollateralManagerErrors.NO_ERROR) {
-            return (vars.errorCode, vars.errorMsg);
-        }
+        
         vars.collateralRToken = IRToken(collateralReserve.rTokenAddress);
         vars.userCollateralBalance = GenericLogic.getActionBasedUserBalance(
             user, address(vars.collateralRToken), DataTypes.Action_type.LIQUIDATION
@@ -211,7 +209,7 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
             liquidatorSentScaled
         );
 
-        return (uint256(Errors.CollateralManagerErrors.NO_ERROR), Errors.LPCM_NO_ERRORS);
+        return (uint256(CollateralManagerErrors.NO_ERROR), LPCM_NO_ERRORS);
     }
 
     struct AvailableCollateralToLiquidateLocalVars {
