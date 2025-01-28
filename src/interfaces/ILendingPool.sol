@@ -104,17 +104,6 @@ event Borrow(
 event Repay(address reserve, uint256 amount, address user, address repayer, uint256 mode, uint256 amountBurned);
 
 /**
- * @dev Emitted on swapBorrowRateMode()
- * @param reserve The address of the underlying asset of the reserve
- * @param user The address of the user swapping his rate mode
- * @param rateMode The rate mode that the user wants to swap to
- * @param variableDebtAmount The amount of variable debt being minted
- *
- */
-event Swap(address reserve, address user, uint256 rateMode, uint256 variableDebtAmount);
-
-/**
- * @dev Emitted on setUserUseReserveAsCollateral()
  * @param reserve The address of the underlying asset of the reserve
  * @param user The address of the user enabling the usage as collateral
  *
@@ -122,7 +111,6 @@ event Swap(address reserve, address user, uint256 rateMode, uint256 variableDebt
 event ReserveUsedAsCollateralEnabled(address reserve, address user);
 
 /**
- * @dev Emitted on setUserUseReserveAsCollateral()
  * @param reserve The address of the underlying asset of the reserve
  * @param user The address of the user enabling the usage as collateral
  *
@@ -151,19 +139,6 @@ event FlashLoan(
     address target,
     uint16 referralCode
 );
-
-error OriginNotLendingPoolConfigurator();
-error InvalidChainId(uint256 chainId);
-error InvalidSelector(bytes32 selector);
-error OriginNotSuperLend();
-
-event FlashLoanInitiated(address receiver, address[] assets, uint256[] amounts);
-
-event CrossChainSwapBorrowRateMode(uint256 chainId, address user, address asset, uint256 rateMode);
-
-event ReserveConfigurationChanged(address asset, uint256 configuration);
-
-event CrossChainSetUserUseReserveAsCollateral(uint256 chainId, address asset, bool useAsCollateral);
 
 // Update the DepositInitiated event to include chain IDs
 event CrossChainDeposit(
@@ -203,9 +178,8 @@ event CrossChainRepayFinalize(uint256 debtchainid, address sender, address onbeh
 
 event ReserveUsedAsCollateral(address user, address asset, bool useAsCollateral);
 
-event SetUserUseReserveAsCollateralCrossChain(uint256 chainId, address user, address asset, bool useAsCollateral);
-
 event CrossChainInitiateFlashloan(DataTypes.InitiateFlashloanParams flashloanParams);
+
 
 interface ILendingPool {
     /**
@@ -228,8 +202,6 @@ interface ILendingPool {
     ) external;
 
     function repay(address sender, address onBehalfOf, address asset, uint256 amount) external;
-
-    function swapBorrowRateMode(address sender, address asset, uint256 rateMode) external;
 
     function setRvaultAssetForUnderlying(address asset, address rVaultAsset) external;
 
@@ -267,8 +239,6 @@ interface ILendingPool {
     function getReserveNormalizedVariableDebt(address asset) external view returns (uint256);
 
     function getReserveData(address asset) external view returns (DataTypes.ReserveData memory);
-
-    function getReservesList() external view returns (address[] memory);
 
     function getAddressesProvider() external view returns (ILendingPoolAddressesProvider);
 

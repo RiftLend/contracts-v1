@@ -11,11 +11,10 @@ import {RToken} from "./RToken.sol";
  * @author Aave
  */
 contract DelegationAwareRToken is RToken {
-
     error CALLER_NOT_POOL_ADMIN();
 
     modifier onlyPoolAdmin() {
-        if(_msgSender() != ILendingPool(_pool).getAddressesProvider().getPoolAdmin()) revert CALLER_NOT_POOL_ADMIN();
+        if (_msgSender() != ILendingPool(_pool).getAddressesProvider().getPoolAdmin()) revert CALLER_NOT_POOL_ADMIN();
         _;
     }
 

@@ -14,7 +14,7 @@ import {WadRayMath} from "../math/WadRayMath.sol";
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
 import {ReserveConfiguration} from "../configuration/ReserveConfiguration.sol";
 import {UserConfiguration} from "../configuration/UserConfiguration.sol";
-import {LPCM_NO_ERRORS,CollateralManagerErrors} from "src/libraries/helpers/Errors.sol";
+import {LPCM_NO_ERRORS, CollateralManagerErrors} from "src/libraries/helpers/Errors.sol";
 
 /**
  * @title ReserveLogic library
@@ -32,8 +32,8 @@ library ValidationLogic {
     uint256 public constant REBALANCE_UP_LIQUIDITY_RATE_THRESHOLD = 4000;
     uint256 public constant REBALANCE_UP_USAGE_RATIO_THRESHOLD = 0.95 * 1e27; //usage ratio of 95%
 
-    /** */
-
+    /**
+     */
     error VL_INVALID_AMOUNT();
     error VL_NO_ACTIVE_RESERVE();
     error VL_RESERVE_FROZEN();
@@ -54,17 +54,13 @@ library ValidationLogic {
     error LPCM_SPECIFIED_CURRENCY_NOT_BORROWED_BY_USER();
     error LPCM_COLLATERAL_CANNOT_BE_LIQUIDATED();
 
-
     /**
      * @dev Validates a deposit action
      * @param reserve The reserve object on which the user is depositing
      * @param amount The amount to be deposited
      */
-    function validateDeposit(
-        DataTypes.ReserveData storage reserve,
-        uint256 amount
-    ) external view {
-        (bool isActive, bool isFrozen, ) = reserve.configuration.getFlags();
+    function validateDeposit(DataTypes.ReserveData storage reserve, uint256 amount) external view {
+        (bool isActive, bool isFrozen,) = reserve.configuration.getFlags();
 
         if (amount == 0) revert VL_INVALID_AMOUNT();
         if (!isActive) revert VL_NO_ACTIVE_RESERVE();
@@ -107,9 +103,7 @@ library ValidationLogic {
         if (amount == 0) revert VL_INVALID_AMOUNT();
         if (amount > userBalance) revert VL_NOT_ENOUGH_AVAILABLE_USER_BALANCE();
 
-        (bool isActive, , ) = reservesData[reserveAddress]
-            .configuration
-            .getFlags();
+        (bool isActive,,) = reservesData[reserveAddress].configuration.getFlags();
         if (!isActive) revert VL_NO_ACTIVE_RESERVE();
         if (
             !GenericLogic.balanceDecreaseAllowed(
@@ -163,9 +157,7 @@ library ValidationLogic {
     ) external view {
         ValidateBorrowLocalVars memory vars;
 
-        (vars.isActive, vars.isFrozen, vars.borrowingEnabled) = reserve
-            .configuration
-            .getFlags();
+        (vars.isActive, vars.isFrozen, vars.borrowingEnabled) = reserve.configuration.getFlags();
         if (!vars.isActive) revert VL_NO_ACTIVE_RESERVE();
         if (vars.isFrozen) revert VL_RESERVE_FROZEN();
         if (amount == 0) revert VL_INVALID_AMOUNT();
@@ -178,27 +170,21 @@ library ValidationLogic {
             vars.currentLiquidationThreshold,
             vars.healthFactor
         ) = GenericLogic.calculateUserAccountData(
-            userAddress,
-            reservesData,
-            userConfig,
-            reserves,
-            reservesCount,
-            oracle,
-            DataTypes.Action_type.BORROW
+            userAddress, reservesData, userConfig, reserves, reservesCount, oracle, DataTypes.Action_type.BORROW
         );
 
-        if (vars.userCollateralBalanceETH == 0)
+        if (vars.userCollateralBalanceETH == 0) {
             revert VL_COLLATERAL_BALANCE_IS_0();
-        if (
-            vars.healthFactor <=
-            GenericLogic.HEALTH_FACTOR_LIQUIDATION_THRESHOLD
-        ) revert VL_HEALTH_FACTOR_LOWER_THAN_LIQUIDATION_THRESHOLD();
+        }
+        if (vars.healthFactor <= GenericLogic.HEALTH_FACTOR_LIQUIDATION_THRESHOLD) {
+            revert VL_HEALTH_FACTOR_LOWER_THAN_LIQUIDATION_THRESHOLD();
+        }
 
         //add the current already borrowed amount to the amount requested to calculate the total collateral needed.
-        vars.amountOfCollateralNeededETH = (vars.userBorrowBalanceETH +
-            amountInETH).percentDiv(vars.currentLtv); //LTV is calculated in percentage
-        if (vars.amountOfCollateralNeededETH > vars.userCollateralBalanceETH)
+        vars.amountOfCollateralNeededETH = (vars.userBorrowBalanceETH + amountInETH).percentDiv(vars.currentLtv); //LTV is calculated in percentage
+        if (vars.amountOfCollateralNeededETH > vars.userCollateralBalanceETH) {
             revert VL_COLLATERAL_CANNOT_COVER_NEW_BORROW();
+        }
     }
 
     /**
@@ -207,11 +193,7 @@ library ValidationLogic {
      * @param amountSent The amount sent for the repayment. Can be an actual value or uint(-1)
      * @param debt The borrow balance of the user
      */
-    function validateRepay(
-        DataTypes.ReserveData storage reserve,
-        uint256 amountSent,
-        uint256 debt
-    ) external view {
+    function validateRepay(DataTypes.ReserveData storage reserve, uint256 amountSent, uint256 debt) external view {
         if (!reserve.configuration.getActive()) revert VL_NO_ACTIVE_RESERVE();
         if (amountSent == 0) revert VL_INVALID_AMOUNT();
         if (debt == 0) revert VL_NO_DEBT_OF_SELECTED_TYPE();
@@ -230,7 +212,7 @@ library ValidationLogic {
         uint256 variableDebt,
         DataTypes.InterestRateMode currentRateMode
     ) external view {
-        (bool isActive, bool isFrozen, ) = reserve.configuration.getFlags();
+        (bool isActive, bool isFrozen,) = reserve.configuration.getFlags();
 
         if (!isActive) revert VL_NO_ACTIVE_RESERVE();
         if (isFrozen) revert VL_RESERVE_FROZEN();
@@ -238,10 +220,10 @@ library ValidationLogic {
             if (variableDebt == 0) revert VL_NO_VARIABLE_RATE_LOAN_IN_RESERVE();
 
             if (
-                !(!userConfig.isUsingAsCollateral(reserve.id) ||
-                    reserve.configuration.getLtv() == 0 ||
-                    variableDebt >
-                    IERC20(reserve.rTokenAddress).balanceOf(msg.sender))
+                !(
+                    !userConfig.isUsingAsCollateral(reserve.id) || reserve.configuration.getLtv() == 0
+                        || variableDebt > IERC20(reserve.rTokenAddress).balanceOf(msg.sender)
+                )
             ) revert VL_COLLATERAL_SAME_AS_BORROWING_CURRENCY();
         } else {
             revert VL_INVALID_INTEREST_RATE_MODE_SELECTED();
@@ -267,26 +249,27 @@ library ValidationLogic {
         uint256 reservesCount,
         address oracle
     ) external view {
-        uint256 underlyingBalance = IERC20(reserve.rTokenAddress).balanceOf(
-            msg.sender
-        );
+        uint256 underlyingBalance = IERC20(reserve.rTokenAddress).balanceOf(msg.sender);
 
-        if (underlyingBalance == 0)
+        if (underlyingBalance == 0) {
             revert VL_UNDERLYING_BALANCE_NOT_GREATER_THAN_0();
+        }
 
         if (
-            !(useAsCollateral ||
-                GenericLogic.balanceDecreaseAllowed(
-                    reserveAddress,
-                    msg.sender,
-                    underlyingBalance,
-                    reservesData,
-                    userConfig,
-                    reserves,
-                    reservesCount,
-                    oracle,
-                    DataTypes.Action_type.SET_USER_RESERVE_AS_COLLATERAL
-                ))
+            !(
+                useAsCollateral
+                    || GenericLogic.balanceDecreaseAllowed(
+                        reserveAddress,
+                        msg.sender,
+                        underlyingBalance,
+                        reservesData,
+                        userConfig,
+                        reserves,
+                        reservesCount,
+                        oracle,
+                        DataTypes.Action_type.SET_USER_RESERVE_AS_COLLATERAL
+                    )
+            )
         ) revert VL_DEPOSIT_ALREADY_IN_USE();
     }
 
@@ -296,14 +279,13 @@ library ValidationLogic {
      * @param amounts The amounts for each asset being borrowed
      *
      */
-    function validateFlashloan(
-        uint256[] memory modes,
-        address[] memory assets,
-        uint256[] memory amounts
-    ) internal pure {
-        if(
-            assets.length != amounts.length || modes.length != amounts.length            
-        ) revert VL_INCONSISTENT_FLASHLOAN_PARAMS();
+    function validateFlashloan(uint256[] memory modes, address[] memory assets, uint256[] memory amounts)
+        internal
+        pure
+    {
+        if (assets.length != amounts.length || modes.length != amounts.length) {
+            revert VL_INCONSISTENT_FLASHLOAN_PARAMS();
+        }
     }
 
     /**
@@ -322,29 +304,24 @@ library ValidationLogic {
         uint256 userHealthFactor,
         uint256 userVariableDebt
     ) internal view {
-        if (
-            !collateralReserve.configuration.getActive() ||
-            !principalReserve.configuration.getActive()
-        ) 
+        if (!collateralReserve.configuration.getActive() || !principalReserve.configuration.getActive()) {
             revert VL_NO_ACTIVE_RESERVE();
-    
-        if (
-            userHealthFactor >= GenericLogic.HEALTH_FACTOR_LIQUIDATION_THRESHOLD
-        )
-            revert LPCM_HEALTH_FACTOR_NOT_BELOW_THRESHOLD();
-        
+        }
 
-        bool isCollateralEnabled = collateralReserve
-            .configuration
-            .getLiquidationThreshold() >
-            0 &&
-            userConfig.isUsingAsCollateral(collateralReserve.id);
+        if (userHealthFactor >= GenericLogic.HEALTH_FACTOR_LIQUIDATION_THRESHOLD) {
+            revert LPCM_HEALTH_FACTOR_NOT_BELOW_THRESHOLD();
+        }
+
+        bool isCollateralEnabled = collateralReserve.configuration.getLiquidationThreshold() > 0
+            && userConfig.isUsingAsCollateral(collateralReserve.id);
 
         //if collateral isn't enabled as collateral by user, it cannot be liquidated
-        if (!isCollateralEnabled) 
+        if (!isCollateralEnabled) {
             revert LPCM_COLLATERAL_CANNOT_BE_LIQUIDATED();
-        if (userVariableDebt == 0) 
+        }
+        if (userVariableDebt == 0) {
             revert LPCM_SPECIFIED_CURRENCY_NOT_BORROWED_BY_USER();
+        }
     }
 
     /**
@@ -363,18 +340,10 @@ library ValidationLogic {
         uint256 reservesCount,
         address oracle
     ) internal view {
-        (, , , , uint256 healthFactor) = GenericLogic.calculateUserAccountData(
-            from,
-            reservesData,
-            userConfig,
-            reserves,
-            reservesCount,
-            oracle,
-            DataTypes.Action_type.TRANSFER
+        (,,,, uint256 healthFactor) = GenericLogic.calculateUserAccountData(
+            from, reservesData, userConfig, reserves, reservesCount, oracle, DataTypes.Action_type.TRANSFER
         );
 
-        if(
-            healthFactor < GenericLogic.HEALTH_FACTOR_LIQUIDATION_THRESHOLD            
-        ) revert VL_TRANSFER_NOT_ALLOWED();
+        if (healthFactor < GenericLogic.HEALTH_FACTOR_LIQUIDATION_THRESHOLD) revert VL_TRANSFER_NOT_ALLOWED();
     }
 }

@@ -7,7 +7,7 @@ import {IAaveIncentivesController} from "../interfaces/IAaveIncentivesController
 import {ILendingPoolAddressesProvider} from "../interfaces/ILendingPoolAddressesProvider.sol";
 
 import {WadRayMath} from "../libraries/math/WadRayMath.sol";
-import {CT_INVALID_MINT_AMOUNT,ONLY_ROUTER_CALL,CT_INVALID_BURN_AMOUNT} from "../libraries/helpers/Errors.sol";
+import {CT_INVALID_MINT_AMOUNT, ONLY_ROUTER_CALL, CT_INVALID_BURN_AMOUNT} from "../libraries/helpers/Errors.sol";
 import {DebtTokenBase} from "./base/DebtTokenBase.sol";
 
 /**

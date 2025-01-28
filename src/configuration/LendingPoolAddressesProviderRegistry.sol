@@ -17,7 +17,6 @@ contract LendingPoolAddressesProviderRegistry is Ownable, ILendingPoolAddressesP
     mapping(address => uint256) private _addressesProviders;
     address[] private _addressesProvidersList;
 
-
     error LPAPR_INVALID_ADDRESSES_PROVIDER_ID();
     error LPAPR_PROVIDER_NOT_REGISTERED();
 
@@ -51,7 +50,7 @@ contract LendingPoolAddressesProviderRegistry is Ownable, ILendingPoolAddressesP
      *
      */
     function registerAddressesProvider(address provider, uint256 id) external override onlyOwner {
-        if(id == 0) revert LPAPR_INVALID_ADDRESSES_PROVIDER_ID();
+        if (id == 0) revert LPAPR_INVALID_ADDRESSES_PROVIDER_ID();
 
         _addressesProviders[provider] = id;
         _addToAddressesProvidersList(provider);
@@ -64,7 +63,7 @@ contract LendingPoolAddressesProviderRegistry is Ownable, ILendingPoolAddressesP
      *
      */
     function unregisterAddressesProvider(address provider) external override onlyOwner {
-        if(_addressesProviders[provider] == 0) revert LPAPR_PROVIDER_NOT_REGISTERED();
+        if (_addressesProviders[provider] == 0) revert LPAPR_PROVIDER_NOT_REGISTERED();
         _addressesProviders[provider] = 0;
         emit AddressesProviderUnregistered(provider);
     }

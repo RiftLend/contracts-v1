@@ -15,7 +15,7 @@ import {GenericLogic} from "./libraries/logic/GenericLogic.sol";
 import {Helpers} from "./libraries/helpers/Helpers.sol";
 import {WadRayMath} from "./libraries/math/WadRayMath.sol";
 import {PercentageMath} from "./libraries/math/PercentageMath.sol";
-import {CollateralManagerErrors,LPCM_NO_ERRORS} from "./libraries/helpers/Errors.sol";
+import {CollateralManagerErrors, LPCM_NO_ERRORS} from "./libraries/helpers/Errors.sol";
 import {ValidationLogic} from "./libraries/logic/ValidationLogic.sol";
 import {ReserveLogic} from "./libraries/logic/ReserveLogic.sol";
 import {ReserveConfiguration} from "./libraries/configuration/ReserveConfiguration.sol";
@@ -110,7 +110,7 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
         ValidationLogic.validateLiquidationCall(
             collateralReserve, debtReserve, userConfig, vars.healthFactor, vars.userVariableDebt
         );
-        
+
         vars.collateralRToken = IRToken(collateralReserve.rTokenAddress);
         vars.userCollateralBalance = GenericLogic.getActionBasedUserBalance(
             user, address(vars.collateralRToken), DataTypes.Action_type.LIQUIDATION

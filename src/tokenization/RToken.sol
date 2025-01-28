@@ -13,7 +13,14 @@ import {IRVaultAsset} from "../interfaces/IRVaultAsset.sol";
 
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
 import {WadRayMath} from "../libraries/math/WadRayMath.sol";
-import {CT_CALLER_MUST_BE_LENDING_POOL,ONLY_ROUTER_CALL,ONLY_RELAYER_CALL,LP_CALLER_NOT_LENDING_POOL_CONFIGURATOR,CT_INVALID_BURN_AMOUNT,CT_INVALID_MINT_AMOUNT} from "../libraries/helpers/Errors.sol";
+import {
+    CT_CALLER_MUST_BE_LENDING_POOL,
+    ONLY_ROUTER_CALL,
+    ONLY_RELAYER_CALL,
+    LP_CALLER_NOT_LENDING_POOL_CONFIGURATOR,
+    CT_INVALID_BURN_AMOUNT,
+    CT_INVALID_MINT_AMOUNT
+} from "../libraries/helpers/Errors.sol";
 import {Initializable} from "@solady/utils/Initializable.sol";
 import {SuperPausable} from "../interop-std/src/utils/SuperPausable.sol";
 import {EventValidator, ValidationMode, Identifier} from "../libraries/EventValidator.sol";
@@ -84,10 +91,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     }
 
     function _onlyLendingPoolConfigurator() internal view {
-        require(
-            _addressesProvider.getLendingPoolConfigurator() == msg.sender,
-            LP_CALLER_NOT_LENDING_POOL_CONFIGURATOR
-        );
+        require(_addressesProvider.getLendingPoolConfigurator() == msg.sender, LP_CALLER_NOT_LENDING_POOL_CONFIGURATOR);
     }
 
     function getRevision() internal pure virtual returns (uint256) {

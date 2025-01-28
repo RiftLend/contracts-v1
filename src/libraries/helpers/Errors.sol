@@ -30,9 +30,9 @@ enum CollateralManagerErrors {
     HEALTH_FACTOR_LOWER_THAN_LIQUIDATION_THRESHOLD,
     INVALID_EQUAL_ASSETS_TO_SWAP,
     FROZEN_RESERVE
-    
 }
 //common errors
+
 string constant CALLER_NOT_POOL_ADMIN = "33"; // 'The caller must be the pool admin'
 string constant BORROW_ALLOWANCE_NOT_ENOUGH = "59"; // User borrows on behalf, but allowance are too small
 

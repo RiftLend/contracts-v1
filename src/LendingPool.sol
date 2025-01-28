@@ -52,25 +52,24 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     error LP_NO_MORE_RESERVES_ALLOWED();
     error RVAULT_NOT_FOUND_FOR_ASSET();
 
-
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                  Modifiers                                 */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    function onlyLendingPoolConfigurator() internal view{
-        if(
-            _addressesProvider.getLendingPoolConfigurator() != msg.sender
-        ) revert LP_CALLER_NOT_LENDING_POOL_CONFIGURATOR();
+    function onlyLendingPoolConfigurator() internal view {
+        if (_addressesProvider.getLendingPoolConfigurator() != msg.sender) {
+            revert LP_CALLER_NOT_LENDING_POOL_CONFIGURATOR();
+        }
     }
 
     function onlyRouter() internal view {
-        if(_addressesProvider.getRouter() != msg.sender) revert ONLY_ROUTER_CALL();
+        if (_addressesProvider.getRouter() != msg.sender) revert ONLY_ROUTER_CALL();
     }
 
     function onlyRouterOrSelf() internal view {
-        if(
-            !(_addressesProvider.getRouter() == msg.sender || msg.sender == address(this))
-        ) revert ONLY_ROUTER_OR_SELF_CALL();
+        if (!(_addressesProvider.getRouter() == msg.sender || msg.sender == address(this))) {
+            revert ONLY_ROUTER_OR_SELF_CALL();
+        }
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -254,7 +253,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             )
         );
 
-        if(!success) revert LP_LIQUIDATION_CALL_FAILED();
+        if (!success) revert LP_LIQUIDATION_CALL_FAILED();
         if (!success) {
             (uint256 returnCode, string memory returnMessage) = abi.decode(result, (uint256, string));
             require(returnCode == 0, string(abi.encodePacked(returnMessage)));
@@ -311,9 +310,9 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             IRToken(rTokenAddresses[vars.i]).transferUnderlyingTo(receiverAddress, amounts[vars.i], block.chainid);
         }
 
-        if(
-            !vars.receiver.executeOperation(assets, amounts, premiums, sender, params)            
-        ) revert LP_INVALID_FLASH_LOAN_EXECUTOR_RETURN();
+        if (!vars.receiver.executeOperation(assets, amounts, premiums, sender, params)) {
+            revert LP_INVALID_FLASH_LOAN_EXECUTOR_RETURN();
+        }
 
         bool borrowExecuted = false;
         for (vars.i = 0; vars.i < assets.length; vars.i++) {
@@ -465,7 +464,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         uint256 balanceFromBefore,
         uint256 balanceToBefore
     ) external whenNotPaused {
-        if(msg.sender != _reserves[asset].rTokenAddress) revert LP_CALLER_MUST_BE_AN_RTOKEN();
+        if (msg.sender != _reserves[asset].rTokenAddress) revert LP_CALLER_MUST_BE_AN_RTOKEN();
 
         ValidationLogic.validateTransfer(
             from, _reserves, _usersConfig[from], _reservesList, _reservesCount, _addressesProvider.getPriceOracle()
@@ -508,7 +507,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     ) external {
         onlyLendingPoolConfigurator();
 
-        if(asset.code.length == 0) revert LP_NOT_CONTRACT();
+        if (asset.code.length == 0) revert LP_NOT_CONTRACT();
 
         _reserves[asset].init(rTokenAddress, superAsset, variableDebtAddress, interestRateStrategyAddress);
         IERC20(IRVaultAsset(asset).asset()).approve(asset, type(uint256).max);
@@ -611,7 +610,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     function _addReserveToList(address asset) internal {
         uint256 reservesCount = _reservesCount;
 
-        if(reservesCount >= _maxNumberOfReserves) revert LP_NO_MORE_RESERVES_ALLOWED();
+        if (reservesCount >= _maxNumberOfReserves) revert LP_NO_MORE_RESERVES_ALLOWED();
 
         bool reserveAlreadyAdded = _reserves[asset].id != 0 || _reservesList[0] == asset;
 
@@ -625,7 +624,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
 
     function getRVaultAssetOrRevert(address asset) public view returns (address rVaultAsset) {
         rVaultAsset = _rVaultAsset[asset];
-        if(rVaultAsset == address(0)) revert RVAULT_NOT_FOUND_FOR_ASSET();
+        if (rVaultAsset == address(0)) revert RVAULT_NOT_FOUND_FOR_ASSET();
     }
 
     /**

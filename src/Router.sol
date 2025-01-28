@@ -8,19 +8,31 @@ import {IRToken} from "src/interfaces/IRToken.sol";
 import {IRVaultAsset} from "src/interfaces/IRVaultAsset.sol";
 import {IVariableDebtToken} from "src/interfaces/IVariableDebtToken.sol";
 import {ILendingPoolAddressesProvider} from "src/interfaces/ILendingPoolAddressesProvider.sol";
-import "src/interfaces/ILendingPool.sol";
+import {
+    Deposit,
+    Withdraw,
+    Borrow,
+    Repay,
+    FlashLoan,
+    CrossChainInitiateFlashloan,
+    CrossChainDeposit,
+    CrossChainLiquidationCall,
+    CrossChainBorrow,
+    CrossChainWithdraw,
+    CrossChainRepay,
+    CrossChainRepayFinalize,
+    ILendingPool
+    
+} from "src/interfaces/ILendingPool.sol";
 
 import {Initializable} from "@solady/utils/Initializable.sol";
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
 import {ReserveLogic} from "src/libraries/logic/ReserveLogic.sol";
-import {LP_CALLER_NOT_LENDING_POOL_CONFIGURATOR} from "src/libraries/helpers/Errors.sol";
 import {SuperPausable} from "src/interop-std/src/utils/SuperPausable.sol";
-import {Predeploys} from "src/libraries/Predeploys.sol";
 import {EventValidator, ValidationMode, Identifier} from "src/libraries/EventValidator.sol";
 import {DataTypes} from "src/libraries/types/DataTypes.sol";
 import {ReserveLogic} from "src/libraries/logic/ReserveLogic.sol";
 import {MessagingFee} from "src/libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
-import {console} from "forge-std/console.sol";
 
 contract Router is Initializable, SuperPausable {
     using SafeERC20 for IERC20;
@@ -30,9 +42,9 @@ contract Router is Initializable, SuperPausable {
     uint256 internal constant ROUTER_REVISION = 0x1;
 
     ILendingPool internal lendingPool;
-    ILendingPoolAddressesProvider internal addressesProvider;
+    address internal addressesProvider;
+    address internal eventValidator;
     address internal relayer;
-    EventValidator internal eventValidator;
     uint8 internal pool_type;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -40,23 +52,7 @@ contract Router is Initializable, SuperPausable {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     error NOT_RELAYER();
-    error LP_CALLER_NOT_LENDING_POOL_CONFIGURATOR();
-
-    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                  Modifiers                                 */
-    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-
-    modifier onlyRelayer() {
-        if(addressesProvider.getRelayer()!= msg.sender) revert NOT_RELAYER();
-        _;
-    }
-
-    modifier onlyLendingPoolConfigurator() {
-        if (addressesProvider.getLendingPoolConfigurator() != msg.sender) revert LP_CALLER_NOT_LENDING_POOL_CONFIGURATOR();
-        _;
-    }
-
-    
+    error ONLY_LP_CONFIGURATOR();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                  External Functions                        */
@@ -67,10 +63,13 @@ contract Router is Initializable, SuperPausable {
      * @param _lendingPool The address of the LendingPool contract
      * @param _addressesProvider The address of the LendingPoolAddressesProvider contract
      */
-    function initialize(address _lendingPool, address _addressesProvider, address _eventValidator) public initializer {
+    function initialize(address _lendingPool, address _addressesProvider, address _eventValidator)
+        external
+        initializer
+    {
         lendingPool = ILendingPool(_lendingPool);
-        addressesProvider = ILendingPoolAddressesProvider(_addressesProvider);
-        eventValidator = EventValidator(_eventValidator);
+        addressesProvider = _addressesProvider;
+        eventValidator = _eventValidator;
         pool_type = ILendingPool(lendingPool).pool_type();
     }
 
@@ -80,13 +79,14 @@ contract Router is Initializable, SuperPausable {
         bytes[] calldata _data,
         bytes calldata _proof,
         uint256[] calldata _logIndex
-    ) external onlyRelayer whenNotPaused {
+    ) external whenNotPaused {
+        if (ILendingPoolAddressesProvider(addressesProvider).getRelayer() != msg.sender) revert NOT_RELAYER();
         if (_mode == ValidationMode.CROSS_L2_PROVER_RECEIPT) {
-            eventValidator.validate(_mode, _identifier[0], _data, _logIndex, _proof);
+            EventValidator(eventValidator).validate(_mode, _identifier[0], _data, _logIndex, _proof);
         }
         for (uint256 i = 0; i < _identifier.length; i++) {
             if (_mode != ValidationMode.CUSTOM && _mode != ValidationMode.CROSS_L2_PROVER_RECEIPT) {
-                eventValidator.validate(_mode, _identifier[i], _data, _logIndex, _proof);
+                EventValidator(eventValidator).validate(_mode, _identifier[i], _data, _logIndex, _proof);
             }
             _dispatch(_identifier[i], _data[i]);
         }
@@ -99,12 +99,6 @@ contract Router is Initializable, SuperPausable {
         /*                     DEPOSIT DISPATCH                       */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-        // A B
-        // 1 0 old amount
-        //   local balance of RVaultAsset
-        // 1 1
-
-        // 1  -1
         if (selector == Deposit.selector && _identifier.chainId != block.chainid) {
             (, address asset, uint256 amount, address onBehalfOf,, uint256 mintMode, uint256 amountScaled) =
                 abi.decode(_data[32:], (address, address, uint256, address, uint16, uint256, uint256));
@@ -181,13 +175,13 @@ contract Router is Initializable, SuperPausable {
                 abi.decode(_data[64:], (address, address, uint256, address, uint256));
 
             address rVaultAsset = lendingPool.getRVaultAssetOrRevert(asset);
-            DataTypes.ReserveData memory reserve = lendingPool.getReserveData(rVaultAsset);
+            address reserve_superAsset = lendingPool.getReserveData(rVaultAsset).superAsset;
 
             IERC20(asset).safeTransferFrom(sender, address(this), amount);
             if (pool_type == 1) {
-                IERC20(asset).approve(reserve.superAsset, amount);
-                ISuperAsset(reserve.superAsset).deposit(address(this), amount);
-                IERC20(reserve.superAsset).approve(rVaultAsset, amount);
+                IERC20(asset).approve(reserve_superAsset, amount);
+                ISuperAsset(reserve_superAsset).deposit(address(this), amount);
+                IERC20(reserve_superAsset).approve(rVaultAsset, amount);
                 IRVaultAsset(rVaultAsset).deposit(amount, address(this));
             } else {
                 IERC20(asset).safeTransfer(address(this), amount);
@@ -385,20 +379,7 @@ contract Router is Initializable, SuperPausable {
         }
     }
 
-    /**
-     * @dev Allows depositors to enable/disable a specific deposited asset as collateral across multiple chains
-     * @param asset The address of the underlying asset deposited
-     * @param useAsCollateral `true` if the user wants to use the deposit as collateral, `false` otherwise
-     * @param chainIds Array of chain IDs where the collateral setting should be updated
-     */
-    function setUserUseReserveAsCollateral(address asset, bool[] calldata useAsCollateral, uint256[] calldata chainIds)
-        external
-        whenNotPaused
-    {
-        for (uint256 i = 0; i < chainIds.length; i++) {
-            emit SetUserUseReserveAsCollateralCrossChain(chainIds[i], msg.sender, asset, useAsCollateral[i]);
-        }
-    }
+  
 
     /**
      * @dev Function to liquidate a non-healthy position collateral-wise, with Health Factor below 1
@@ -440,11 +421,11 @@ contract Router is Initializable, SuperPausable {
      * - Only callable by the LendingPoolConfigurator contract
      * @param val `true` to pause the reserve, `false` to un-pause it
      */
-    function setPause(bool val) external onlyLendingPoolConfigurator {
-        if (val) {
-            _pause();
-        } else {
-            _unpause();
+    function setPause(bool val) external {
+        if (ILendingPoolAddressesProvider(addressesProvider).getLendingPoolConfigurator() != msg.sender) {
+            revert ONLY_LP_CONFIGURATOR();
         }
+        if (val) _pause();
+        else _unpause();
     }
 }

@@ -39,17 +39,6 @@ library DataTypes {
         VARIABLE
     }
 
-    enum Chain_Cluster_Types {
-        NONE,
-        SUPER_CHAIN,
-        OTHER
-    }
-
-    enum INTRA_CLUSTER_SERVICE_CHOICE {
-        SUPERCHAIN,
-        OFT
-    }
-
     struct BungeeBridgeOrder {
         bytes32 id;
         // 0 for INIT - initiated
