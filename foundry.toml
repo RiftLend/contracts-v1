@@ -3,7 +3,7 @@ src = "src"
 script = "scripts"
 out = "out"
 libs = ["lib"]
-via_ir = true
+via_ir = false
 optimizer = false
 optimizer_runs = 100
 

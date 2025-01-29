@@ -180,7 +180,6 @@ event ReserveUsedAsCollateral(address user, address asset, bool useAsCollateral)
 
 event CrossChainInitiateFlashloan(DataTypes.InitiateFlashloanParams flashloanParams);
 
-
 interface ILendingPool {
     /**
      * @dev Functions to deposit/withdraw into the reserve

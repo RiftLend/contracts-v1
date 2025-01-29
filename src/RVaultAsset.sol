@@ -22,6 +22,7 @@ import {DataTypes} from "src/libraries/types/DataTypes.sol";
 import {OFTLogic} from "src/libraries/logic/OFTLogic.sol";
 import {OptionsBuilder} from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OptionsBuilder.sol";
 import {OFTMsgCodec} from "src/libraries/helpers/layerzero/OFTMsgCodec.sol";
+import {RVaultAssetInitializeParams} from "src/interfaces/IRVaultAsset.sol";
 
 contract RVaultAsset is Initializable, SuperOwnable, OFT {
     using SafeERC20 for IERC20;
@@ -77,44 +78,29 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
         _;
     }
 
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           Constructor                      */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    /// @param underlying_ - the underlying asset of the rVaultAsset
-    /// @param provider_ - the provider of the rVaultAsset
-    /// @param lzEndpoint_ - the LayerZero endpoint of the rVaultAsset
-    /// @param delegate_ - the delegate of the rVaultAsset
-    /// @param name_ - the name of the rVaultAsset
-    /// @param symbol_ - the symbol of the rVaultAsset
-    /// @param decimals_ - the decimals of the rVaultAsset
+   
     function initialize(
-        address underlying_,
-        ILendingPoolAddressesProvider provider_,
-        address lzEndpoint_,
-        address delegate_,
-        string memory name_,
-        string memory symbol_,
-        uint8 decimals_,
-        uint256 withdrawCoolDownPeriod_,
-        uint256 maxDepositLimit_,
-        uint128 lzReceiveGasLimit_,
-        uint128 lzComposeGasLimit_
+        RVaultAssetInitializeParams memory params
     ) external initializer {
-        underlying = underlying_;
-        provider = provider_;
-        pool_type = provider.getPoolType();
+        underlying = params.underlying;
+        provider = params.provider;
+        pool_type = params.provider.getPoolType();
 
-        _name = name_;
-        _symbol = symbol_;
-        _decimals = decimals_;
-        withdrawCoolDownPeriod = withdrawCoolDownPeriod_;
-        maxDepositLimit = maxDepositLimit_;
-        lzReceiveGasLimit = lzReceiveGasLimit_;
-        lzComposeGasLimit = lzComposeGasLimit_;
+        _name = params.name;
+        _symbol = params.symbol;
+        _decimals = params.decimals;
+        withdrawCoolDownPeriod = params.withdrawCoolDownPeriod;
+        maxDepositLimit = params.maxDepositLimit;
+        lzReceiveGasLimit = params.lzReceiveGasLimit;
+        lzComposeGasLimit = params.lzComposeGasLimit;
 
         _initializeSuperOwner(uint64(block.chainid), msg.sender);
-        OFT__Init(lzEndpoint_, delegate_, decimals_);
+        OFT__Init(params.lzEndpoint, params.delegate, params.decimals);
     }
 
     /// @param shares - the amount of shares to mint
@@ -283,11 +269,6 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
     /*                 Privileged Functions                       */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    function setMaxDepositLimit(uint256 _maxDeposit) public onlySuperAdmin {
-        maxDepositLimit = _maxDeposit;
-    }
-    // set withdrawCoolDownPeriod
-
     function setWithdrawCoolDownPeriod(uint256 _withdrawCoolDownPeriod) public onlySuperAdmin {
         withdrawCoolDownPeriod = _withdrawCoolDownPeriod;
     }
@@ -296,14 +277,14 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
     function setChainToEid(uint256 _chainId, uint32 _eid) public onlySuperAdmin {
         chainToEid[_chainId] = _eid;
     }
-    // setters for setting lzReceiveGasLimit and lzComposeGasLimit
 
-    function setLzReceiveGasLimit(uint128 _lzReceiveGasLimit) public onlySuperAdmin {
+    function setAllLimits(uint128 _lzReceiveGasLimit, uint128 _lzComposeGasLimit, uint256 _maxDeposit)
+        external
+        onlySuperAdmin
+    {
         lzReceiveGasLimit = _lzReceiveGasLimit;
-    }
-
-    function setLzComposeGasLimit(uint128 _lzComposeGasLimit) public onlySuperAdmin {
         lzComposeGasLimit = _lzComposeGasLimit;
+        maxDepositLimit = _maxDeposit;
     }
 
     // setter for isSupported bungee target ( also a toggler by design)
@@ -355,52 +336,6 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
 
     function totalAssets() internal view returns (uint256) {
         return IERC20(underlying).balanceOf(address(this));
-    }
-
-    function redeem(uint256 shares, address receiver, address _owner) external returns (uint256 assets) {
-        assets = shares;
-        withdraw(assets, receiver, _owner);
-    }
-
-    // Preview and conversion functions as provided earlier
-    function previewMint(uint256 shares) external pure returns (uint256 assets) {
-        return shares;
-    }
-
-    function previewDeposit(uint256 assets) external pure returns (uint256 shares) {
-        return assets;
-    }
-
-    function previewWithdraw(uint256 assets) external pure returns (uint256 shares) {
-        return assets;
-    }
-
-    function previewRedeem(uint256 shares) external pure returns (uint256 assets) {
-        return shares;
-    }
-
-    function convertToAssets(uint256 shares) external pure returns (uint256 assets) {
-        return shares;
-    }
-
-    function convertToShares(uint256 assets) external pure returns (uint256 shares) {
-        return assets;
-    }
-
-    function maxDeposit(address) external pure returns (uint256) {
-        return type(uint256).max;
-    }
-
-    function maxMint(address) external pure returns (uint256) {
-        return type(uint256).max;
-    }
-
-    function maxWithdraw(address _owner) external view returns (uint256) {
-        return balanceOf(_owner);
-    }
-
-    function maxRedeem(address _owner) external view returns (uint256) {
-        return balanceOf(_owner);
     }
 
     function _setOwner(address newOwner) internal override(Ownable, SuperOwnable) {

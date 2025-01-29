@@ -22,7 +22,6 @@ import {
     CrossChainRepay,
     CrossChainRepayFinalize,
     ILendingPool
-    
 } from "src/interfaces/ILendingPool.sol";
 
 import {Initializable} from "@solady/utils/Initializable.sol";
@@ -98,7 +97,7 @@ contract Router is Initializable, SuperPausable {
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*                     DEPOSIT DISPATCH                       */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-
+        
         if (selector == Deposit.selector && _identifier.chainId != block.chainid) {
             (, address asset, uint256 amount, address onBehalfOf,, uint256 mintMode, uint256 amountScaled) =
                 abi.decode(_data[32:], (address, address, uint256, address, uint16, uint256, uint256));
@@ -378,8 +377,6 @@ contract Router is Initializable, SuperPausable {
             );
         }
     }
-
-  
 
     /**
      * @dev Function to liquidate a non-healthy position collateral-wise, with Health Factor below 1

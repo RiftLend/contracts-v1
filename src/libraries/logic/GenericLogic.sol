@@ -151,23 +151,25 @@ library GenericLogic {
         if (userConfig.isEmpty()) {
             return (0, 0, 0, 0, type(uint256).max);
         }
+        DataTypes.ReserveData storage currentReserve;
+        uint256 user_balance;
+
         for (vars.i = 0; vars.i < reservesCount; vars.i++) {
             if (!userConfig.isUsingAsCollateralOrBorrowing(vars.i)) {
                 continue;
             }
 
             vars.currentReserveAddress = reserves[vars.i];
-            DataTypes.ReserveData storage currentReserve = reservesData[vars.currentReserveAddress];
+            currentReserve = reservesData[vars.currentReserveAddress];
 
             (vars.ltv, vars.liquidationThreshold,, vars.decimals,) = currentReserve.configuration.getParams();
 
             vars.tokenUnit = 10 ** vars.decimals;
             vars.reserveUnitPrice = IPriceOracleGetter(oracle).getAssetPrice(vars.currentReserveAddress);
-
             if (vars.liquidationThreshold != 0 && userConfig.isUsingAsCollateral(vars.i)) {
-                uint256 user_rToken_balance = getActionBasedUserBalance(user, currentReserve.rTokenAddress, action_type);
+                user_balance = getActionBasedUserBalance(user, currentReserve.rTokenAddress, action_type);
 
-                vars.compoundedLiquidityBalance = user_rToken_balance;
+                vars.compoundedLiquidityBalance = user_balance;
 
                 uint256 liquidityBalanceETH = (vars.reserveUnitPrice * vars.compoundedLiquidityBalance) / vars.tokenUnit;
 
@@ -179,9 +181,9 @@ library GenericLogic {
             }
 
             if (userConfig.isBorrowing(vars.i)) {
-                uint256 user_vdebt_balance = IERC20(currentReserve.variableDebtTokenAddress).balanceOf(user);
+                user_balance = IERC20(currentReserve.variableDebtTokenAddress).balanceOf(user);
 
-                vars.compoundedBorrowBalance = vars.compoundedBorrowBalance + user_vdebt_balance;
+                vars.compoundedBorrowBalance = vars.compoundedBorrowBalance + user_balance;
 
                 vars.totalDebtInETH =
                     vars.totalDebtInETH + ((vars.reserveUnitPrice * vars.compoundedBorrowBalance) / vars.tokenUnit);

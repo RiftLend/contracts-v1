@@ -51,7 +51,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     error LP_NOT_CONTRACT();
     error LP_NO_MORE_RESERVES_ALLOWED();
     error RVAULT_NOT_FOUND_FOR_ASSET();
-
+    error LP_RESERVE_NOT_FOUND();
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                  Modifiers                                 */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -241,7 +241,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         IRVaultAsset(rVaultDebtAsset).mint(debtToCover, address(this));
 
         //solium-disable-next-lines
-        (bool success, bytes memory result) = collateralManager.delegatecall(
+        (bool success, ) = collateralManager.delegatecall(
             abi.encodeWithSignature(
                 "liquidationCall(address,address,address,address,uint256,bool)",
                 sender,
@@ -254,10 +254,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         );
 
         if (!success) revert LP_LIQUIDATION_CALL_FAILED();
-        if (!success) {
-            (uint256 returnCode, string memory returnMessage) = abi.decode(result, (uint256, string));
-            require(returnCode == 0, string(abi.encodePacked(returnMessage)));
-        }
+       
     }
 
     /**
@@ -627,6 +624,10 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         if (rVaultAsset == address(0)) revert RVAULT_NOT_FOUND_FOR_ASSET();
     }
 
+    function getReserveById(uint8 id) public view returns (address asset) {
+        asset = _reservesList[id];
+        if (asset == address(0)) revert LP_RESERVE_NOT_FOUND();
+    }
     /**
      * @dev Set the _pause state of a reserve
      * - Only callable by the LendingPoolConfigurator contract

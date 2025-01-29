@@ -41,11 +41,11 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
     error LPC_INVALID_CONFIGURATION();
     error LPC_RESERVE_LIQUIDITY_NOT_0();
 
-    function onlyPoolAdmin() internal {
+    function onlyPoolAdmin() internal view {
         if (addressesProvider.getPoolAdmin() != msg.sender) revert CALLER_NOT_POOL_ADMIN();
     }
 
-    function onlyProxyAdminOwner() internal {
+    function onlyProxyAdminOwner() internal view {
         if (ProxyAdmin(proxyAdmin).owner() != msg.sender) revert NOT_PROXY_ADMIN_OWNER();
     }
 

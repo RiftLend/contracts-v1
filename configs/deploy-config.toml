@@ -18,7 +18,8 @@ decimals = 18
 
 [rvault_asset]
 salt="riftlend RVaultAsset"
-max_deposit_limit=86400
+max_deposit_limit=10000
+withdraw_cool_down_period=86400
 name = "rVaultAsset-TUSDC"
 symbol = "rVaultAsset-rTUSDC"
 
@@ -80,6 +81,10 @@ address = "0xf40Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 
 [router]
 salt = "riftlend router"
+
+[layerzero]
+lz_receive_gas_limit=200000
+lz_compose_gas_limit=500000
 
 [forks]
 chain_a_rpc_url = "https://eth-mainnet.g.alchemy.com/v2/xFdbkJe3ZbpjHxU2qIpikVBgN7TIMyX8"

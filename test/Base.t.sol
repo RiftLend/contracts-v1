@@ -15,7 +15,7 @@ import {ICrossL2Prover} from "../src/interfaces/ICrossL2Prover.sol";
 import {ISuperAsset} from "../src/interfaces/ISuperAsset.sol";
 import {IAaveIncentivesController} from "../src/interfaces/IAaveIncentivesController.sol";
 import {ILendingPool} from "../src/interfaces/ILendingPool.sol";
-import {IRVaultAsset} from "../src/interfaces/IRVaultAsset.sol";
+import {IRVaultAsset,RVaultAssetInitializeParams} from "../src/interfaces/IRVaultAsset.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
 /*                    Testing Imports                           */
@@ -239,6 +239,8 @@ contract Base is TestHelperOz5 {
         // Set LendingPool Implementation
         vm.prank(owner);
         lpAddressProvider1.setLendingPoolImpl(address(implementationLp));
+        vm.prank(owner);
+        lpAddressProvider2.setLendingPoolImpl(address(implementationLp));
         proxyLp = LendingPool(lpAddressProvider1.getLendingPool());
         vm.label(address(proxyLp), "proxyLp");
 
@@ -280,23 +282,30 @@ contract Base is TestHelperOz5 {
         // Deploy RVaultAsset
         vm.startPrank(owner);
         rVaultAsset1 = address(new RVaultAsset{salt: "rVaultAsset1Impl"}());
+
+        uint256 maxDepositLimit =1 ether* vm.parseTomlUint(deployConfig, ".rvault_asset.max_deposit_limit");
+        uint256 withdrawCoolDownPeriod= vm.parseTomlUint(deployConfig, ".rvault_asset.withdraw_cool_down_period");
+        uint128 lzReceiveGasLimit= uint128(vm.parseTomlUint(deployConfig, ".layerzero.lz_receive_gas_limit"));
+        uint128 lzComposeGasLimit = uint128(vm.parseTomlUint(deployConfig, ".layerzero.lz_compose_gas_limit"));
         IRVaultAsset(rVaultAsset1).initialize(
-            address(superAsset),
+            RVaultAssetInitializeParams(address(superAsset),
             ILendingPoolAddressesProvider(address(lpAddressProvider1)),
             address(lzEndpoint),
             _delegate,
             rVaultAssetTokenName1,
             rVaultAssetTokenSymbol1,
             underlyingAssetDecimals,
-            1 days,
-            1000 ether,
-            200000,
-            500000
+            withdrawCoolDownPeriod,
+            maxDepositLimit,
+            lzReceiveGasLimit,
+            lzComposeGasLimit
+            )
+            
         );
-        IRVaultAsset(rVaultAsset1).setMaxDepositLimit(100000 ether);
-
+        
         rVaultAsset2 = address(new RVaultAsset{salt: "rVaultAsset2Impl"}());
         IRVaultAsset(rVaultAsset2).initialize(
+            RVaultAssetInitializeParams(
             address(underlyingAsset),
             ILendingPoolAddressesProvider(address(lpAddressProvider2)),
             address(lzEndpoint),
@@ -308,6 +317,7 @@ contract Base is TestHelperOz5 {
             1000 ether,
             200000,
             500000
+            )
         );
         vm.stopPrank();
 
