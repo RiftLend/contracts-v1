@@ -2,7 +2,7 @@
 pragma solidity 0.8.25;
 
 import "./LendingPoolTestBorrow.t.sol";
-import {CrossChainRepay, CrossChainRepayFinalize, Repay} from "src/interfaces/ILendingPool.sol";
+import {ILendingPool} from "src/interfaces/ILendingPool.sol";
 import "forge-std/Vm.sol";
 import {DataTypes} from "src/libraries/types/DataTypes.sol";
 
@@ -15,9 +15,18 @@ contract LendingPoolTestRepay is LendingPoolTestBorrow {
 
     function test_lpRepay() external {
         super.setUp();
+
         uint256[] memory amounts;
-        address onBehalfOf;
         uint256[] memory chainIds;
+        Identifier[] memory _identifier;
+        bytes[] memory _eventData;
+        uint256[] memory _logindex;
+        bytes[] memory events;
+        Vm.Log[] memory entries;
+        uint256[] memory debtChains;
+        bytes32 _selector;
+        address onBehalfOf;
+        address originAddress = address(0x4200000000000000000000000000000000000023);
 
         _borrow(amounts);
         (amounts, onBehalfOf,, chainIds) = getActionXConfig();
@@ -45,34 +54,34 @@ contract LendingPoolTestRepay is LendingPoolTestBorrow {
         vm.recordLogs();
         vm.prank(user1);
         router.repay(asset, onBehalfOf, _repayParams);
-        Vm.Log[] memory entries = vm.getRecordedLogs();
+
+        entries = vm.getRecordedLogs();
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*                 Processing Cross-Chain Repay Event        */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
         console.log("Processing Cross-Chain Repay Event ");
 
-        Identifier[] memory _identifier = new Identifier[](entries.length);
-        bytes[] memory _eventData = new bytes[](entries.length);
-        uint256[] memory _logindex = new uint256[](entries.length);
-        address originAddress = address(0x4200000000000000000000000000000000000023);
-
-        uint256 amount;
-        address sender;
-        bytes32 _selector = CrossChainRepay.selector;
-        bytes memory eventData;
-        uint256 fundChainId;
-        uint256 debtChainId;
+        _identifier = new Identifier[](entries.length);
+        _eventData = new bytes[](entries.length);
+        _logindex = new uint256[](entries.length);
+        _selector = ILendingPool.CrossChainRepay.selector;
 
         for (uint256 index = 0; index < entries.length; index++) {
-            eventData = entries[index].data;
             _identifier[index] = Identifier(originAddress, block.number, 0, block.timestamp, block.chainid);
             _logindex[index] = 0;
 
-            (fundChainId, sender, asset, amount, onBehalfOf, debtChainId) =
-                abi.decode(eventData, (uint256, address, address, uint256, address, uint256));
+            (DataTypes.CrosschainRepayData memory crossChainRepayData) = abi.decode(entries[index].data, (DataTypes.CrosschainRepayData));
 
-            _eventData[index] = abi.encode(_selector, fundChainId, sender, asset, amount, onBehalfOf, debtChainId);
+            _eventData[index] = abi.encode(
+                _selector,
+                crossChainRepayData.fundChainId,
+                crossChainRepayData.sender,
+                crossChainRepayData.asset,
+                crossChainRepayData.amount,
+                crossChainRepayData.onBehalfOf,
+                crossChainRepayData.debtChainId
+            );
         }
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*       Dispatch and get CrossChainRepayFinalize event     */
@@ -91,18 +100,23 @@ contract LendingPoolTestRepay is LendingPoolTestBorrow {
         console.log("Dispatch and perform Actual repay on debtChain ");
 
         entries = vm.getRecordedLogs();
-        bytes[] memory events = EventUtils.findEventsBySelector(entries, CrossChainRepayFinalize.selector);
+        events = EventUtils.findEventsBySelector(entries, ILendingPool.CrossChainRepayFinalize.selector);
 
-        uint256[] memory debtChains = new uint256[](events.length);
+        debtChains = new uint256[](events.length);
 
         for (uint256 index = 0; index < events.length; index++) {
-            eventData = events[index];
-            (debtChainId, sender, onBehalfOf, amount, asset) =
-                abi.decode(eventData, (uint256, address, address, uint256, address));
+            (DataTypes.CrosschainRepayFinalizeData memory crossChainRepayFinalizeData) =
+                abi.decode( events[index], (DataTypes.CrosschainRepayFinalizeData));
 
-            _eventData[index] =
-                abi.encode(CrossChainRepayFinalize.selector, debtChainId, sender, onBehalfOf, amount, asset);
-            debtChains[index] = debtChainId;
+            _eventData[index] = abi.encode(
+                ILendingPool.CrossChainRepayFinalize.selector,
+                crossChainRepayFinalizeData.debtChainId,
+                crossChainRepayFinalizeData.sender,
+                crossChainRepayFinalizeData.onBehalfOf,
+                crossChainRepayFinalizeData.amount,
+                crossChainRepayFinalizeData.asset
+            );
+            debtChains[index] = crossChainRepayFinalizeData.debtChainId;
         }
 
         vm.recordLogs();
@@ -119,18 +133,20 @@ contract LendingPoolTestRepay is LendingPoolTestBorrow {
         console.log("Cross-Chain State Sync : Repay");
         uint256 srcChain = block.chainid;
         entries = vm.getRecordedLogs();
-        events = EventUtils.findEventsBySelector(entries, Repay.selector);
-
-        address repayer;
-        uint256 mode;
-        uint256 amountBurned;
+        events = EventUtils.findEventsBySelector(entries, ILendingPool.Repay.selector);
 
         for (uint256 index = 0; index < events.length; index++) {
-            eventData = events[index];
 
-            (asset, amount, sender, repayer, mode, amountBurned) =
-                abi.decode(eventData, (address, uint256, address, address, uint256, uint256));
-            _eventData[index] = abi.encode(Repay.selector, asset, amount, sender, repayer, mode, amountBurned);
+            (DataTypes.RepayEventParams memory repayEventParams) = abi.decode(events[index], (DataTypes.RepayEventParams));
+            _eventData[index] = abi.encode(
+                ILendingPool.Repay.selector,
+                repayEventParams.asset,
+                repayEventParams.amount,
+                repayEventParams.sender,
+                repayEventParams.repayer,
+                repayEventParams.mode,
+                repayEventParams.amountBurned
+            );
         }
 
         for (uint256 i = 0; i < supportedChains.length; i++) {

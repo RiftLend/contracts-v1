@@ -126,10 +126,10 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             unchecked {
                 _usersConfig[onBehalfOf].setUsingAsCollateral(reserve.id, true);
             }
-            emit ReserveUsedAsCollateralEnabled(rVaultAsset, onBehalfOf);
+            emit ILendingPool.ReserveUsedAsCollateralEnabled(rVaultAsset, onBehalfOf);
         }
 
-        emit Deposit(sender, rVaultAsset, amount, onBehalfOf, referralCode, mintMode, amountScaled);
+        emit ILendingPool.Deposit(DataTypes.DepositEventParams(sender, rVaultAsset, amount, onBehalfOf, referralCode, mintMode, amountScaled));
     }
 
     function withdraw(address sender, address asset, uint256 amount, address to, uint256 toChainId) external {
@@ -147,23 +147,22 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             userBalance,
             _usersConfig[sender],
             amountToWithdraw,
-            _reserves,
-            _reservesList,
             _reservesCount,
-            _addressesProvider.getPriceOracle()
+            _addressesProvider.getPriceOracle(),
+            address(this)
         );
 
         _updateStates(reserve, rVaultAsset, 0, amountToWithdraw, UPDATE_RATES_AND_STATES_MASK);
 
         if (amountToWithdraw == userBalance) {
             _usersConfig[sender].setUsingAsCollateral(reserve.id, false);
-            emit ReserveUsedAsCollateralDisabled(rVaultAsset, sender);
+            emit ILendingPool.ReserveUsedAsCollateralDisabled(rVaultAsset, sender);
         }
 
         (uint256 mode, uint256 amountScaled) =
             IRToken(rToken).burn(sender, to, toChainId, amountToWithdraw, reserve.liquidityIndex);
 
-        emit Withdraw(sender, rVaultAsset, to, amountToWithdraw, mode, amountScaled);
+        emit ILendingPool.Withdraw(DataTypes.WithdrawEventParams(sender, rVaultAsset, to, amountToWithdraw, mode, amountScaled));
     }
 
     function borrow(
@@ -181,7 +180,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         address rToken = _reserves[rVaultAsset].rTokenAddress;
 
         _executeBorrow(
-            ExecuteBorrowParams(
+            DataTypes.ExecuteBorrowParams(
                 asset, sender, onBehalfOf, sendToChainId, amount, rVaultAsset, rToken, referralCode, true
             )
         );
@@ -216,7 +215,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         IRVaultAsset(rVaultAsset).deposit(paybackAmount, rToken);
         IRToken(rToken).handleRepayment(onBehalfOf, paybackAmount);
 
-        emit Repay(asset, paybackAmount, onBehalfOf, sender, mode, amountBurned);
+        emit ILendingPool.Repay(DataTypes.RepayEventParams(asset, paybackAmount, onBehalfOf, sender, mode, amountBurned));
     }
 
     function liquidationCall(
@@ -241,7 +240,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         IRVaultAsset(rVaultDebtAsset).mint(debtToCover, address(this));
 
         //solium-disable-next-lines
-        (bool success, ) = collateralManager.delegatecall(
+        (bool success,) = collateralManager.delegatecall(
             abi.encodeWithSignature(
                 "liquidationCall(address,address,address,address,uint256,bool)",
                 sender,
@@ -254,7 +253,6 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         );
 
         if (!success) revert LP_LIQUIDATION_CALL_FAILED();
-       
     }
 
     /**
@@ -288,7 +286,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     ) external {
         onlyRouter();
 
-        FlashLoanLocalVars memory vars;
+        DataTypes.FlashLoanLocalVars memory vars;
 
         ValidationLogic.validateFlashloan(modes, assets, amounts);
 
@@ -343,7 +341,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
                 // If the user chose to not return the funds, the system checks if there is enough collateral and
                 // eventually opens a debt position
                 _executeBorrow(
-                    ExecuteBorrowParams(
+                    DataTypes.ExecuteBorrowParams(
                         assets[vars.i],
                         sender,
                         onBehalfOf,
@@ -357,15 +355,17 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
                 );
                 borrowExecuted = true;
             }
-            emit FlashLoan(
-                block.chainid,
-                borrowExecuted,
-                sender,
-                vars.currentAsset,
-                vars.currentAmount,
-                vars.currentPremium,
-                receiverAddress,
-                referralCode
+            emit ILendingPool.FlashLoan(
+                DataTypes.FlashLoanEventParams(
+                    block.chainid,
+                    borrowExecuted,
+                    sender,
+                    vars.currentAsset,
+                    vars.currentAmount,
+                    vars.currentPremium,
+                    receiverAddress,
+                    referralCode
+                )
             );
         }
     }
@@ -464,7 +464,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         if (msg.sender != _reserves[asset].rTokenAddress) revert LP_CALLER_MUST_BE_AN_RTOKEN();
 
         ValidationLogic.validateTransfer(
-            from, _reserves, _usersConfig[from], _reservesList, _reservesCount, _addressesProvider.getPriceOracle()
+            from, _usersConfig[from], _reservesCount, _addressesProvider.getPriceOracle(), address(this)
         );
 
         uint256 reserveId = _reserves[asset].id;
@@ -473,13 +473,13 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             if (balanceFromBefore - amount == 0) {
                 DataTypes.UserConfigurationMap storage fromConfig = _usersConfig[from];
                 fromConfig.setUsingAsCollateral(reserveId, false);
-                emit ReserveUsedAsCollateralDisabled(asset, from);
+                emit ILendingPool.ReserveUsedAsCollateralDisabled(asset, from);
             }
 
             if (balanceToBefore == 0 && amount != 0) {
                 DataTypes.UserConfigurationMap storage toConfig = _usersConfig[to];
                 toConfig.setUsingAsCollateral(reserveId, true);
-                emit ReserveUsedAsCollateralEnabled(asset, to);
+                emit ILendingPool.ReserveUsedAsCollateralEnabled(asset, to);
             }
         }
     }
@@ -552,7 +552,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         _reserves[asset].configuration.data = configuration;
     }
 
-    function _executeBorrow(ExecuteBorrowParams memory vars) internal {
+    function _executeBorrow(DataTypes.ExecuteBorrowParams memory vars) internal {
         DataTypes.ReserveData storage reserve = _reserves[vars.rVaultAsset];
         DataTypes.UserConfigurationMap storage userConfig = _usersConfig[vars.onBehalfOf];
 
@@ -561,15 +561,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             / 10 ** reserve.configuration.getDecimals();
 
         ValidationLogic.validateBorrow(
-            reserve,
-            vars.onBehalfOf,
-            vars.amount,
-            amountInETH,
-            _reserves,
-            userConfig,
-            _reservesList,
-            _reservesCount,
-            oracle
+            reserve, vars.onBehalfOf, vars.amount, amountInETH, userConfig, _reservesCount, oracle, address(this)
         );
 
         _updateStates(reserve, address(0), 0, 0, UPDATE_STATE_MASK);
@@ -591,16 +583,18 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             IRToken(vars.rTokenAddress).transferUnderlyingTo(vars.onBehalfOf, vars.amount, vars.sendToChainId);
         }
 
-        emit Borrow(
-            vars.rVaultAsset,
-            vars.amount,
-            vars.user,
-            vars.onBehalfOf,
-            vars.sendToChainId,
-            reserve.currentVariableBorrowRate,
-            mintMode,
-            amountScaled,
-            vars.referralCode
+        emit ILendingPool.Borrow(
+            DataTypes.BorrowEventParams(
+                vars.rVaultAsset,
+                vars.amount,
+                vars.user,
+                vars.onBehalfOf,
+                vars.sendToChainId,
+                reserve.currentVariableBorrowRate,
+                mintMode,
+                amountScaled,
+                vars.referralCode
+            )
         );
     }
 
@@ -624,10 +618,11 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         if (rVaultAsset == address(0)) revert RVAULT_NOT_FOUND_FOR_ASSET();
     }
 
-    function getReserveById(uint8 id) public view returns (address asset) {
+    function getReserveById(uint256 id) public view returns (address asset) {
         asset = _reservesList[id];
         if (asset == address(0)) revert LP_RESERVE_NOT_FOUND();
     }
+
     /**
      * @dev Set the _pause state of a reserve
      * - Only callable by the LendingPoolConfigurator contract

@@ -6,7 +6,7 @@ pragma solidity 0.8.25;
 /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
 import "./LendingPoolTestDeposit.t.sol";
-import {CrossChainBorrow, Borrow} from "src/interfaces/ILendingPool.sol";
+import {ILendingPool} from "src/interfaces/ILendingPool.sol";
 
 /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
 /*                    Contract Definition                        */
@@ -60,20 +60,22 @@ contract LendingPoolTestBorrow is LendingPoolTestDeposit {
         uint256[] memory _logindex = new uint256[](entries.length);
         address originAddress = address(0x4200000000000000000000000000000000000023);
 
-        uint256 amount;
-        address sender;
-        uint256 borrowFromChainId;
-
         bytes memory eventData = entries[0].data;
         _identifier[0] = Identifier(originAddress, block.number, 0, block.timestamp, block.chainid);
         _logindex[0] = 0;
 
-        (borrowFromChainId, sendToChainId, sender, asset, amount, onBehalfOf, referralCode) =
-            abi.decode(eventData, (uint256, uint256, address, address, uint256, address, uint16));
+        (DataTypes.CrosschainBorrowData memory crossChainBorrowData) = abi.decode(eventData, (DataTypes.CrosschainBorrowData));
 
-        bytes32 _selector = CrossChainBorrow.selector;
+        bytes32 _selector = ILendingPool.CrossChainBorrow.selector;
         _eventData[0] = abi.encode(
-            _selector, borrowFromChainId, bytes32(0), sendToChainId, sender, asset, amount, onBehalfOf, referralCode
+            _selector,
+            crossChainBorrowData.borrowFromChainId,
+            crossChainBorrowData.sendToChainId,
+            crossChainBorrowData.sender,
+            crossChainBorrowData.asset,
+            crossChainBorrowData.amount,
+            crossChainBorrowData.onBehalfOf,
+            crossChainBorrowData.referralCode
         );
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -90,32 +92,26 @@ contract LendingPoolTestBorrow is LendingPoolTestDeposit {
 
         assert(
             VariableDebtToken(address(proxyLp.getReserveData(address(rVaultAsset1)).variableDebtTokenAddress))
-                .crossChainUserBalance(user1) == amount
+                .crossChainUserBalance(user1) == crossChainBorrowData.amount
         );
 
         entries = vm.getRecordedLogs();
 
-        uint256 borrowRate;
-        uint256 mintMode;
-        uint256 amountScaled;
-        address reserve;
+        eventData = EventUtils.findEventsBySelector(entries, ILendingPool.Borrow.selector)[0];
 
-        eventData = EventUtils.findEventsBySelector(entries, Borrow.selector)[0];
-
-        (reserve, amount, sender, onBehalfOf, sendToChainId, borrowRate, mintMode, amountScaled, referralCode) =
-            abi.decode(eventData, (address, uint256, address, address, uint256, uint256, uint256, uint256, uint16));
+        (DataTypes.BorrowEventParams memory borrowEventParams) = abi.decode(eventData, (DataTypes.BorrowEventParams));
 
         _eventData[0] = abi.encode(
-            Borrow.selector,
-            reserve,
-            amount,
-            sender,
-            onBehalfOf,
-            sendToChainId,
-            borrowRate,
-            mintMode,
-            amountScaled,
-            referralCode
+            ILendingPool.Borrow.selector,
+            borrowEventParams.reserve,
+            borrowEventParams.amount,
+            borrowEventParams.sender,
+            borrowEventParams.onBehalfOf,
+            borrowEventParams.sendToChainId,
+            borrowEventParams.borrowRate,
+            borrowEventParams.mintMode,
+            borrowEventParams.amountScaled,
+            borrowEventParams.referralCode
         );
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/

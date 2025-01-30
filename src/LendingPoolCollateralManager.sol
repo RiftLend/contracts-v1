@@ -37,7 +37,6 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
     using PercentageMath for uint256;
 
     using ReserveLogic for DataTypes.ReserveData;
-    using ReserveConfiguration for DataTypes.ReserveConfigurationMap;
     using UserConfiguration for DataTypes.UserConfigurationMap;
 
     uint256 internal constant LIQUIDATION_CLOSE_FACTOR_PERCENT = 5000;
@@ -97,12 +96,11 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
 
         (,,,, vars.healthFactor) = GenericLogic.calculateUserAccountData(
             user,
-            _reserves,
             userConfig,
-            _reservesList,
             _reservesCount,
             _addressesProvider.getPriceOracle(),
-            DataTypes.Action_type.LIQUIDATION
+            DataTypes.Action_type.LIQUIDATION,
+            address(this)
         );
 
         // Use local balance for variable debt token for debt reserve
@@ -197,16 +195,18 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
         }
 
         emit LiquidationCall(
-            collateralRAsset,
-            debtRAsset,
-            user,
-            vars.actualDebtToLiquidate,
-            vars.maxCollateralToLiquidate,
-            sender,
-            receiveRToken,
-            variableDebtBurned,
-            collateralRTokenBurned,
-            liquidatorSentScaled
+            LiquidationCallEventParams(
+                collateralRAsset,
+                debtRAsset,
+                user,
+                vars.actualDebtToLiquidate,
+                vars.maxCollateralToLiquidate,
+                sender,
+                receiveRToken,
+                variableDebtBurned,
+                collateralRTokenBurned,
+                liquidatorSentScaled
+            )
         );
 
         return (uint256(CollateralManagerErrors.NO_ERROR), LPCM_NO_ERRORS);
@@ -255,8 +255,9 @@ contract LendingPoolCollateralManager is ILendingPoolCollateralManager, Initiali
         vars.collateralPrice = oracle.getAssetPrice(collateralAsset);
         vars.debtAssetPrice = oracle.getAssetPrice(debtAsset);
 
-        (,, vars.liquidationBonus, vars.collateralDecimals,) = collateralReserve.configuration.getParams();
-        vars.debtAssetDecimals = debtReserve.configuration.getDecimals();
+        (,, vars.liquidationBonus, vars.collateralDecimals,) =
+            ReserveConfiguration.getParams(collateralReserve.configuration);
+        vars.debtAssetDecimals = ReserveConfiguration.getDecimals(debtReserve.configuration);
 
         // This is the maximum possible amount of the selected collateral that can be liquidated, given the
         // max amount of liquidatable debt

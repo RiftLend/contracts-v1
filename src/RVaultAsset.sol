@@ -78,15 +78,11 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
         _;
     }
 
-
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           Constructor                      */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-   
-    function initialize(
-        RVaultAssetInitializeParams memory params
-    ) external initializer {
+    function initialize(RVaultAssetInitializeParams memory params) external initializer {
         underlying = params.underlying;
         provider = params.provider;
         pool_type = params.provider.getPoolType();

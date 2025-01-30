@@ -118,25 +118,25 @@ contract LendingPoolDeployer is Script {
         vm.parseTomlString(deployConfig, ".variableDebtToken.salt");
         deployedContracts.variableDebtTokenImpl = deployContract("VariableDebtToken", ".variableDebtToken.salt", "");
         // Configure LayerZero parameters
-        uint256 maxDepositLimit =1 ether* vm.parseTomlUint(deployConfig, ".rvault_asset.max_deposit_limit");
-        uint256 withdrawCoolDownPeriod= vm.parseTomlUint(deployConfig, ".rvault_asset.withdraw_cool_down_period"); 
-        uint128 lzReceiveGasLimit= uint128(vm.parseTomlUint(deployConfig, ".layerzero.lz_receive_gas_limit"));
+        uint256 maxDepositLimit = 1 ether * vm.parseTomlUint(deployConfig, ".rvault_asset.max_deposit_limit");
+        uint256 withdrawCoolDownPeriod = vm.parseTomlUint(deployConfig, ".rvault_asset.withdraw_cool_down_period");
+        uint128 lzReceiveGasLimit = uint128(vm.parseTomlUint(deployConfig, ".layerzero.lz_receive_gas_limit"));
         uint128 lzComposeGasLimit = uint128(vm.parseTomlUint(deployConfig, ".layerzero.lz_compose_gas_limit"));
-        RVaultAsset(deployedContracts.rVaultAsset).setAllLimits(lzReceiveGasLimit,lzComposeGasLimit,maxDepositLimit);
+        RVaultAsset(deployedContracts.rVaultAsset).setAllLimits(lzReceiveGasLimit, lzComposeGasLimit, maxDepositLimit);
 
         RVaultAsset(deployedContracts.rVaultAsset).initialize(
             RVaultAssetInitializeParams(
-            address(deployedContracts.superAsset),
-            ILendingPoolAddressesProvider(address(deployedContracts.lendingPoolAddressesProvider)),
-            lzEndpoint,
-            lzDelegate,
-            vm.parseTomlString(deployConfig, ".rvault_asset.name"),
-            vm.parseTomlString(deployConfig, ".rvault_asset.symbol"),
-            uint8(vm.parseTomlUint(deployConfig, ".underlying.decimals")),
-            withdrawCoolDownPeriod,
-            maxDepositLimit,
-            lzReceiveGasLimit,
-            lzComposeGasLimit
+                address(deployedContracts.superAsset),
+                ILendingPoolAddressesProvider(address(deployedContracts.lendingPoolAddressesProvider)),
+                lzEndpoint,
+                lzDelegate,
+                vm.parseTomlString(deployConfig, ".rvault_asset.name"),
+                vm.parseTomlString(deployConfig, ".rvault_asset.symbol"),
+                uint8(vm.parseTomlUint(deployConfig, ".underlying.decimals")),
+                withdrawCoolDownPeriod,
+                maxDepositLimit,
+                lzReceiveGasLimit,
+                lzComposeGasLimit
             )
         );
 
@@ -160,7 +160,6 @@ contract LendingPoolDeployer is Script {
         // Initialize core protocol components
         LendingPool(deployedContracts.lendingPoolImpl).initialize(lpAddressProvider);
 
- 
         // Initialize price oracle values
         MockPriceOracle(deployedContracts.lendingRateOracle).setPrice(deployedContracts.underlying, 1 ether);
 

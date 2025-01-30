@@ -2,7 +2,7 @@
 pragma solidity 0.8.25;
 
 import "./LendingPoolTestBorrow.t.sol";
-import {CrossChainLiquidationCall} from "src/interfaces/ILendingPool.sol";
+import {ILendingPool} from "src/interfaces/ILendingPool.sol";
 import {ILendingPoolCollateralManager} from "src/interfaces/ILendingPoolCollateralManager.sol";
 import "forge-std/Vm.sol";
 import {DataTypes} from "src/libraries/types/DataTypes.sol";
@@ -16,15 +16,6 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     function test_lpLiquidation() external {
-        address sender;
-        bytes memory eventData;
-        uint256 chainId;
-        uint256 _debtToCover;
-        address collateralAsset;
-        address debtAsset;
-        address user;
-        bool receiveRToken = true;
-        address onBehalfOf;
         Identifier[] memory _identifier;
         bytes[] memory _eventData;
         uint256[] memory _logindex;
@@ -33,17 +24,18 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
         uint256[] memory debtToCover;
         Vm.Log[] memory entries;
         bytes[] memory events;
-        uint256 liquidatedCollateralAmount;
-        address _liquidator;
-        uint256 variableDebtBurned;
-        uint256 collateralRTokenBurned;
-        address originAddress = address(0x4200000000000000000000000000000000000023);
         bytes32 _selector;
-        uint256 liquidatorSentScaled;
+        address user;
+        address collateralAsset;
+        address debtAsset;
+        bool receiveRToken = true;
+        address originAddress = address(0x4200000000000000000000000000000000000023);
+        ILendingPoolCollateralManager.LiquidationCallEventParams memory liquidationCallEventParams;
+        DataTypes.CrosschainLiquidationCallData memory crossChainLiquidationCallData;
 
         super.setUp();
 
-        (amounts, onBehalfOf,, chainIds) = getActionXConfig();
+        (amounts, user,, chainIds) = getActionXConfig();
         // Adjust Borrow amounts
         for (uint256 i = 0; i < amounts.length; i++) {
             amounts[i] = (amounts[i] * 70) / 100; // borrow 70% of the deposited amount only
@@ -63,12 +55,11 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
 
         collateralAsset = address(underlyingAsset);
         debtAsset = address(underlyingAsset);
-        user = onBehalfOf;
 
         // Stimulating Oracle price updates for collateral
         // Oracle keepers update the price to half of what it used to be
         address oracle = (lpAddressProvider1.getPriceOracle());
-        uint256 price = MockPriceOracle(oracle).getAssetPrice(address(collateralAsset));
+        uint256 price = MockPriceOracle(oracle).getAssetPrice(collateralAsset);
         address collateralRVaultAsset = proxyLp.getRVaultAssetOrRevert(collateralAsset);
 
         vm.prank(owner);
@@ -95,7 +86,7 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
 
         entries = vm.getRecordedLogs();
 
-        _selector = CrossChainLiquidationCall.selector;
+        _selector = ILendingPool.CrossChainLiquidationCall.selector;
         events = EventUtils.findEventsBySelector(entries, _selector);
 
         _identifier = new Identifier[](events.length);
@@ -103,13 +94,12 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
         _logindex = new uint256[](events.length);
 
         for (uint256 index = 0; index < events.length; index++) {
-            eventData = events[index];
             _identifier[index] = Identifier(originAddress, block.number, 0, block.timestamp, block.chainid);
             _logindex[index] = 0;
-            (chainId, sender, collateralAsset, debtAsset, user, _debtToCover, receiveRToken) =
-                abi.decode(eventData, (uint256, address, address, address, address, uint256, bool));
+            (crossChainLiquidationCallData) =
+                abi.decode(events[index], (DataTypes.CrosschainLiquidationCallData));
             _eventData[index] =
-                abi.encode(_selector, chainId, sender, collateralAsset, debtAsset, user, _debtToCover, receiveRToken);
+                abi.encode(_selector, crossChainLiquidationCallData.chainId, crossChainLiquidationCallData.sender, crossChainLiquidationCallData.collateralAsset, crossChainLiquidationCallData.debtAsset, crossChainLiquidationCallData.user, crossChainLiquidationCallData.debtToCover, crossChainLiquidationCallData.receiveRToken);
         }
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -129,33 +119,23 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
         events = EventUtils.findEventsBySelector(entries, _selector);
 
         for (uint256 index = 0; index < events.length; index++) {
-            eventData = events[index];
             (
-                collateralAsset,
-                debtAsset,
-                user,
-                _debtToCover,
-                liquidatedCollateralAmount,
-                _liquidator,
-                receiveRToken,
-                variableDebtBurned,
-                collateralRTokenBurned,
-                liquidatorSentScaled
+                liquidationCallEventParams
             ) = abi.decode(
-                eventData, (address, address, address, uint256, uint256, address, bool, uint256, uint256, uint256)
+                events[index], (ILendingPoolCollateralManager.LiquidationCallEventParams)
             );
             _eventData[index] = abi.encode(
                 _selector,
-                collateralAsset,
-                debtAsset,
-                user,
-                _debtToCover,
-                liquidatedCollateralAmount,
-                _liquidator,
-                receiveRToken,
-                variableDebtBurned,
-                collateralRTokenBurned,
-                liquidatorSentScaled
+                liquidationCallEventParams.collateralAsset,
+                liquidationCallEventParams.debtAsset,
+                liquidationCallEventParams.user,
+                liquidationCallEventParams.debtToCover,
+                liquidationCallEventParams.liquidatedCollateralAmount,
+                liquidationCallEventParams.liquidator,
+                liquidationCallEventParams.receiveRToken,
+                liquidationCallEventParams.variableDebtBurned,
+                liquidationCallEventParams.collateralRTokenBurned,
+                liquidationCallEventParams.liquidatorSentScaled
             );
         }
 

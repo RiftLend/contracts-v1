@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.8.25;
 
-import {IRVaultAsset} from "src/interfaces/IRVaultAsset.sol";
+import {IRVaultAsset, RVaultAssetInitializeParams} from "src/interfaces/IRVaultAsset.sol";
 import {IOFT} from "src/libraries/helpers/layerzero/IOFT.sol";
 import {ILendingPoolAddressesProvider} from "src/interfaces/ILendingPoolAddressesProvider.sol";
 import {ILendingPoolConfigurator} from "src/interfaces/ILendingPoolConfigurator.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ILendingPool, CrossChainDeposit, CrossChainWithdraw, Withdraw, Deposit} from "src/interfaces/ILendingPool.sol";
+import "src/interfaces/ILendingPool.sol";
 import {IAaveIncentivesController} from "src/interfaces/IAaveIncentivesController.sol";
 
 import {DataTypes} from "src/libraries/types/DataTypes.sol";
@@ -175,33 +175,37 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         // Deploy and initialize vault asset for chain A
         aRVaultAsset = RVaultAsset(_deployOApp(type(RVaultAsset).creationCode, bytes("")));
         aRVaultAsset.initialize(
-            address(superAsset),
-            ILendingPoolAddressesProvider(address(lpAddressProvider1)),
-            address(endpoints[aEid]),
-            _delegate,
-            rVaultAssetTokenName1,
-            rVaultAssetTokenSymbol1,
-            underlyingAssetDecimals,
-            1 days,
-            1000 ether,
-            200000,
-            500000
+            RVaultAssetInitializeParams(
+                address(superAsset),
+                ILendingPoolAddressesProvider(address(lpAddressProvider1)),
+                address(endpoints[aEid]),
+                _delegate,
+                rVaultAssetTokenName1,
+                rVaultAssetTokenSymbol1,
+                underlyingAssetDecimals,
+                1 days,
+                1000 ether,
+                200000,
+                500000
+            )
         );
 
         // Deploy and initialize vault asset for chain B
         bRVaultAsset = RVaultAsset(_deployOApp(type(RVaultAsset).creationCode, bytes("")));
         bRVaultAsset.initialize(
-            address(superAsset),
-            ILendingPoolAddressesProvider(address(lpAddressProvider2)),
-            address(endpoints[bEid]),
-            _delegate,
-            rVaultAssetTokenName2,
-            rVaultAssetTokenSymbol2,
-            underlyingAssetDecimals,
-            1 days,
-            1000 ether,
-            200000,
-            500000
+            RVaultAssetInitializeParams(
+                address(superAsset),
+                ILendingPoolAddressesProvider(address(lpAddressProvider2)),
+                address(endpoints[bEid]),
+                _delegate,
+                rVaultAssetTokenName2,
+                rVaultAssetTokenSymbol2,
+                underlyingAssetDecimals,
+                1 days,
+                1000 ether,
+                200000,
+                500000
+            )
         );
 
         vm.stopPrank();
@@ -415,19 +419,19 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
             Identifier(address(0x4200000000000000000000000000000000000023), block.number, 0, block.timestamp, aEid);
 
         // Decode deposit event data
-        (
-            uint256 _fromChainId,
-            address _sender,
-            address _asset,
-            uint256 _amount,
-            address _onBehalfOf,
-            uint16 _referralCode
-        ) = abi.decode(entries[0].data, (uint256, address, address, uint256, address, uint16));
+        (DataTypes.CrosschainDepositData memory crosschainDepositData) = abi.decode(entries[0].data, (DataTypes.CrosschainDepositData));
 
         // Prepare and dispatch event
-        bytes32 _selector = CrossChainDeposit.selector;
-        _eventData[0] =
-            abi.encode(_selector, _fromChainId, bytes32(0), _sender, _asset, _amount, _onBehalfOf, _referralCode);
+        bytes32 _selector = ILendingPool.CrossChainDeposit.selector;
+        _eventData[0] = abi.encode(
+            _selector,
+            crosschainDepositData.fromChainId,
+            crosschainDepositData.sender,
+            crosschainDepositData.asset,
+            crosschainDepositData.amount,
+            crosschainDepositData.onBehalfOf,
+            crosschainDepositData.referralCode
+        );
         // relay the information using relayer calling dispatch function on LendingPool through router
         console.log("deposit dispatch ");
         vm.recordLogs();
@@ -436,17 +440,20 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
 
         entries = vm.getRecordedLogs();
         bytes memory eventData;
-        eventData = EventUtils.findEventsBySelector(entries, Deposit.selector)[0];
-        address _user;
-        uint16 _referral;
-        uint256 _mintMode;
-        uint256 _amountScaled;
+        eventData = EventUtils.findEventsBySelector(entries, ILendingPool.Deposit.selector)[0];
 
-        (_user, _asset, _amount, _onBehalfOf, _referral, _mintMode, _amountScaled) =
-            abi.decode(eventData, (address, address, uint256, address, uint16, uint256, uint256));
+        (DataTypes.DepositEventParams memory depositEventParams) = abi.decode(eventData, (DataTypes.DepositEventParams));
 
-        _eventData[0] =
-            abi.encode(Deposit.selector, _user, _asset, _amount, _onBehalfOf, _referral, _mintMode, _amountScaled);
+        _eventData[0] = abi.encode(
+            ILendingPool.Deposit.selector,
+            depositEventParams.user,
+            depositEventParams.asset,
+            depositEventParams.amount,
+            depositEventParams.onBehalfOf,
+            depositEventParams.referral,
+            depositEventParams.mintMode,
+            depositEventParams.amountScaled
+        );
         // sync state of deposit for updating crosschain balances
         console.log("sync state of deposit for updating crosschain balances");
         vm.chainId(bEid);
@@ -456,7 +463,7 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         /// assert cross chain balances of rtoken
         assert(
             RToken(address(proxyLp1.getReserveData(address(aRVaultAsset)).rTokenAddress))
-                .totalCrosschainUnderlyingAssets() == _amount
+                .totalCrosschainUnderlyingAssets() == depositEventParams.amount
         );
 
         // ======== Execute Withdrawal ========
@@ -478,12 +485,18 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
 
         // Decode withdrawal event data
         uint256 toChainId;
-        (_fromChainId, _sender, _asset, _amount, _onBehalfOf, toChainId) =
-            abi.decode(entries[0].data, (uint256, address, address, uint256, address, uint256));
+        (DataTypes.CrosschainWithdrawData memory crossChainWithdrawData) = abi.decode(entries[0].data, (DataTypes.CrossChainWithdrawData));
 
-        _selector = CrossChainWithdraw.selector;
-        _eventData[0] =
-            abi.encode(_selector, _fromChainId, bytes32(0), _sender, _asset, _amount, _onBehalfOf, toChainId);
+        _selector = ILendingPool.CrossChainWithdraw.selector;
+        _eventData[0] = abi.encode(
+            _selector,
+            crossChainWithdrawData.fromChainId,
+            crossChainWithdrawData.sender,
+            crossChainWithdrawData.asset,
+            crossChainWithdrawData.amount,
+            crossChainWithdrawData.onBehalfOf,
+            crossChainWithdrawData.toChainId
+        );
 
         // Record and process withdrawal events
         console.log("withdraw dispatch");
@@ -492,17 +505,24 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         router1.dispatch(ValidationMode.CUSTOM, _identifier, _eventData, bytes(""), _logindex);
         // ======== Verify Withdrawal Events ========
         entries = vm.getRecordedLogs();
-        eventData = EventUtils.findEventsBySelector(entries, Withdraw.selector)[0];
+        eventData = EventUtils.findEventsBySelector(entries, ILendingPool.Withdraw.selector)[0];
 
-        (address user, address reserve, address to, uint256 amount, uint256 mode, uint256 amountScaled) =
-            abi.decode(eventData, (address, address, address, uint256, uint256, uint256));
+        (DataTypes.WithdrawEventParams memory withdrawEventParams) = abi.decode(eventData, (DataTypes.WithdrawEventParams));
 
         // Verify withdrawal parameters
-        assert(user == address(user1));
-        assert(to == address(user2));
-        assert(amount == amounts[0]);
+        assert(withdrawEventParams.user == address(user1));
+        assert(withdrawEventParams.to == address(user2));
+        assert(withdrawEventParams.amount == amounts[0]);
 
-        _eventData[0] = abi.encode(Withdraw.selector, user, reserve, to, amount, mode, amountScaled);
+        _eventData[0] = abi.encode(
+            ILendingPool.Withdraw.selector,
+            withdrawEventParams.user,
+            withdrawEventParams.reserve,
+            withdrawEventParams.to,
+            withdrawEventParams.amount,
+            withdrawEventParams.mode,
+            withdrawEventParams.amountScaled
+        );
         vm.chainId(bEid);
         vm.prank(relayer);
         router1.dispatch(ValidationMode.CUSTOM, _identifier, _eventData, bytes(""), _logindex);

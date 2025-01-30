@@ -8,21 +8,20 @@ import {DataTypes} from "../libraries/types/DataTypes.sol";
 import {SendParam, MessagingFee} from "../libraries/helpers/layerzero/IOFT.sol";
 
 struct RVaultAssetInitializeParams {
-        address underlying;
-        ILendingPoolAddressesProvider provider;
-        address lzEndpoint;
-        address delegate;
-        string  name;
-        string  symbol;
-        uint8 decimals;
-        uint256 withdrawCoolDownPeriod;
-        uint256 maxDepositLimit;
-        uint128 lzReceiveGasLimit;
-        uint128 lzComposeGasLimit;
+    address underlying;
+    ILendingPoolAddressesProvider provider;
+    address lzEndpoint;
+    address delegate;
+    string name;
+    string symbol;
+    uint8 decimals;
+    uint256 withdrawCoolDownPeriod;
+    uint256 maxDepositLimit;
+    uint128 lzReceiveGasLimit;
+    uint128 lzComposeGasLimit;
 }
+
 interface IRVaultAsset {
-
-
     // Events
     event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
     event Withdraw(
@@ -34,9 +33,7 @@ interface IRVaultAsset {
     );
 
     function underlying() external view returns (address);
-    function initialize(
-        RVaultAssetInitializeParams memory params
-    ) external;
+    function initialize(RVaultAssetInitializeParams memory params) external;
     function deposit(uint256 assets, address receiver) external returns (uint256 shares);
 
     function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares);

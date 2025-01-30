@@ -7,7 +7,7 @@ import {UserConfiguration} from "../../src/libraries/configuration/UserConfigura
 import {Identifier} from "../../src/libraries/EventValidator.sol";
 import "forge-std/Vm.sol";
 
-import {CrossChainDeposit, CrossChainWithdraw} from "../../src/interfaces/ILendingPool.sol";
+import {ILendingPool} from "../../src/interfaces/ILendingPool.sol";
 import {ValidationMode} from "../../src/libraries/EventValidator.sol";
 
 contract LendingPoolTestBase is Base {

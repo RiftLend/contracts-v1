@@ -5,6 +5,7 @@ import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
 import {IPriceOracleGetter} from "../../interfaces/IPriceOracleGetter.sol";
 import {IRToken} from "../../interfaces/IRToken.sol";
 import {IVariableDebtToken} from "../../interfaces/IVariableDebtToken.sol";
+import {ILendingPool} from "src/interfaces/ILendingPool.sol";
 
 import {ReserveLogic} from "./ReserveLogic.sol";
 import {ReserveConfiguration} from "../configuration/ReserveConfiguration.sol";
@@ -46,9 +47,7 @@ library GenericLogic {
      * @param asset The address of the underlying asset of the reserve
      * @param user The address of the user
      * @param amount The amount to decrease
-     * @param reservesData The data of all the reserves
      * @param userConfig The user configuration
-     * @param reserves The list of all the active reserves
      * @param oracle The address of the oracle contract
      * @return true if the decrease of the balance is allowed
      *
@@ -57,27 +56,27 @@ library GenericLogic {
         address asset,
         address user,
         uint256 amount,
-        mapping(address => DataTypes.ReserveData) storage reservesData,
         DataTypes.UserConfigurationMap calldata userConfig,
-        mapping(uint256 => address) storage reserves,
         uint256 reservesCount,
         address oracle,
-        DataTypes.Action_type action_type
+        DataTypes.Action_type action_type,
+        address lendingPool
     ) external view returns (bool) {
-        if (!userConfig.isBorrowingAny() || !userConfig.isUsingAsCollateral(reservesData[asset].id)) {
+        DataTypes.ReserveData memory reservesData = ILendingPool(lendingPool).getReserveData(asset);
+        if (!userConfig.isBorrowingAny() || !userConfig.isUsingAsCollateral(reservesData.id)) {
             return true;
         }
 
         balanceDecreaseAllowedLocalVars memory vars;
 
-        (, vars.liquidationThreshold,, vars.decimals,) = reservesData[asset].configuration.getParams();
+        (, vars.liquidationThreshold,, vars.decimals,) = reservesData.configuration.getParams();
 
         if (vars.liquidationThreshold == 0) {
             return true;
         }
 
         (vars.totalCollateralInETH, vars.totalDebtInETH,, vars.avgLiquidationThreshold,) =
-            calculateUserAccountData(user, reservesData, userConfig, reserves, reservesCount, oracle, action_type);
+            calculateUserAccountData(user, userConfig, reservesCount, oracle, action_type, lendingPool);
 
         if (vars.totalDebtInETH == 0) {
             return true;
@@ -130,28 +129,24 @@ library GenericLogic {
      * this includes the total liquidity/collateral/borrow balances in ETH,
      * the average Loan To Value, the average Liquidation Ratio, and the Health factor.
      * @param user The address of the user
-     * @param reservesData Data of all the reserves
      * @param userConfig The configuration of the user
-     * @param reserves The list of the available reserves
      * @param oracle The price oracle address
      * @return The total collateral and total debt of the user in ETH, the avg ltv, liquidation threshold and the HF
      *
      */
     function calculateUserAccountData(
         address user,
-        mapping(address => DataTypes.ReserveData) storage reservesData,
         DataTypes.UserConfigurationMap memory userConfig,
-        mapping(uint256 => address) storage reserves,
         uint256 reservesCount,
         address oracle,
-        DataTypes.Action_type action_type
+        DataTypes.Action_type action_type,
+        address lendingPool
     ) internal view returns (uint256, uint256, uint256, uint256, uint256) {
         CalculateUserAccountDataVars memory vars;
 
         if (userConfig.isEmpty()) {
             return (0, 0, 0, 0, type(uint256).max);
         }
-        DataTypes.ReserveData storage currentReserve;
         uint256 user_balance;
 
         for (vars.i = 0; vars.i < reservesCount; vars.i++) {
@@ -159,10 +154,12 @@ library GenericLogic {
                 continue;
             }
 
-            vars.currentReserveAddress = reserves[vars.i];
-            currentReserve = reservesData[vars.currentReserveAddress];
+            vars.currentReserveAddress = ILendingPool(lendingPool).getReserveById(vars.i);
+            DataTypes.ReserveData memory currentReserve =
+                ILendingPool(lendingPool).getReserveData(vars.currentReserveAddress);
 
-            (vars.ltv, vars.liquidationThreshold,, vars.decimals,) = currentReserve.configuration.getParams();
+            (vars.ltv, vars.liquidationThreshold,, vars.decimals,) =
+                ReserveConfiguration.getParams(currentReserve.configuration);
 
             vars.tokenUnit = 10 ** vars.decimals;
             vars.reserveUnitPrice = IPriceOracleGetter(oracle).getAssetPrice(vars.currentReserveAddress);

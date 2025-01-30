@@ -2,7 +2,7 @@
 pragma solidity 0.8.25;
 
 import "./LendingPoolTestDeposit.t.sol";
-import {ILendingPool, CrossChainInitiateFlashloan, FlashLoan} from "src/interfaces/ILendingPool.sol";
+import {ILendingPool} from "src/interfaces/ILendingPool.sol";
 import {IFlashLoanReceiver} from "src/interfaces/IFlashLoanReceiver.sol";
 import {IRToken} from "src/interfaces/IRToken.sol";
 
@@ -67,7 +67,6 @@ contract LendingPoolTestFlashloan is LendingPoolTestDeposit, IFlashLoanReceiver 
         uint256[] memory _logindex;
         Vm.Log[] memory entries;
         bytes[] memory events;
-
         address asset;
         uint256 mode;
         uint256 amount;
@@ -82,6 +81,8 @@ contract LendingPoolTestFlashloan is LendingPoolTestDeposit, IFlashLoanReceiver 
         address initiator;
         bool borrowExecuted;
         uint256 totalBorrowedAmount = 0;
+        uint256 srcChainId;
+        DataTypes.FlashLoanEventParams memory flashLoanEventParams;
 
         test_lpDeposit();
         address rToken = proxyLp.getReserveData(address(rVaultAsset1)).rTokenAddress;
@@ -122,7 +123,7 @@ contract LendingPoolTestFlashloan is LendingPoolTestDeposit, IFlashLoanReceiver 
 
         entries = vm.getRecordedLogs();
 
-        _selector = CrossChainInitiateFlashloan.selector;
+        _selector =ILendingPool.CrossChainInitiateFlashloan.selector;
         events = EventUtils.findEventsBySelector(entries, _selector);
 
         _identifier = new Identifier[](events.length);
@@ -149,7 +150,7 @@ contract LendingPoolTestFlashloan is LendingPoolTestDeposit, IFlashLoanReceiver 
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
         console.log("Cross-Chain State Sync ");
         entries = vm.getRecordedLogs();
-        _selector = FlashLoan.selector;
+        _selector = ILendingPool.FlashLoan.selector;
 
         events = EventUtils.findEventsBySelector(entries, _selector);
         _identifier = new Identifier[](events.length);
@@ -159,15 +160,15 @@ contract LendingPoolTestFlashloan is LendingPoolTestDeposit, IFlashLoanReceiver 
         console.log("got flashloan events", events.length);
         for (uint256 index = 0; index < events.length; index++) {
             eventData = events[index];
-            (chainId, borrowExecuted, initiator, asset, amount, premium, target, referralCode) =
-                abi.decode(eventData, (uint256, bool, address, address, uint256, uint256, address, uint16));
+            (flashLoanEventParams) =
+                abi.decode(eventData, (DataTypes.FlashLoanEventParams));
             _eventData[index] =
-                abi.encode(_selector, chainId, borrowExecuted, initiator, asset, amount, premium, target, referralCode);
+                abi.encode(_selector, flashLoanEventParams.chainId, flashLoanEventParams.borrowExecuted, flashLoanEventParams.initiator, flashLoanEventParams.asset, flashLoanEventParams.amount, flashLoanEventParams.premium, flashLoanEventParams.target, flashLoanEventParams.referralCode);
         }
-        uint256 srcChauinId = block.chainid;
+        srcChainId = block.chainid;
 
         for (uint256 i = 0; i < supportedChains.length; i++) {
-            if (srcChauinId != supportedChains[i].chainId) {
+            if (srcChainId != supportedChains[i].chainId) {
                 vm.chainId(supportedChains[i].chainId);
                 vm.prank(relayer);
                 router.dispatch(ValidationMode.CUSTOM, _identifier, _eventData, bytes(""), _logindex);

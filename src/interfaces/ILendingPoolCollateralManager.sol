@@ -24,18 +24,20 @@ interface ILendingPoolCollateralManager {
      * @param collateralRTokenBurned The amount of collateral rTokens burned
      *
      */
-    event LiquidationCall(
-        address collateralAsset,
-        address debtAsset,
-        address user,
-        uint256 debtToCover,
-        uint256 liquidatedCollateralAmount,
-        address liquidator,
-        bool receiveRToken,
-        uint256 variableDebtBurned,
-        uint256 collateralRTokenBurned,
-        uint256 liquidatorSentScaled
-    );
+    struct LiquidationCallEventParams {
+        address collateralAsset;
+        address debtAsset;
+        address user;
+        uint256 debtToCover;
+        uint256 liquidatedCollateralAmount;
+        address liquidator;
+        bool receiveRToken;
+        uint256 variableDebtBurned;
+        uint256 collateralRTokenBurned;
+        uint256 liquidatorSentScaled;
+    }
+
+    event LiquidationCall(LiquidationCallEventParams liquidationCallEventParams);
 
     /**
      * @dev Emitted when a reserve is disabled as collateral for an user
