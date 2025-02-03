@@ -205,7 +205,8 @@ contract LendingPoolDeployer is Script {
             underlyingAssetName: vm.parseTomlString(deployConfig, ".underlying.name"),
             params: "v1",
             salt: "initial",
-            rTokenImpl: deployedContracts.rTokenImpl
+            rTokenImpl: deployedContracts.rTokenImpl,
+            eventValidator: deployedContracts.eventValidator
         });
 
         proxyConfigurator.batchInitReserve(reserves);

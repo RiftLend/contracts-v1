@@ -64,7 +64,8 @@ contract LendingPoolTestBorrow is LendingPoolTestDeposit {
         _identifier[0] = Identifier(originAddress, block.number, 0, block.timestamp, block.chainid);
         _logindex[0] = 0;
 
-        (DataTypes.CrosschainBorrowData memory crossChainBorrowData) = abi.decode(eventData, (DataTypes.CrosschainBorrowData));
+        (DataTypes.CrosschainBorrowData memory crossChainBorrowData) =
+            abi.decode(eventData, (DataTypes.CrosschainBorrowData));
 
         bytes32 _selector = ILendingPool.CrossChainBorrow.selector;
         _eventData[0] = abi.encode(
@@ -105,13 +106,13 @@ contract LendingPoolTestBorrow is LendingPoolTestDeposit {
             ILendingPool.Borrow.selector,
             borrowEventParams.reserve,
             borrowEventParams.amount,
-            borrowEventParams.sender,
+            borrowEventParams.user,
             borrowEventParams.onBehalfOf,
             borrowEventParams.sendToChainId,
             borrowEventParams.borrowRate,
             borrowEventParams.mintMode,
             borrowEventParams.amountScaled,
-            borrowEventParams.referralCode
+            borrowEventParams.referral
         );
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/

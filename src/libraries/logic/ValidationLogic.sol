@@ -157,26 +157,21 @@ library ValidationLogic {
         if (amount == 0) revert VL_INVALID_AMOUNT();
         if (!vars.borrowingEnabled) revert VL_BORROWING_NOT_ENABLED();
 
-        (
-            vars.userCollateralBalanceETH,
-            vars.userBorrowBalanceETH,
-            vars.currentLtv,
-            vars.currentLiquidationThreshold,
-            vars.healthFactor
-        ) = GenericLogic.calculateUserAccountData(
+        (DataTypes.CalculateUserDataReturnData memory userAccountData) = GenericLogic.calculateUserAccountData(
             userAddress, userConfig, reservesCount, oracle, DataTypes.Action_type.BORROW, lendingPool
         );
 
-        if (vars.userCollateralBalanceETH == 0) {
+        if (userAccountData.totalCollateralInETH == 0) {
             revert VL_COLLATERAL_BALANCE_IS_0();
         }
-        if (vars.healthFactor <= GenericLogic.HEALTH_FACTOR_LIQUIDATION_THRESHOLD) {
+        if (userAccountData.healthFactor <= GenericLogic.HEALTH_FACTOR_LIQUIDATION_THRESHOLD) {
             revert VL_HEALTH_FACTOR_LOWER_THAN_LIQUIDATION_THRESHOLD();
         }
 
         //add the current already borrowed amount to the amount requested to calculate the total collateral needed.
-        vars.amountOfCollateralNeededETH = (vars.userBorrowBalanceETH + amountInETH).percentDiv(vars.currentLtv); //LTV is calculated in percentage
-        if (vars.amountOfCollateralNeededETH > vars.userCollateralBalanceETH) {
+        vars.amountOfCollateralNeededETH =
+            (userAccountData.totalDebtInETH + amountInETH).percentDiv(userAccountData.avgLtv); //LTV is calculated in percentage
+        if (vars.amountOfCollateralNeededETH > userAccountData.totalCollateralInETH) {
             revert VL_COLLATERAL_CANNOT_COVER_NEW_BORROW();
         }
     }
@@ -259,10 +254,11 @@ library ValidationLogic {
         address oracle,
         address lendingPool
     ) internal view {
-        (,,,, uint256 healthFactor) = GenericLogic.calculateUserAccountData(
+        (DataTypes.CalculateUserDataReturnData memory userAccountData) = GenericLogic.calculateUserAccountData(
             from, userConfig, reservesCount, oracle, DataTypes.Action_type.TRANSFER, lendingPool
         );
 
+        uint256 healthFactor = userAccountData.healthFactor;
         if (healthFactor < GenericLogic.HEALTH_FACTOR_LIQUIDATION_THRESHOLD) revert VL_TRANSFER_NOT_ALLOWED();
     }
 }

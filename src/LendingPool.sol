@@ -10,6 +10,7 @@ import {IPriceOracleGetter} from "./interfaces/IPriceOracleGetter.sol";
 import "./interfaces/ILendingPool.sol";
 import {ISuperAsset} from "./interfaces/ISuperAsset.sol";
 import {IRVaultAsset} from "./interfaces/IRVaultAsset.sol";
+import {ILendingPoolCollateralManager} from "src/interfaces/ILendingPoolCollateralManager.sol";
 
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
 import {Initializable} from "@solady/utils/Initializable.sol";
@@ -129,7 +130,9 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
             emit ILendingPool.ReserveUsedAsCollateralEnabled(rVaultAsset, onBehalfOf);
         }
 
-        emit ILendingPool.Deposit(DataTypes.DepositEventParams(sender, rVaultAsset, amount, onBehalfOf, referralCode, mintMode, amountScaled));
+        emit ILendingPool.Deposit(
+            DataTypes.DepositEventParams(sender, rVaultAsset, amount, onBehalfOf, referralCode, mintMode, amountScaled)
+        );
     }
 
     function withdraw(address sender, address asset, uint256 amount, address to, uint256 toChainId) external {
@@ -140,12 +143,13 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         address rToken = reserve.rTokenAddress;
         uint256 userBalance = IRToken(rToken).balanceOf(sender);
         uint256 amountToWithdraw = amount == type(uint256).max ? userBalance : amount;
+        DataTypes.UserConfigurationMap storage senderConfig = _usersConfig[sender];
 
         ValidationLogic.validateWithdraw(
             rVaultAsset,
             sender,
             userBalance,
-            _usersConfig[sender],
+            senderConfig,
             amountToWithdraw,
             _reservesCount,
             _addressesProvider.getPriceOracle(),
@@ -162,7 +166,9 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         (uint256 mode, uint256 amountScaled) =
             IRToken(rToken).burn(sender, to, toChainId, amountToWithdraw, reserve.liquidityIndex);
 
-        emit ILendingPool.Withdraw(DataTypes.WithdrawEventParams(sender, rVaultAsset, to, amountToWithdraw, mode, amountScaled));
+        emit ILendingPool.Withdraw(
+            DataTypes.WithdrawEventParams(sender, rVaultAsset, to, amountToWithdraw, mode, amountScaled)
+        );
     }
 
     function borrow(
@@ -215,40 +221,39 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         IRVaultAsset(rVaultAsset).deposit(paybackAmount, rToken);
         IRToken(rToken).handleRepayment(onBehalfOf, paybackAmount);
 
-        emit ILendingPool.Repay(DataTypes.RepayEventParams(asset, paybackAmount, onBehalfOf, sender, mode, amountBurned));
+        emit ILendingPool.Repay(
+            DataTypes.RepayEventParams(asset, paybackAmount, onBehalfOf, sender, mode, amountBurned)
+        );
     }
 
-    function liquidationCall(
-        address sender,
-        address collateralAsset,
-        address debtAsset,
-        address user,
-        uint256 debtToCover,
-        bool receiverToken
-    ) external {
+    function liquidationCall(DataTypes.CrosschainLiquidationCallData calldata liquidationParams) external {
         onlyRouter();
-
         address collateralManager = _addressesProvider.getLendingPoolCollateralManager();
 
         // Getting liquidation debt amount in rVaultAsset
-        address rVaultDebtAsset = getRVaultAssetOrRevert(debtAsset);
-        address rVaultCollateralAsset = getRVaultAssetOrRevert(collateralAsset);
+        address rVaultDebtAsset = getRVaultAssetOrRevert(liquidationParams.debtAsset);
+        address rVaultCollateralAsset = getRVaultAssetOrRevert(liquidationParams.collateralAsset);
         DataTypes.ReserveData storage reserve = _reserves[rVaultDebtAsset];
-        IERC20(debtAsset).safeTransferFrom(sender, address(this), debtToCover);
-        if (pool_type == 1) ISuperAsset(reserve.superAsset).deposit(address(this), debtToCover);
+        IERC20(liquidationParams.debtAsset).safeTransferFrom(
+            liquidationParams.sender, address(this), liquidationParams.debtToCover
+        );
+        if (pool_type == 1) ISuperAsset(reserve.superAsset).deposit(address(this), liquidationParams.debtToCover);
 
-        IRVaultAsset(rVaultDebtAsset).mint(debtToCover, address(this));
+        IRVaultAsset(rVaultDebtAsset).mint(liquidationParams.debtToCover, address(this));
 
         //solium-disable-next-lines
         (bool success,) = collateralManager.delegatecall(
-            abi.encodeWithSignature(
-                "liquidationCall(address,address,address,address,uint256,bool)",
-                sender,
-                rVaultCollateralAsset,
-                rVaultDebtAsset,
-                user,
-                debtToCover,
-                receiverToken
+            abi.encodeWithSelector(
+                ILendingPoolCollateralManager.liquidationCall.selector,
+                DataTypes.CrosschainLiquidationCallData(
+                    block.chainid,
+                    liquidationParams.sender,
+                    rVaultCollateralAsset,
+                    rVaultDebtAsset,
+                    liquidationParams.user,
+                    liquidationParams.debtToCover,
+                    liquidationParams.receiveRToken
+                )
             )
         );
 

@@ -3,7 +3,9 @@ pragma solidity 0.8.25;
 
 import {ILendingPool} from "../interfaces/ILendingPool.sol";
 import {IDelegationToken} from "../interfaces/IDelegationToken.sol";
+
 import {RToken} from "./RToken.sol";
+import {DataTypes} from "src/libraries/types/DataTypes.sol";
 
 /**
  * @title Aave RToken enabled to delegate voting power of the underlying asset to a different address

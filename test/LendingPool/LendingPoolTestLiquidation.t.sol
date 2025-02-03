@@ -14,6 +14,21 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                    Test Functions                            */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+    bytes32 _selector;
+    address user;
+    address collateralAsset;
+    address debtAsset;
+    bool receiveRToken = true;
+    address originAddress = address(0x4200000000000000000000000000000000000023);
+    DataTypes.LiquidationCallEventParams liquidationCallEventParams;
+    DataTypes.CrosschainLiquidationCallData crossChainLiquidationCallData;
+    address collateralRVaultAsset;
+    address oracle;
+    uint256 price;
+    uint256 user1_vdebt_balance_before_liquidation;
+    uint256 liquidator_rToken_balance_before_liquidation;
+    uint256 user1_vdebt_balance_after_liquidation;
+    uint256 liquidator_rToken_balance_after_liquidation;
 
     function test_lpLiquidation() external {
         Identifier[] memory _identifier;
@@ -24,14 +39,6 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
         uint256[] memory debtToCover;
         Vm.Log[] memory entries;
         bytes[] memory events;
-        bytes32 _selector;
-        address user;
-        address collateralAsset;
-        address debtAsset;
-        bool receiveRToken = true;
-        address originAddress = address(0x4200000000000000000000000000000000000023);
-        ILendingPoolCollateralManager.LiquidationCallEventParams memory liquidationCallEventParams;
-        DataTypes.CrosschainLiquidationCallData memory crossChainLiquidationCallData;
 
         super.setUp();
 
@@ -42,10 +49,10 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
         }
         _borrow(amounts);
 
-        uint256 user1_vdebt_balance_before_liquidation = VariableDebtToken(
+        user1_vdebt_balance_before_liquidation = VariableDebtToken(
             address(proxyLp.getReserveData(address(rVaultAsset1)).variableDebtTokenAddress)
         ).crossChainUserBalance(user1);
-        uint256 liquidator_rToken_balance_before_liquidation = RToken(
+        liquidator_rToken_balance_before_liquidation = RToken(
             address(proxyLp.getReserveData(address(rVaultAsset1)).rTokenAddress)
         ).crossChainUserBalance(liquidator);
 
@@ -58,9 +65,9 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
 
         // Stimulating Oracle price updates for collateral
         // Oracle keepers update the price to half of what it used to be
-        address oracle = (lpAddressProvider1.getPriceOracle());
-        uint256 price = MockPriceOracle(oracle).getAssetPrice(collateralAsset);
-        address collateralRVaultAsset = proxyLp.getRVaultAssetOrRevert(collateralAsset);
+        oracle = (lpAddressProvider1.getPriceOracle());
+        price = MockPriceOracle(oracle).getAssetPrice(collateralAsset);
+        collateralRVaultAsset = proxyLp.getRVaultAssetOrRevert(collateralAsset);
 
         vm.prank(owner);
         MockPriceOracle(oracle).setPrice(collateralAsset, price / 2);
@@ -96,10 +103,17 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
         for (uint256 index = 0; index < events.length; index++) {
             _identifier[index] = Identifier(originAddress, block.number, 0, block.timestamp, block.chainid);
             _logindex[index] = 0;
-            (crossChainLiquidationCallData) =
-                abi.decode(events[index], (DataTypes.CrosschainLiquidationCallData));
-            _eventData[index] =
-                abi.encode(_selector, crossChainLiquidationCallData.chainId, crossChainLiquidationCallData.sender, crossChainLiquidationCallData.collateralAsset, crossChainLiquidationCallData.debtAsset, crossChainLiquidationCallData.user, crossChainLiquidationCallData.debtToCover, crossChainLiquidationCallData.receiveRToken);
+            (crossChainLiquidationCallData) = abi.decode(events[index], (DataTypes.CrosschainLiquidationCallData));
+            _eventData[index] = abi.encode(
+                _selector,
+                crossChainLiquidationCallData.chainId,
+                crossChainLiquidationCallData.sender,
+                crossChainLiquidationCallData.collateralAsset,
+                crossChainLiquidationCallData.debtAsset,
+                crossChainLiquidationCallData.user,
+                crossChainLiquidationCallData.debtToCover,
+                crossChainLiquidationCallData.receiveRToken
+            );
         }
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -119,11 +133,7 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
         events = EventUtils.findEventsBySelector(entries, _selector);
 
         for (uint256 index = 0; index < events.length; index++) {
-            (
-                liquidationCallEventParams
-            ) = abi.decode(
-                events[index], (ILendingPoolCollateralManager.LiquidationCallEventParams)
-            );
+            (liquidationCallEventParams) = abi.decode(events[index], (DataTypes.LiquidationCallEventParams));
             _eventData[index] = abi.encode(
                 _selector,
                 liquidationCallEventParams.collateralAsset,
@@ -152,10 +162,10 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
         /*     Assert Cross-Chain  Variable Debt Token  Balance is decreased for user1 **/
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.°•.°+.*•´°•.°+.*•´•*/
         console.log("Assert Cross-Chain  Variable Debt Token  Token Balance ");
-        uint256 user1_vdebt_balance_after_liquidation = VariableDebtToken(
+        user1_vdebt_balance_after_liquidation = VariableDebtToken(
             address(proxyLp.getReserveData(address(rVaultAsset1)).variableDebtTokenAddress)
         ).crossChainUserBalance(user1);
-        uint256 liquidator_rToken_balance_after_liquidation = RToken(
+        liquidator_rToken_balance_after_liquidation = RToken(
             address(proxyLp.getReserveData(address(rVaultAsset1)).rTokenAddress)
         ).crossChainUserBalance(liquidator);
 

@@ -72,15 +72,18 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
             input.rTokenImpl,
             abi.encodeWithSelector(
                 IInitializableRToken.initialize.selector,
-                _pool,
-                input.treasury,
-                input.underlyingAsset,
-                IAaveIncentivesController(input.incentivesController),
-                addressesProvider,
-                input.underlyingAssetDecimals,
-                input.rTokenName,
-                input.rTokenSymbol,
-                input.params
+                DataTypes.RTokenInitializeParams(
+                    _pool,
+                    input.treasury,
+                    input.underlyingAsset,
+                    IAaveIncentivesController(input.incentivesController),
+                    addressesProvider,
+                    input.underlyingAssetDecimals,
+                    input.rTokenName,
+                    input.rTokenSymbol,
+                    input.params,
+                    input.eventValidator
+                )
             ),
             input.salt
         );

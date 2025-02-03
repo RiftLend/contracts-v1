@@ -74,9 +74,11 @@ library GenericLogic {
         if (vars.liquidationThreshold == 0) {
             return true;
         }
-
-        (vars.totalCollateralInETH, vars.totalDebtInETH,, vars.avgLiquidationThreshold,) =
+        (DataTypes.CalculateUserDataReturnData memory userAccountData) =
             calculateUserAccountData(user, userConfig, reservesCount, oracle, action_type, lendingPool);
+        vars.totalCollateralInETH = userAccountData.totalCollateralInETH;
+        vars.totalDebtInETH = userAccountData.totalDebtInETH;
+        vars.avgLiquidationThreshold = userAccountData.avgLiquidationThreshold;
 
         if (vars.totalDebtInETH == 0) {
             return true;
@@ -141,11 +143,11 @@ library GenericLogic {
         address oracle,
         DataTypes.Action_type action_type,
         address lendingPool
-    ) internal view returns (uint256, uint256, uint256, uint256, uint256) {
+    ) internal view returns (DataTypes.CalculateUserDataReturnData memory) {
         CalculateUserAccountDataVars memory vars;
 
         if (userConfig.isEmpty()) {
-            return (0, 0, 0, 0, type(uint256).max);
+            return DataTypes.CalculateUserDataReturnData(0, 0, 0, 0, type(uint256).max);
         }
         uint256 user_balance;
 
@@ -164,7 +166,9 @@ library GenericLogic {
             vars.tokenUnit = 10 ** vars.decimals;
             vars.reserveUnitPrice = IPriceOracleGetter(oracle).getAssetPrice(vars.currentReserveAddress);
             if (vars.liquidationThreshold != 0 && userConfig.isUsingAsCollateral(vars.i)) {
-                user_balance = getActionBasedUserBalance(user, currentReserve.rTokenAddress, action_type);
+                user_balance = getActionBasedUserBalance(
+                    DataTypes.ActionBasedUserBalanceParams(user, currentReserve.rTokenAddress, action_type)
+                );
 
                 vars.compoundedLiquidityBalance = user_balance;
 
@@ -195,7 +199,13 @@ library GenericLogic {
             vars.totalCollateralInETH, vars.totalDebtInETH, vars.avgLiquidationThreshold
         );
         return (
-            vars.totalCollateralInETH, vars.totalDebtInETH, vars.avgLtv, vars.avgLiquidationThreshold, vars.healthFactor
+            DataTypes.CalculateUserDataReturnData(
+                vars.totalCollateralInETH,
+                vars.totalDebtInETH,
+                vars.avgLtv,
+                vars.avgLiquidationThreshold,
+                vars.healthFactor
+            )
         );
     }
 
@@ -241,15 +251,15 @@ library GenericLogic {
         return availableBorrowsETH;
     }
 
-    function getActionBasedUserBalance(address user, address tokenAddress, DataTypes.Action_type action_type)
+    function getActionBasedUserBalance(DataTypes.ActionBasedUserBalanceParams memory params)
         public
         view
         returns (uint256)
     {
-        if (action_type == DataTypes.Action_type.LIQUIDATION) {
-            return IRToken(tokenAddress).getCrossChainUserBalance(user);
+        if (params.action_type == DataTypes.Action_type.LIQUIDATION) {
+            return IRToken(params.tokenAddress).getCrossChainUserBalance(params.user);
         } else {
-            return IRToken(tokenAddress).balanceOf(user);
+            return IRToken(params.tokenAddress).balanceOf(params.user);
         }
     }
 }

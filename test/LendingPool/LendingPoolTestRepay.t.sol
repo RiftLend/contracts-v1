@@ -13,6 +13,12 @@ contract LendingPoolTestRepay is LendingPoolTestBorrow {
     /*                    Test Functions                            */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
+    bytes32 _selector;
+    address onBehalfOf;
+    address originAddress = address(0x4200000000000000000000000000000000000023);
+    address asset;
+    uint256 srcChain;
+
     function test_lpRepay() external {
         super.setUp();
 
@@ -24,9 +30,6 @@ contract LendingPoolTestRepay is LendingPoolTestBorrow {
         bytes[] memory events;
         Vm.Log[] memory entries;
         uint256[] memory debtChains;
-        bytes32 _selector;
-        address onBehalfOf;
-        address originAddress = address(0x4200000000000000000000000000000000000023);
 
         _borrow(amounts);
         (amounts, onBehalfOf,, chainIds) = getActionXConfig();
@@ -36,7 +39,7 @@ contract LendingPoolTestRepay is LendingPoolTestBorrow {
             amounts[i] = amounts[i] / 2; //only borrowed 50% of the amount deposited
         }
 
-        address asset = address(underlyingAsset);
+        asset = address(underlyingAsset);
         vm.prank(user1);
         IERC20(asset).approve(address(router), type(uint256).max);
 
@@ -71,7 +74,8 @@ contract LendingPoolTestRepay is LendingPoolTestBorrow {
             _identifier[index] = Identifier(originAddress, block.number, 0, block.timestamp, block.chainid);
             _logindex[index] = 0;
 
-            (DataTypes.CrosschainRepayData memory crossChainRepayData) = abi.decode(entries[index].data, (DataTypes.CrosschainRepayData));
+            (DataTypes.CrosschainRepayData memory crossChainRepayData) =
+                abi.decode(entries[index].data, (DataTypes.CrosschainRepayData));
 
             _eventData[index] = abi.encode(
                 _selector,
@@ -106,7 +110,7 @@ contract LendingPoolTestRepay is LendingPoolTestBorrow {
 
         for (uint256 index = 0; index < events.length; index++) {
             (DataTypes.CrosschainRepayFinalizeData memory crossChainRepayFinalizeData) =
-                abi.decode( events[index], (DataTypes.CrosschainRepayFinalizeData));
+                abi.decode(events[index], (DataTypes.CrosschainRepayFinalizeData));
 
             _eventData[index] = abi.encode(
                 ILendingPool.CrossChainRepayFinalize.selector,
@@ -131,18 +135,18 @@ contract LendingPoolTestRepay is LendingPoolTestBorrow {
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
         console.log("Cross-Chain State Sync : Repay");
-        uint256 srcChain = block.chainid;
+        srcChain = block.chainid;
         entries = vm.getRecordedLogs();
         events = EventUtils.findEventsBySelector(entries, ILendingPool.Repay.selector);
 
         for (uint256 index = 0; index < events.length; index++) {
-
-            (DataTypes.RepayEventParams memory repayEventParams) = abi.decode(events[index], (DataTypes.RepayEventParams));
+            (DataTypes.RepayEventParams memory repayEventParams) =
+                abi.decode(events[index], (DataTypes.RepayEventParams));
             _eventData[index] = abi.encode(
                 ILendingPool.Repay.selector,
-                repayEventParams.asset,
+                repayEventParams.reserve,
                 repayEventParams.amount,
-                repayEventParams.sender,
+                repayEventParams.user,
                 repayEventParams.repayer,
                 repayEventParams.mode,
                 repayEventParams.amountBurned

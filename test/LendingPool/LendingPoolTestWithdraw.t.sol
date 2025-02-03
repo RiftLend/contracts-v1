@@ -11,11 +11,10 @@ import {IAaveIncentivesController} from "src/interfaces/IAaveIncentivesControlle
 
 import {DataTypes} from "src/libraries/types/DataTypes.sol";
 import {UserConfiguration} from "src/libraries/configuration/UserConfiguration.sol";
-import {Identifier} from "src/libraries/EventValidator.sol";
+import {Identifier, EventValidator, ValidationMode} from "src/libraries/EventValidator.sol";
 import {
     Origin, MessagingReceipt, ILayerZeroEndpointV2
 } from "src/libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
-import {ValidationMode} from "src/libraries/EventValidator.sol";
 import {LendingPoolTestBase} from "./LendingPoolTestBase.t.sol";
 import {RVaultAsset} from "src/RVaultAsset.sol";
 import {LendingPoolAddressesProvider} from "src/configuration/LendingPoolAddressesProvider.sol";
@@ -23,7 +22,6 @@ import {LendingPool} from "src/LendingPool.sol";
 import {Router} from "src/Router.sol";
 import {LendingPoolConfigurator} from "src/LendingPoolConfigurator.sol";
 import {RToken} from "src/tokenization/RToken.sol";
-import {EventValidator} from "src/libraries/EventValidator.sol";
 import {VariableDebtToken} from "src/tokenization/VariableDebtToken.sol";
 import {DefaultReserveInterestRateStrategy} from "src/DefaultReserveInterestRateStrategy.sol";
 import "forge-std/Vm.sol";
@@ -278,7 +276,8 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
             underlyingAssetName: underlyingAssetName,
             params: "v",
             salt: "salt",
-            rTokenImpl: address(rTokenImpl1)
+            rTokenImpl: address(rTokenImpl1),
+            eventValidator: address(eventValidator)
         });
 
         // Prepare initialization input for chain B
@@ -299,7 +298,8 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
             underlyingAssetName: underlyingAssetName,
             params: "v",
             salt: "salt",
-            rTokenImpl: address(rTokenImpl2)
+            rTokenImpl: address(rTokenImpl2),
+            eventValidator: address(eventValidator)
         });
 
         // ======== Initialize and Activate Reserves ========
@@ -419,7 +419,8 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
             Identifier(address(0x4200000000000000000000000000000000000023), block.number, 0, block.timestamp, aEid);
 
         // Decode deposit event data
-        (DataTypes.CrosschainDepositData memory crosschainDepositData) = abi.decode(entries[0].data, (DataTypes.CrosschainDepositData));
+        (DataTypes.CrosschainDepositData memory crosschainDepositData) =
+            abi.decode(entries[0].data, (DataTypes.CrosschainDepositData));
 
         // Prepare and dispatch event
         bytes32 _selector = ILendingPool.CrossChainDeposit.selector;
@@ -447,7 +448,7 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         _eventData[0] = abi.encode(
             ILendingPool.Deposit.selector,
             depositEventParams.user,
-            depositEventParams.asset,
+            depositEventParams.reserve,
             depositEventParams.amount,
             depositEventParams.onBehalfOf,
             depositEventParams.referral,
@@ -484,8 +485,8 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
             Identifier(address(0x4200000000000000000000000000000000000023), block.number, 0, block.timestamp, aEid);
 
         // Decode withdrawal event data
-        uint256 toChainId;
-        (DataTypes.CrosschainWithdrawData memory crossChainWithdrawData) = abi.decode(entries[0].data, (DataTypes.CrossChainWithdrawData));
+        (DataTypes.CrosschainWithdrawData memory crossChainWithdrawData) =
+            abi.decode(entries[0].data, (DataTypes.CrosschainWithdrawData));
 
         _selector = ILendingPool.CrossChainWithdraw.selector;
         _eventData[0] = abi.encode(
@@ -494,7 +495,7 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
             crossChainWithdrawData.sender,
             crossChainWithdrawData.asset,
             crossChainWithdrawData.amount,
-            crossChainWithdrawData.onBehalfOf,
+            crossChainWithdrawData.to,
             crossChainWithdrawData.toChainId
         );
 
@@ -507,7 +508,8 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         entries = vm.getRecordedLogs();
         eventData = EventUtils.findEventsBySelector(entries, ILendingPool.Withdraw.selector)[0];
 
-        (DataTypes.WithdrawEventParams memory withdrawEventParams) = abi.decode(eventData, (DataTypes.WithdrawEventParams));
+        (DataTypes.WithdrawEventParams memory withdrawEventParams) =
+            abi.decode(eventData, (DataTypes.WithdrawEventParams));
 
         // Verify withdrawal parameters
         assert(withdrawEventParams.user == address(user1));

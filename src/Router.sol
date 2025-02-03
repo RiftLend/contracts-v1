@@ -87,16 +87,17 @@ contract Router is Initializable, SuperPausable {
         if (selector == ILendingPool.Deposit.selector && _identifier.chainId != block.chainid) {
             (DataTypes.DepositEventParams memory params) = abi.decode(_data[32:], (DataTypes.DepositEventParams));
 
-            DataTypes.ReserveData memory reserve = lendingPool.getReserveData(params.asset);
-            lendingPool.updateStates(params.asset, params.amount, 0, UPDATE_RATES_AND_STATES_MASK);
+            DataTypes.ReserveData memory reserve = lendingPool.getReserveData(params.reserve);
+            lendingPool.updateStates(params.reserve, params.amount, 0, UPDATE_RATES_AND_STATES_MASK);
             IRToken(reserve.rTokenAddress).updateCrossChainBalance(
                 params.onBehalfOf, params.amount, params.amountScaled, params.mintMode
             );
         }
-        if (selector == ILendingPool.CrossChainDeposit.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
+        if (selector == ILendingPool.CrossChainDeposit.selector) {
             (DataTypes.CrosschainDepositData memory params) = abi.decode(_data[32:], (DataTypes.CrosschainDepositData));
-
-            lendingPool.deposit(params.sender, params.asset, params.amount, params.onBehalfOf, params.referralCode);
+            if (params.fromChainId == block.chainid) {
+                lendingPool.deposit(params.sender, params.asset, params.amount, params.onBehalfOf, params.referralCode);
+            }
         }
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -109,13 +110,16 @@ contract Router is Initializable, SuperPausable {
             DataTypes.ReserveData memory reserve = lendingPool.getReserveData(params.reserve);
             lendingPool.updateStates(params.reserve, 0, params.amount, UPDATE_RATES_AND_STATES_MASK);
             IRToken(reserve.rTokenAddress).updateCrossChainBalance(
-                params.user, params.amount, params.amountScaled, params.mintMode
+                params.user, params.amount, params.amountScaled, params.mode
             );
         }
 
-        if (selector == ILendingPool.CrossChainWithdraw.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
-            (DataTypes.CrosschainWithdrawData memory params) = abi.decode(_data[32:], (DataTypes.CrosschainWithdrawData));
-            lendingPool.withdraw(params.sender, params.asset, params.amount, params.to, params.toChainId);
+        if (selector == ILendingPool.CrossChainWithdraw.selector) {
+            (DataTypes.CrosschainWithdrawData memory params) =
+                abi.decode(_data[32:], (DataTypes.CrosschainWithdrawData));
+            if (params.fromChainId == block.chainid) {
+                lendingPool.withdraw(params.sender, params.asset, params.amount, params.to, params.toChainId);
+            }
         }
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -131,11 +135,19 @@ contract Router is Initializable, SuperPausable {
             );
         }
 
-        if (selector == ILendingPool.CrossChainBorrow.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
-            (DataTypes.CrosschainBorrowData memory params) = abi.decode(_data[64:], (DataTypes.CrosschainBorrowData));
-            lendingPool.borrow(
-                params.sender, params.asset, params.amount, params.onBehalfOf, params.sendToChainId, params.referralCode
-            );
+        if (selector == ILendingPool.CrossChainBorrow.selector) {
+            (DataTypes.CrosschainBorrowData memory params) = abi.decode(_data[32:], (DataTypes.CrosschainBorrowData));
+
+            if (params.borrowFromChainId == block.chainid) {
+                lendingPool.borrow(
+                    params.sender,
+                    params.asset,
+                    params.amount,
+                    params.onBehalfOf,
+                    params.sendToChainId,
+                    params.referralCode
+                );
+            }
         }
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -150,39 +162,43 @@ contract Router is Initializable, SuperPausable {
             DataTypes.ReserveData memory reserve = lendingPool.getReserveData(rVaultAsset);
             lendingPool.updateStates(rVaultAsset, params.amount, 0, UPDATE_RATES_AND_STATES_MASK);
             IVariableDebtToken(reserve.variableDebtTokenAddress).updateCrossChainBalance(
-                params.onBehalfOf, params.amountBurned, params.mintMode
+                params.user, params.amountBurned, params.mode
             );
-        } else if (selector == ILendingPool.CrossChainRepay.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
+        } else if (selector == ILendingPool.CrossChainRepay.selector) {
             (DataTypes.CrosschainRepayData memory params) = abi.decode(_data[32:], (DataTypes.CrosschainRepayData));
+            if (params.fundChainId == block.chainid) {
+                address rVaultAsset = lendingPool.getRVaultAssetOrRevert(params.asset);
+                address reserve_superAsset = lendingPool.getReserveData(rVaultAsset).superAsset;
 
-            address rVaultAsset = lendingPool.getRVaultAssetOrRevert(params.asset);
-            address reserve_superAsset = lendingPool.getReserveData(rVaultAsset).superAsset;
-
-            IERC20(params.asset).safeTransferFrom(params.sender, address(this), params.amount);
-            if (pool_type == 1) {
-                IERC20(params.asset).approve(reserve_superAsset, params.amount);
-                ISuperAsset(reserve_superAsset).deposit(address(this), params.amount);
-                IERC20(reserve_superAsset).approve(rVaultAsset, params.amount);
-                IRVaultAsset(rVaultAsset).deposit(params.amount, address(this));
-            } else {
-                IERC20(params.asset).safeTransfer(address(this), params.amount);
+                IERC20(params.asset).safeTransferFrom(params.sender, address(this), params.amount);
+                if (pool_type == 1) {
+                    IERC20(params.asset).approve(reserve_superAsset, params.amount);
+                    ISuperAsset(reserve_superAsset).deposit(address(this), params.amount);
+                    IERC20(reserve_superAsset).approve(rVaultAsset, params.amount);
+                    IRVaultAsset(rVaultAsset).deposit(params.amount, address(this));
+                } else {
+                    IERC20(params.asset).safeTransfer(address(this), params.amount);
+                }
+                MessagingFee memory fee;
+                if (params.debtChainId != block.chainid) {
+                    (, fee) =
+                        IRVaultAsset(rVaultAsset).getFeeQuote(params.onBehalfOf, params.debtChainId, params.amount);
+                }
+                IRVaultAsset(rVaultAsset).bridge{value: fee.nativeFee}(
+                    address(lendingPool), params.debtChainId, params.amount
+                );
+                emit ILendingPool.CrossChainRepayFinalize(
+                    DataTypes.CrosschainRepayFinalizeData(
+                        params.debtChainId, params.sender, params.onBehalfOf, params.amount, params.asset
+                    )
+                );
             }
-            MessagingFee memory fee;
-            if (params.debtChainId != block.chainid) {
-                (, fee) = IRVaultAsset(rVaultAsset).getFeeQuote(params.onBehalfOf, params.debtChainId, params.amount);
+        } else if (selector == ILendingPool.CrossChainRepayFinalize.selector) {
+            (DataTypes.CrosschainRepayFinalizeData memory params) =
+                abi.decode(_data[32:], (DataTypes.CrosschainRepayFinalizeData));
+            if (params.debtChainId == block.chainid) {
+                lendingPool.repay(params.sender, params.onBehalfOf, params.asset, params.amount);
             }
-            IRVaultAsset(rVaultAsset).bridge{value: fee.nativeFee}(
-                address(lendingPool), params.debtChainId, params.amount
-            );
-            emit ILendingPool.CrossChainRepayFinalize(
-                DataTypes.CrosschainRepayFinalizeData(
-                    params.debtChainId, params.sender, params.onBehalfOf, params.amount, params.asset
-                )
-            );
-        } else if (selector == ILendingPool.CrossChainRepayFinalize.selector && abi.decode(_data[32:64], (uint256)) == block.chainid)
-        {
-            (DataTypes.CrosschainRepayFinalizeData memory params) = abi.decode(_data[32:], (DataTypes.CrosschainRepayFinalizeData));
-            lendingPool.repay(params.sender, params.onBehalfOf, params.asset, params.amount);
         }
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -190,55 +206,50 @@ contract Router is Initializable, SuperPausable {
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
         if (selector == ILendingPoolCollateralManager.LiquidationCall.selector && _identifier.chainId != block.chainid)
         {
-            ( ILendingPoolCollateralManager.LiquidationCallEventParams memory params) = abi.decode(_data[32:], (ILendingPoolCollateralManager.LiquidationCallEventParams));
+            (DataTypes.LiquidationCallEventParams memory params) =
+                abi.decode(_data[32:], (DataTypes.LiquidationCallEventParams));
 
             DataTypes.ReserveData memory debtReserve = lendingPool.getReserveData(params.debtAsset);
             IVariableDebtToken(debtReserve.variableDebtTokenAddress).updateCrossChainBalance(
                 params.user, params.variableDebtBurned, 2
             );
-            lendingPool.updateStates(params.debtAsset, 0, params.actualDebtToLiquidate, UPDATE_RATES_AND_STATES_MASK);
+            lendingPool.updateStates(params.debtAsset, 0, params.debtToCover, UPDATE_RATES_AND_STATES_MASK);
             if (!params.receiveRToken) {
                 DataTypes.ReserveData memory collateralReserve = lendingPool.getReserveData(params.collateralAsset);
                 lendingPool.updateStates(
-                    params.collateralAsset, 0, params.maxCollateralToLiquidate, UPDATE_RATES_AND_STATES_MASK
+                    params.collateralAsset, 0, params.liquidatedCollateralAmount, UPDATE_RATES_AND_STATES_MASK
                 );
                 IRToken(collateralReserve.rTokenAddress).updateCrossChainBalance(
-                    params.user, params.maxCollateralToLiquidate, params.collateralRTokenBurned, 2
+                    params.user, params.liquidatedCollateralAmount, params.collateralRTokenBurned, 2
                 );
             } else {
                 DataTypes.ReserveData memory collateralReserve = lendingPool.getReserveData(params.collateralAsset);
                 lendingPool.updateStates(
-                    params.collateralAsset, 0, params.maxCollateralToLiquidate, UPDATE_RATES_AND_STATES_MASK
+                    params.collateralAsset, 0, params.liquidatedCollateralAmount, UPDATE_RATES_AND_STATES_MASK
                 );
                 IRToken(collateralReserve.rTokenAddress).updateCrossChainBalance(
-                    params.liquidator, params.maxCollateralToLiquidate, params.liquidatorSentScaled, 1
+                    params.liquidator, params.liquidatedCollateralAmount, params.liquidatorSentScaled, 1
                 );
             }
         }
 
-        if (selector == ILendingPool.CrossChainLiquidationCall.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
-            (DataTypes.CrosschainLiquidationCallData memory params) = abi.decode(_data[32:], (DataTypes.CrosschainLiquidationCallData));
-
-            lendingPool.liquidationCall(
-                params.sender,
-                params.collateralAsset,
-                params.debtAsset,
-                params.user,
-                params.debtToCover,
-                params.receiveRToken
-            );
+        if (selector == ILendingPool.CrossChainLiquidationCall.selector) {
+            (DataTypes.CrosschainLiquidationCallData memory params) =
+                abi.decode(_data[32:], (DataTypes.CrosschainLiquidationCallData));
+            if (params.chainId == block.chainid) {
+                lendingPool.liquidationCall(params);
+            }
         }
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*                    FLASHLOAN DISPATCH                      */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-        if (
-            selector == ILendingPool.FlashLoan.selector && abi.decode(_data[32:64], (uint256)) != block.chainid
-                && abi.decode(_data[64:96], (bool))
-        ) {
+        if (selector == ILendingPool.FlashLoan.selector) {
             (DataTypes.FlashLoanEventParams memory params) = abi.decode(_data[32:], (DataTypes.FlashLoanEventParams));
-            lendingPool.updateStates(params.asset, 0, params.amount, UPDATE_RATES_AND_STATES_MASK);
+            if (params.chainId != block.chainid && params.borrowExecuted) {
+                lendingPool.updateStates(params.asset, 0, params.amount, UPDATE_RATES_AND_STATES_MASK);
+            }
         }
 
         if (selector == ILendingPool.CrossChainInitiateFlashloan.selector) {
@@ -308,7 +319,9 @@ contract Router is Initializable, SuperPausable {
         uint256[] calldata chainIds
     ) external whenNotPaused {
         for (uint256 i = 0; i < chainIds.length; i++) {
-            emit ILendingPool.CrossChainWithdraw(DataTypes.CrosschainWithdrawData(chainIds[i], msg.sender, asset, amounts[i], to, toChainId));
+            emit ILendingPool.CrossChainWithdraw(
+                DataTypes.CrosschainWithdrawData(chainIds[i], msg.sender, asset, amounts[i], to, toChainId)
+            );
         }
     }
 
@@ -396,7 +409,9 @@ contract Router is Initializable, SuperPausable {
 
     function initiateFlashLoan(DataTypes.FlashloanParams[] calldata flashloanParams) external whenNotPaused {
         for (uint256 i = 0; i < flashloanParams.length; i++) {
-            emit ILendingPool.CrossChainInitiateFlashloan(DataTypes.InitiateFlashloanParams(msg.sender, flashloanParams[i]));
+            emit ILendingPool.CrossChainInitiateFlashloan(
+                DataTypes.InitiateFlashloanParams(msg.sender, flashloanParams[i])
+            );
         }
     }
 

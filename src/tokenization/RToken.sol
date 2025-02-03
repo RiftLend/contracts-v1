@@ -26,6 +26,7 @@ import {SuperPausable} from "../interop-std/src/utils/SuperPausable.sol";
 import {EventValidator, ValidationMode, Identifier} from "../libraries/EventValidator.sol";
 import {Predeploys} from "../libraries/Predeploys.sol";
 import {MessagingFee} from "src/libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
+import {DataTypes} from "src/libraries/types/DataTypes.sol";
 
 /**
  * @title Aave ERC20 RToken
@@ -98,18 +99,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         return ATOKEN_REVISION;
     }
 
-    function initialize(
-        ILendingPool pool,
-        address treasury,
-        address underlyingAsset,
-        IAaveIncentivesController incentivesController,
-        ILendingPoolAddressesProvider addressesProvider,
-        uint8 rTokenDecimals,
-        string calldata rTokenName,
-        string calldata rTokenSymbol,
-        bytes calldata params,
-        address eventValidator
-    ) external override initializer {
+    function initialize(DataTypes.RTokenInitializeParams memory initParams) external override initializer {
         uint256 chainId;
 
         //solium-disable-next-line
@@ -118,28 +108,36 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         }
 
         DOMAIN_SEPARATOR = keccak256(
-            abi.encode(EIP712_DOMAIN, keccak256(bytes(rTokenName)), keccak256(EIP712_REVISION), chainId, address(this))
+            abi.encode(
+                EIP712_DOMAIN,
+                keccak256(bytes(initParams.rTokenName)),
+                keccak256(EIP712_REVISION),
+                chainId,
+                address(this)
+            )
         );
 
-        _setName(rTokenName);
-        _setSymbol(rTokenSymbol);
-        _setDecimals(rTokenDecimals);
+        _setName(initParams.rTokenName);
+        _setSymbol(initParams.rTokenSymbol);
+        _setDecimals(initParams.rTokenDecimals);
 
-        _pool = pool;
-        _treasury = treasury;
-        _underlyingAsset = underlyingAsset;
-        _incentivesController = incentivesController;
-        _addressesProvider = addressesProvider;
-        _eventValidator = EventValidator(eventValidator);
+        _pool = initParams.pool;
+        _treasury = initParams.treasury;
+        _underlyingAsset = initParams.underlyingAsset;
+        _incentivesController = initParams.incentivesController;
+        _addressesProvider = initParams.addressesProvider;
+        _eventValidator = EventValidator(initParams.eventValidator);
         emit Initialized(
-            underlyingAsset,
-            address(pool),
-            treasury,
-            address(incentivesController),
-            rTokenDecimals,
-            rTokenName,
-            rTokenSymbol,
-            params
+            DataTypes.RTokenInitializedEventParams(
+                initParams.underlyingAsset,
+                address(initParams.pool),
+                initParams.treasury,
+                address(initParams.incentivesController),
+                initParams.rTokenDecimals,
+                initParams.rTokenName,
+                initParams.rTokenSymbol,
+                initParams.params
+            )
         );
     }
 

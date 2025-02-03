@@ -9,36 +9,27 @@ import {IFlashLoanReceiver} from "src/interfaces/IFlashLoanReceiver.sol";
 import {DataTypes} from "../libraries/types/DataTypes.sol";
 
 interface ILendingPool {
-
     /**
      * @dev Emitted on deposit()
      *
      */
-    event Deposit(
-        DataTypes.DepositEventParams params
-    );
+    event Deposit(DataTypes.DepositEventParams params);
 
     /**
      * @dev Emitted on withdraw()
      *
      */
-    event Withdraw(
-        DataTypes.WithdrawEventParams params
-    );
+    event Withdraw(DataTypes.WithdrawEventParams params);
 
     /**
      * @dev Emitted on borrow() and flashLoan() when debt needs to be opened
      */
-    event Borrow(
-        DataTypes.BorrowEventParams params
-    );
+    event Borrow(DataTypes.BorrowEventParams params);
 
     /**
      * @dev Emitted on repay()
      */
-    event Repay(
-        DataTypes.RepayEventParams params
-    );
+    event Repay(DataTypes.RepayEventParams params);
 
     /**
      * @param reserve The address of the underlying asset of the reserve
@@ -57,9 +48,7 @@ interface ILendingPool {
     /**
      * @dev Emitted on flashLoan()
      */
-    event FlashLoan(
-       DataTypes.FlashLoanEventParams params
-    );
+    event FlashLoan(DataTypes.FlashLoanEventParams params);
 
     // Events using structured data
     event CrossChainDeposit(DataTypes.CrosschainDepositData deposit);
@@ -74,28 +63,14 @@ interface ILendingPool {
 
     event CrossChainRepayFinalize(DataTypes.CrosschainRepayFinalizeData repayFinalize);
 
-    event CrossChainInitiateFlashloan(
-        DataTypes.InitiateFlashloanParams flashloanParams
-    );
+    event CrossChainInitiateFlashloan(DataTypes.InitiateFlashloanParams flashloanParams);
 
     /**
      * @dev Functions to deposit/withdraw into the reserve
      */
-    function deposit(
-        address sender,
-        address asset,
-        uint256 amount,
-        address onBehalfOf,
-        uint16 referralCode
-    ) external;
+    function deposit(address sender, address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
 
-    function withdraw(
-        address sender,
-        address asset,
-        uint256 amount,
-        address to,
-        uint256 toChainId
-    ) external;
+    function withdraw(address sender, address asset, uint256 amount, address to, uint256 toChainId) external;
 
     /**
      * @dev Functions to borrow from the reserve
@@ -109,33 +84,13 @@ interface ILendingPool {
         uint16 referralCode
     ) external;
 
-    function repay(
-        address sender,
-        address onBehalfOf,
-        address asset,
-        uint256 amount
-    ) external;
+    function repay(address sender, address onBehalfOf, address asset, uint256 amount) external;
 
-    function setRvaultAssetForUnderlying(
-        address asset,
-        address rVaultAsset
-    ) external;
+    function setRvaultAssetForUnderlying(address asset, address rVaultAsset) external;
 
-    function liquidationCall(
-        address sender,
-        address collateralAsset,
-        address debtAsset,
-        address user,
-        uint256 debtToCover,
-        bool receiveRToken
-    ) external;
+    function liquidationCall(DataTypes.CrosschainLiquidationCallData memory params) external;
 
-    function updateStates(
-        address asset,
-        uint256 depositAmount,
-        uint256 withdrawAmount,
-        bytes2 mask
-    ) external;
+    function updateStates(address asset, uint256 depositAmount, uint256 withdrawAmount, bytes2 mask) external;
 
     function initReserve(
         address asset,
@@ -145,46 +100,25 @@ interface ILendingPool {
         address interestRateStrategyAddress
     ) external;
 
-    function setReserveInterestRateStrategyAddress(
-        address asset,
-        address rateStrategyAddress
-    ) external;
+    function setReserveInterestRateStrategyAddress(address asset, address rateStrategyAddress) external;
 
     function setConfiguration(address asset, uint256 configuration) external;
 
-    function setConfiguration(
-        Identifier calldata _identifier,
-        bytes calldata _data
-    ) external;
+    function setConfiguration(Identifier calldata _identifier, bytes calldata _data) external;
 
-    function getConfiguration(
-        address asset
-    ) external view returns (DataTypes.ReserveConfigurationMap memory);
+    function getConfiguration(address asset) external view returns (DataTypes.ReserveConfigurationMap memory);
 
-    function getUserConfiguration(
-        address user
-    ) external view returns (DataTypes.UserConfigurationMap memory);
+    function getUserConfiguration(address user) external view returns (DataTypes.UserConfigurationMap memory);
 
-    function getReserveNormalizedIncome(
-        address asset
-    ) external view returns (uint256);
+    function getReserveNormalizedIncome(address asset) external view returns (uint256);
 
-    function getReserveNormalizedVariableDebt(
-        address asset
-    ) external view returns (uint256);
+    function getReserveNormalizedVariableDebt(address asset) external view returns (uint256);
 
-    function getReserveData(
-        address asset
-    ) external view returns (DataTypes.ReserveData memory);
+    function getReserveData(address asset) external view returns (DataTypes.ReserveData memory);
 
-    function getAddressesProvider()
-        external
-        view
-        returns (ILendingPoolAddressesProvider);
+    function getAddressesProvider() external view returns (ILendingPoolAddressesProvider);
 
-    function getRVaultAssetOrRevert(
-        address asset
-    ) external view returns (address rVaultAsset);
+    function getRVaultAssetOrRevert(address asset) external view returns (address rVaultAsset);
 
     function _flashLoanPremiumTotal() external view returns (uint256);
 

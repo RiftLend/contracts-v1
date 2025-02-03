@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.8.25;
+
 import {IFlashLoanReceiver} from "src/interfaces/IFlashLoanReceiver.sol";
+import {ILendingPool} from "src/interfaces/ILendingPool.sol";
+import {IAaveIncentivesController} from "src/interfaces/IAaveIncentivesController.sol";
+import {ILendingPoolAddressesProvider} from "src/interfaces/ILendingPoolAddressesProvider.sol";
 
 library DataTypes {
-
-
     // ILendingPool structs
 
     struct FlashLoanLocalVars {
@@ -58,7 +60,8 @@ library DataTypes {
      * @param amount The amount to be withdrawn
      * @param mode The mode: 0 for rTokens, 1 for minting, 2 for burning
      * @param amountScaled The amount scaled to the pool's unit
-    */
+     */
+
     struct WithdrawEventParams {
         address user;
         address reserve;
@@ -68,7 +71,7 @@ library DataTypes {
         uint256 amountScaled;
     }
 
- /**
+    /**
      * @param reserve The address of the underlying asset being borrowed
      * @param amount The amount borrowed out
      * @param user The address of the user initiating the borrow(), receiving the funds on borrow() or just
@@ -92,7 +95,7 @@ library DataTypes {
         uint256 amountScaled;
         uint16 referral;
     }
-    
+
     /**
      * @dev Emitted on repay()
      * @param reserve The address of the underlying asset of the reserve
@@ -111,6 +114,44 @@ library DataTypes {
         uint256 mode;
         uint256 amountBurned;
     }
+
+    /**
+     * This allows to have the events in the generated ABI for LendingPool.
+     * @param collateralAsset The address of the underlying asset used as collateral, to receive as result of the liquidation
+     * @param debtAsset The address of the underlying borrowed asset to be repaid with the liquidation
+     * @param user The address of the borrower getting liquidated
+     * @param debtToCover The debt amount of borrowed `asset` the liquidator wants to cover
+     * @param liquidatedCollateralAmount The amount of collateral received by the liiquidator
+     * @param liquidator The address of the liquidator
+     * @param receiveRToken `true` if the liquidators wants to receive the collateral rTokens, `false` if he wants
+     * to receive the underlying collateral asset directly
+     * @param variableDebtBurned The amount of variable debt burned
+     * @param collateralRTokenBurned The amount of collateral rTokens burned
+     *
+     */
+    struct LiquidationCallEventParams {
+        address collateralAsset;
+        address debtAsset;
+        address user;
+        uint256 debtToCover;
+        uint256 liquidatedCollateralAmount;
+        address liquidator;
+        bool receiveRToken;
+        uint256 variableDebtBurned;
+        uint256 collateralRTokenBurned;
+        uint256 liquidatorSentScaled;
+    }
+
+    //                  address collateralAsset,
+    //                 address debtAsset,
+    //                 address user,
+    //                 uint256 actualDebtToLiquidate,
+    //                 uint256 maxCollateralToLiquidate,
+    //                 address liquidator,
+    //                 bool receiveRToken,
+    //                 uint256 variableDebtBurned,
+    //                 uint256 collateralRTokenBurned,
+    //                 uint256 liquidatorSentScaled
 
     /**
      * @param chainId The chain id
@@ -203,6 +244,71 @@ library DataTypes {
         address interestRateStrategyAddress;
         uint8 id;
         address superAsset;
+    }
+
+    /////////////// RToken ////////////
+
+    /**
+     * @dev Emitted when an rToken is initialized
+     * @param underlyingAsset The address of the underlying asset
+     * @param pool The address of the associated lending pool
+     * @param treasury The address of the treasury
+     * @param incentivesController The address of the incentives controller for this rToken
+     * @param rTokenDecimals the decimals of the underlying
+     * @param rTokenName the name of the rToken
+     * @param rTokenSymbol the symbol of the rToken
+     * @param params A set of encoded parameters for additional initialization
+     *
+     */
+    struct RTokenInitializedEventParams {
+        address underlyingAsset;
+        address pool;
+        address treasury;
+        address incentivesController;
+        uint8 rTokenDecimals;
+        string rTokenName;
+        string rTokenSymbol;
+        bytes params;
+    }
+
+    /**
+     * @param pool The address of the lending pool where this rToken will be used
+     * @param treasury The address of the Aave treasury, receiving the fees on this rToken
+     * @param underlyingAsset The address of the underlying asset of this rToken (E.g. WETH for aWETH)
+     * @param incentivesController The smart contract managing potential incentives distribution
+     * @param addressesProvider The addresses provider
+     * @param rTokenDecimals The decimals of the rToken, same as the underlying asset's
+     * @param rTokenName The name of the rToken
+     * @param rTokenSymbol The symbol of the rToken
+     * @param params A set of encoded parameters for additional initialization
+     * @param eventValidator The address of the event validator
+     */
+    struct RTokenInitializeParams {
+        ILendingPool pool;
+        address treasury;
+        address underlyingAsset;
+        IAaveIncentivesController incentivesController;
+        ILendingPoolAddressesProvider addressesProvider;
+        uint8 rTokenDecimals;
+        string rTokenName;
+        string rTokenSymbol;
+        bytes params;
+        address eventValidator;
+    }
+    ////////////////////////////////
+
+    struct ActionBasedUserBalanceParams {
+        address user;
+        address tokenAddress;
+        DataTypes.Action_type action_type;
+    }
+
+    struct CalculateUserDataReturnData {
+        uint256 totalCollateralInETH;
+        uint256 totalDebtInETH;
+        uint256 avgLtv;
+        uint256 avgLiquidationThreshold;
+        uint256 healthFactor;
     }
 
     enum Action_type {

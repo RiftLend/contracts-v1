@@ -127,7 +127,7 @@ library ReserveConfiguration {
      * @return The decimals of the asset
      *
      */
-    function getDecimals(DataTypes.ReserveConfigurationMap memory self) internal view returns (uint256) {
+    function getDecimals(DataTypes.ReserveConfigurationMap memory self) internal pure returns (uint256) {
         return (self.data & ~DECIMALS_MASK) >> RESERVE_DECIMALS_START_BIT_POSITION;
     }
 
@@ -233,7 +233,7 @@ library ReserveConfiguration {
      * @return The state flags representing active, frozen, borrowing enabled, stableRateBorrowing enabled
      *
      */
-    function getFlags(DataTypes.ReserveConfigurationMap memory self) internal view returns (bool, bool, bool) {
+    function getFlags(DataTypes.ReserveConfigurationMap memory self) internal pure returns (bool, bool, bool) {
         uint256 dataLocal = self.data;
 
         return ((dataLocal & ~ACTIVE_MASK) != 0, (dataLocal & ~FROZEN_MASK) != 0, (dataLocal & ~BORROWING_MASK) != 0);
@@ -247,7 +247,7 @@ library ReserveConfiguration {
      */
     function getParams(DataTypes.ReserveConfigurationMap memory self)
         internal
-        view
+        pure
         returns (uint256, uint256, uint256, uint256, uint256)
     {
         uint256 dataLocal = self.data;

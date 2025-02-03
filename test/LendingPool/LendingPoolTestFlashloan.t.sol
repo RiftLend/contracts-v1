@@ -25,6 +25,24 @@ import {EventUtils} from "../utils/libraries/EventUtils.sol";
 contract LendingPoolTestFlashloan is LendingPoolTestDeposit, IFlashLoanReceiver {
     using UserConfiguration for DataTypes.UserConfigurationMap;
 
+    address asset;
+    uint256 mode;
+    uint256 amount;
+    address receiverAddress;
+    address onBehalfOf;
+    uint256 chainId;
+    bytes32 _selector;
+    uint16 referralCode;
+    bytes params;
+    uint256 premium;
+    address target;
+    address initiator;
+    bool borrowExecuted;
+    uint256 totalBorrowedAmount = 0;
+    uint256 srcChainId;
+    DataTypes.FlashLoanEventParams flashLoanEventParams;
+    address rToken;
+
     function setUp() public override {
         super.setUp();
         deal(address(underlyingAsset), user1, INITIAL_BALANCE);
@@ -38,7 +56,7 @@ contract LendingPoolTestFlashloan is LendingPoolTestDeposit, IFlashLoanReceiver 
             ISuperAsset(_superAsset).deposit(address(this), INITIAL_BALANCE);
             IERC20(_superAsset).approve(address(_rVaultAsset), type(uint256).max);
         }
-        address rToken = proxyLp.getReserveData(address(rVaultAsset1)).rTokenAddress;
+        rToken = proxyLp.getReserveData(address(rVaultAsset1)).rTokenAddress;
         IRVaultAsset(_rVaultAsset).deposit(INITIAL_BALANCE, address(this));
         IERC20(_rVaultAsset).transfer(rToken, INITIAL_BALANCE / 2);
     }
@@ -67,25 +85,10 @@ contract LendingPoolTestFlashloan is LendingPoolTestDeposit, IFlashLoanReceiver 
         uint256[] memory _logindex;
         Vm.Log[] memory entries;
         bytes[] memory events;
-        address asset;
-        uint256 mode;
-        uint256 amount;
-        address receiverAddress;
-        address onBehalfOf;
-        uint256 chainId;
-        bytes32 _selector;
-        uint16 referralCode;
-        bytes memory params;
-        uint256 premium;
-        address target;
-        address initiator;
-        bool borrowExecuted;
-        uint256 totalBorrowedAmount = 0;
-        uint256 srcChainId;
-        DataTypes.FlashLoanEventParams memory flashLoanEventParams;
 
         test_lpDeposit();
-        address rToken = proxyLp.getReserveData(address(rVaultAsset1)).rTokenAddress;
+
+        rToken = proxyLp.getReserveData(address(rVaultAsset1)).rTokenAddress;
         // for returning premium
         if (!shouldBorrow) {
             uint256 bal = IERC20(rToken).balanceOf(user1);
@@ -123,7 +126,7 @@ contract LendingPoolTestFlashloan is LendingPoolTestDeposit, IFlashLoanReceiver 
 
         entries = vm.getRecordedLogs();
 
-        _selector =ILendingPool.CrossChainInitiateFlashloan.selector;
+        _selector = ILendingPool.CrossChainInitiateFlashloan.selector;
         events = EventUtils.findEventsBySelector(entries, _selector);
 
         _identifier = new Identifier[](events.length);
@@ -160,10 +163,18 @@ contract LendingPoolTestFlashloan is LendingPoolTestDeposit, IFlashLoanReceiver 
         console.log("got flashloan events", events.length);
         for (uint256 index = 0; index < events.length; index++) {
             eventData = events[index];
-            (flashLoanEventParams) =
-                abi.decode(eventData, (DataTypes.FlashLoanEventParams));
-            _eventData[index] =
-                abi.encode(_selector, flashLoanEventParams.chainId, flashLoanEventParams.borrowExecuted, flashLoanEventParams.initiator, flashLoanEventParams.asset, flashLoanEventParams.amount, flashLoanEventParams.premium, flashLoanEventParams.target, flashLoanEventParams.referralCode);
+            (flashLoanEventParams) = abi.decode(eventData, (DataTypes.FlashLoanEventParams));
+            _eventData[index] = abi.encode(
+                _selector,
+                flashLoanEventParams.chainId,
+                flashLoanEventParams.borrowExecuted,
+                flashLoanEventParams.initiator,
+                flashLoanEventParams.asset,
+                flashLoanEventParams.amount,
+                flashLoanEventParams.premium,
+                flashLoanEventParams.target,
+                flashLoanEventParams.referralCode
+            );
         }
         srcChainId = block.chainid;
 

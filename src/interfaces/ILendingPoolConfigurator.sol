@@ -18,6 +18,7 @@ interface ILendingPoolConfigurator {
         string variableDebtTokenSymbol;
         bytes params;
         bytes32 salt;
+        address eventValidator;
     }
 
     struct UpdateRTokenInput {

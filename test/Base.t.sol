@@ -87,7 +87,7 @@ contract Base is TestHelperOz5 {
         address incentivesController;
     }
 
-    struct ChainInfo {
+    struct ChainDetails {
         uint256 forkId;
         uint256 chainId;
         address endpoint;
@@ -101,7 +101,7 @@ contract Base is TestHelperOz5 {
 
     address testToken;
     mapping(uint256 chainId => temps) public config;
-    ChainInfo[] supportedChains = new ChainInfo[](2);
+    ChainDetails[2] supportedChains;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                    Test Addresses                           */
@@ -132,7 +132,6 @@ contract Base is TestHelperOz5 {
     address strategy;
     address rVaultAsset1;
     address rVaultAsset2;
-    address chain_b_wethAddress;
 
     LendingPool proxyLp;
     LendingPool implementationLp;
@@ -147,6 +146,8 @@ contract Base is TestHelperOz5 {
     EndpointV2 lzEndpoint;
     Router router;
     EventValidator eventValidator;
+    string filePath;
+    string deployConfig;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                    Token Configuration                       */
@@ -174,40 +175,36 @@ contract Base is TestHelperOz5 {
 
     function setUp() public virtual override {
         super.setUp();
-
         // ############## Load deploy config ##############
-        string memory deployConfigPath = vm.envOr("DEPLOY_CONFIG_PATH", string("/configs/deploy-config.toml"));
-        string memory filePath = string.concat(vm.projectRoot(), deployConfigPath);
-        string memory deployConfig = vm.readFile(filePath);
+        filePath =
+            string.concat(vm.projectRoot(), vm.envOr("DEPLOY_CONFIG_PATH", string("/configs/deploy-config.toml")));
+        deployConfig = vm.readFile(filePath);
+        // uint256 forkId;
+        // uint256 chainId;
+        // address endpoint;
+        // address weth;
+        // address crossL2Prover;
 
         // ############## Read deploy config variables ##############
-        string memory chain_a_rpc = vm.parseTomlString(deployConfig, ".forks.chain_a_rpc_url");
-        address chain_a_cross_l2_prover_address =
-            vm.parseTomlAddress(deployConfig, ".forks.chain_a_cross_l2_prover_address");
-        address chain_a_wethAddress = vm.parseTomlAddress(deployConfig, ".forks.chain_a_weth");
-        address chain_a_lzEndpoint = vm.parseTomlAddress(deployConfig, ".forks.chain_a_lz_endpoint_v2");
+        supportedChains[0].forkId = vm.createFork(vm.parseTomlString(deployConfig, ".forks.chain_a_rpc_url"));
+        supportedChains[0].crossL2Prover = vm.parseTomlAddress(deployConfig, ".forks.chain_a_cross_l2_prover_address");
+        supportedChains[0].weth = vm.parseTomlAddress(deployConfig, ".forks.chain_a_weth");
+        supportedChains[0].endpoint = vm.parseTomlAddress(deployConfig, ".forks.chain_a_lz_endpoint_v2");
+        supportedChains[0].chainId = vm.parseTomlUint(deployConfig, ".forks.chain_a_chain_id");
 
-        string memory chain_b_rpc = vm.parseTomlString(deployConfig, ".forks.chain_b_rpc_url");
-        address chain_b_cross_l2_prover_address =
-            vm.parseTomlAddress(deployConfig, ".forks.chain_b_cross_l2_prover_address");
-        chain_b_wethAddress = vm.parseTomlAddress(deployConfig, ".forks.chain_b_weth");
-        address chain_b_lzEndpoint = vm.parseTomlAddress(deployConfig, ".forks.chain_b_lz_endpoint_v2");
-
-        supportedChains[0] = ChainInfo(
-            vm.createFork(chain_a_rpc), 1, chain_a_lzEndpoint, chain_a_wethAddress, chain_a_cross_l2_prover_address
-        );
-
-        supportedChains[1] = ChainInfo(
-            vm.createFork(chain_b_rpc), 10, chain_b_lzEndpoint, chain_b_wethAddress, chain_b_cross_l2_prover_address
-        );
+        supportedChains[1].forkId = vm.createFork(vm.parseTomlString(deployConfig, ".forks.chain_b_rpc_url"));
+        supportedChains[1].crossL2Prover = vm.parseTomlAddress(deployConfig, ".forks.chain_b_cross_l2_prover_address");
+        supportedChains[1].weth = vm.parseTomlAddress(deployConfig, ".forks.chain_b_weth");
+        supportedChains[1].endpoint = vm.parseTomlAddress(deployConfig, ".forks.chain_b_lz_endpoint_v2");
+        supportedChains[1].chainId = vm.parseTomlUint(deployConfig, ".forks.chain_b_chain_id");
 
         treasury = vm.parseTomlAddress(deployConfig, ".treasury.address");
 
         // ############## Create Fork to test ##############
-        vm.createSelectFork(chain_a_rpc);
+        vm.selectFork(supportedChains[0].forkId);
 
         // ################ Deploy Components ################
-        eventValidator = new EventValidator(chain_a_cross_l2_prover_address);
+        eventValidator = new EventValidator(supportedChains[0].crossL2Prover);
 
         vm.prank(owner);
         proxyAdmin = address(new ProxyAdmin{salt: "proxyAdmin"}(owner));
@@ -263,7 +260,7 @@ contract Base is TestHelperOz5 {
         MockPriceOracle oracle2 = new MockPriceOracle(owner);
 
         // Setup LayerZero Endpoint
-        lzEndpoint = EndpointV2(chain_a_lzEndpoint);
+        lzEndpoint = EndpointV2(supportedChains[0].endpoint);
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*              Asset Deployment                               */
@@ -272,21 +269,17 @@ contract Base is TestHelperOz5 {
         // Deploy SuperAsset
         vm.prank(owner);
         superAsset =
-            new SuperAsset(address(underlyingAsset), superAssetTokenName, superAsseTokenSymbol, chain_a_wethAddress);
+            new SuperAsset(address(underlyingAsset), superAssetTokenName, superAsseTokenSymbol, supportedChains[0].weth);
 
         vm.prank(owner);
-        superAssetWeth =
-            new SuperAsset(address(chain_a_wethAddress), superAssetTokenName, superAsseTokenSymbol, chain_a_wethAddress);
+        superAssetWeth = new SuperAsset(
+            address(supportedChains[0].weth), superAssetTokenName, superAsseTokenSymbol, supportedChains[0].weth
+        );
         vm.label(address(superAsset), "superAsset");
 
         // Deploy RVaultAsset
         vm.startPrank(owner);
         rVaultAsset1 = address(new RVaultAsset{salt: "rVaultAsset1Impl"}());
-
-        uint256 maxDepositLimit = 1 ether * vm.parseTomlUint(deployConfig, ".rvault_asset.max_deposit_limit");
-        uint256 withdrawCoolDownPeriod = vm.parseTomlUint(deployConfig, ".rvault_asset.withdraw_cool_down_period");
-        uint128 lzReceiveGasLimit = uint128(vm.parseTomlUint(deployConfig, ".layerzero.lz_receive_gas_limit"));
-        uint128 lzComposeGasLimit = uint128(vm.parseTomlUint(deployConfig, ".layerzero.lz_compose_gas_limit"));
         IRVaultAsset(rVaultAsset1).initialize(
             RVaultAssetInitializeParams(
                 address(superAsset),
@@ -296,10 +289,10 @@ contract Base is TestHelperOz5 {
                 rVaultAssetTokenName1,
                 rVaultAssetTokenSymbol1,
                 underlyingAssetDecimals,
-                withdrawCoolDownPeriod,
-                maxDepositLimit,
-                lzReceiveGasLimit,
-                lzComposeGasLimit
+                vm.parseTomlUint(deployConfig, ".rvault_asset.withdraw_cool_down_period"),
+                1 ether * vm.parseTomlUint(deployConfig, ".rvault_asset.max_deposit_limit"),
+                uint128(vm.parseTomlUint(deployConfig, ".layerzero.lz_receive_gas_limit")),
+                uint128(vm.parseTomlUint(deployConfig, ".layerzero.lz_compose_gas_limit"))
             )
         );
 
@@ -332,19 +325,6 @@ contract Base is TestHelperOz5 {
         // Deploy and Initialize RToken
         vm.prank(owner);
         RToken rToken = new RToken{salt: "rToken"}();
-        vm.prank(owner);
-        rToken.initialize(
-            ILendingPool(address(proxyLp)),
-            treasury,
-            address(rVaultAsset1),
-            IAaveIncentivesController(incentivesController),
-            ILendingPoolAddressesProvider(address(lpAddressProvider1)),
-            underlyingAsset.decimals(),
-            rTokenName1,
-            rTokenSymbol1,
-            bytes(""),
-            address(eventValidator)
-        );
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*              Pool Configuration                             */
@@ -428,7 +408,8 @@ contract Base is TestHelperOz5 {
             underlyingAssetName: underlyingAssetName,
             params: "v",
             salt: "salt",
-            rTokenImpl: address(rToken)
+            rTokenImpl: address(rToken),
+            eventValidator: address(eventValidator)
         });
 
         vm.prank(poolAdmin1);
