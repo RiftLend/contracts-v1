@@ -245,7 +245,7 @@ contract MainDeployer is Script {
     ║   OUTPUT DEPLOYMENT RESULTS    ║   🎉 Deployment Complete!
     ╚════════════════════════════════╝
     */
-    function outputDeploymentResults() internal view {
+    function outputDeploymentResults() internal {
         console.log("Batch 1 Addresses:");
         console.log("  TestERC20:", batchAddressesSet.batch1Addrs.testERC20);
         console.log("  EventValidator:", batchAddressesSet.batch1Addrs.eventValidator);
@@ -268,6 +268,34 @@ contract MainDeployer is Script {
         console.log("  RouterImpl:", batchAddressesSet.batch4Addrs.routerImpl);
         console.log("  TransparentUpgradeableProxy:", batchAddressesSet.batch4Addrs.transparentUpgradeableProxy);
         console.log("  Router (Proxy):", batchAddressesSet.batch4Addrs.router);
+
+        string memory obj = "result";
+        vm.serializeAddress(obj, "TestERC20", batchAddressesSet.batch1Addrs.testERC20);
+        vm.serializeAddress(obj, "EventValidator", batchAddressesSet.batch1Addrs.eventValidator);
+        vm.serializeAddress(obj, "SuperAsset", batchAddressesSet.batch1Addrs.superAsset);
+        vm.serializeAddress(obj, "ProxyAdmin", batchAddressesSet.batch1Addrs.proxyAdmin);
+        vm.serializeAddress(
+            obj, "LendingPoolAddressesProvider", batchAddressesSet.batch1Addrs.lendingPoolAddressesProvider
+        );
+        vm.serializeAddress(
+            obj, "DefaultReserveInterestRateStrategy", batchAddressesSet.batch1Addrs.defaultReserveInterestRateStrategy
+        );
+        vm.serializeAddress(obj, "MockPriceOracle", batchAddressesSet.batch1Addrs.mockPriceOracle);
+
+        vm.serializeAddress(obj, "LendingPoolImpl", batchAddressesSet.batch2Addrs.lendingPoolImpl);
+        vm.serializeAddress(obj, "LendingPoolConfigurator", batchAddressesSet.batch2Addrs.lendingPoolConfigurator);
+
+        vm.serializeAddress(obj, "RVaultAsset", batchAddressesSet.batch3Addrs.rVaultAsset);
+        vm.serializeAddress(obj, "RToken", batchAddressesSet.batch3Addrs.rToken);
+        vm.serializeAddress(obj, "VariableDebtToken", batchAddressesSet.batch3Addrs.variableDebtToken);
+
+        vm.serializeAddress(
+            obj, "LendingPoolCollateralManager", batchAddressesSet.batch4Addrs.lendingPoolCollateralManager
+        );
+        vm.serializeAddress(obj, "RouterImpl", batchAddressesSet.batch4Addrs.routerImpl);
+        string memory jsonOutput = vm.serializeAddress(obj, "Router", batchAddressesSet.batch4Addrs.router);
+
+        vm.writeJson(jsonOutput, "deployment.json");
     }
 
     /* 
