@@ -1,59 +1,71 @@
 [deploy_config]
-salt = "riftlend"
+# riftlend
+salt = "0x726966746c656e64000000000000000000000000000000000000000000000000" 
+
 chains = ["eth_mainnet","op_mainnet","sepolia-eth"]
 [owner]
 address = "0xf9E5bFE615853BC0ce310Dd3187277B0bbAC112c"
 
 [underlying]
-salt = "Riftlend underlying"
+# riftlendUnderlying
+salt = "0x726966746c656e64556e6465726c79696e670000000000000000000000000000"
 name = "TestUSDC"
 symbol = "TUSDC"
 decimals = 18
 
-[superToken]
-salt = "Riftlend SuperToken"
+[super_token]
+# riftlendSuperToken
+salt = "0x726966746c656e645375706572546f6b656e0000000000000000000000000000"
 name = "superTestUSDC"
 symbol = "STUSDC"
 decimals = 18
 
 [rvault_asset]
-salt="riftlend RVaultAsset"
+# riftlendRVaultAsset
+salt="0x726966746c656e64525661756c74417373657400000000000000000000000000"
 max_deposit_limit=10000
 withdraw_cool_down_period=86400
 name = "rVaultAsset-TUSDC"
 symbol = "rVaultAsset-rTUSDC"
 
 [rToken]
-salt = "riftlend rTokenImpl"
+# riftlendRToken
+salt = "0x726966746c656e6452546f6b656e000000000000000000000000000000000000"
 name = "rToken-TestUSDC"
 symbol = "rTUSDC"
 decimals = 18
 
-[variableDebtToken]
-salt = "riftlend vdebt"
+[variable_debt_token]
+# riftlendVdebt
+salt = "0x726966746c656e64566465627400000000000000000000000000000000000000"
 name = "variableDebt-TUSDC"
 symbol = "vdebt-TUSDC"
 
 [lending_pool_addresses_provider]
-salt = "riftlend lpap"
+# riftlendLpAddressesProvider
+salt = "0x726966746c656e644c7041646472657373657350726f76696465720000000000"
 marketId = "TUSDC Market"
 lpType="OpSuperchain_LENDING_POOL"
 
 [proxy_admin]
-salt = "riftlend proxyAdmin"
+# riftlendProxyAdmin
+salt = "0x726966746c656e6450726f787941646d696e0000000000000000000000000000"
 
 [pool_admin]
 address="0xf9E5bFE615853BC0ce310Dd3187277B0bbAC112c"
 
 
-[lending_pool_impl]
-salt = "riftlend laimpl"
+[lending_pool]
+# riftlendLendingPool
+salt = "0x726966746c656e644c656e64696e67506f6f6c00000000000000000000000000"
 
 [lending_pool_configurator]
-salt = "riftlend lpc"
+# riftlendLpConfigurator
+salt = "0x726966746c656e644c70436f6e666967757261746f7200000000000000000000"
 
 [default_reserve_interest_rate_strategy]
-salt = "riftlend drirs"
+# riftlendDefaultStrategy
+salt = "0x726966746c656e6444656661756c745374726174656779000000000000000000"
 # These are random values. TODO these should be in ray terms
 optimalUtilizationRate = 1
 baseVariableBorrowRate = 2
@@ -62,12 +74,14 @@ variableRateSlope2 = 6
 stableRateSlope1 = 4
 stableRateSlope2 = 5
 
-[lending_rate_oracle]
-salt = "riftlend lro"
+[price_oracle]
+# riftlendPriceOracle
+salt = "0x726966746c656e6450726963654f7261636c6500000000000000000000000000"
 owner_address = "0xf9E5bFE615853BC0ce310Dd3187277B0bbAC112c"
 
 [event_validator]
-salt="Riftlend EventValidator"
+# riftlendEventValidator
+salt = "0x726966746c656e644576656e7456616c696461746f7200000000000000000000"
 
 [relayer]
 address="0x1234567890123456789012345678901234567890"
@@ -80,7 +94,8 @@ address = "0xf40Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 
 
 [router]
-salt = "riftlend router"
+# riftlendRouter
+salt = "0x726966746c656e64526f75746572000000000000000000000000000000000000"
 
 [layerzero]
 lz_receive_gas_limit=200000

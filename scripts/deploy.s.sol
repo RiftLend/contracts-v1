@@ -56,6 +56,17 @@ contract LendingPoolDeployer is Script {
         address lpCollateralManager;
     }
 
+    address underlying;
+    ILendingPoolAddressesProvider provider;
+    address delegate;
+    string name;
+    string symbol;
+    uint8 decimals;
+    uint256 withdrawCoolDownPeriod;
+    uint256 maxDepositLimit;
+    uint128 lzReceiveGasLimit;
+    uint128 lzComposeGasLimit;
+
     DeployedContracts deployedContracts;
 
     constructor() {
@@ -94,13 +105,13 @@ contract LendingPoolDeployer is Script {
         deployedContracts.superAsset = deploySuperAsset();
         deployedContracts.proxyAdmin = deployProxyAdmin();
         deployedContracts.lendingPoolAddressesProvider = deployLendingPoolAddressesProvider();
-        deployedContracts.lendingPoolImpl = deployContract("LendingPool", ".lending_pool_impl.salt", "");
+        deployedContracts.lendingPoolImpl = deployContract("LendingPool", ".lending_pool.salt", "");
         deployedContracts.lendingPoolConfigurator =
             deployContract("LendingPoolConfigurator", ".lending_pool_configurator.salt", "");
         deployedContracts.defaultReserveInterestRateStrategy =
             deployDefaultReserveInterestRateStrategy(deployedContracts.lendingPoolAddressesProvider);
         deployedContracts.lendingRateOracle =
-            deployContractWithArgs("MockPriceOracle", ".lending_rate_oracle.salt", abi.encode(ownerAddress));
+            deployContractWithArgs("MockPriceOracle", ".price_oracle.salt", abi.encode(ownerAddress));
 
         ILendingPoolAddressesProvider lpAddressProvider =
             ILendingPoolAddressesProvider(deployedContracts.lendingPoolAddressesProvider);
@@ -115,13 +126,13 @@ contract LendingPoolDeployer is Script {
 
         deployedContracts.rVaultAsset = deployRVaultAsset();
         deployedContracts.rTokenImpl = deployContract("RToken", ".rToken.salt", "");
-        vm.parseTomlString(deployConfig, ".variableDebtToken.salt");
-        deployedContracts.variableDebtTokenImpl = deployContract("VariableDebtToken", ".variableDebtToken.salt", "");
+        vm.parseTomlString(deployConfig, ".variable_debt_token.salt");
+        deployedContracts.variableDebtTokenImpl = deployContract("VariableDebtToken", ".variable_debt_token.salt", "");
         // Configure LayerZero parameters
-        uint256 maxDepositLimit = 1 ether * vm.parseTomlUint(deployConfig, ".rvault_asset.max_deposit_limit");
-        uint256 withdrawCoolDownPeriod = vm.parseTomlUint(deployConfig, ".rvault_asset.withdraw_cool_down_period");
-        uint128 lzReceiveGasLimit = uint128(vm.parseTomlUint(deployConfig, ".layerzero.lz_receive_gas_limit"));
-        uint128 lzComposeGasLimit = uint128(vm.parseTomlUint(deployConfig, ".layerzero.lz_compose_gas_limit"));
+        maxDepositLimit = 1 ether * vm.parseTomlUint(deployConfig, ".rvault_asset.max_deposit_limit");
+        withdrawCoolDownPeriod = vm.parseTomlUint(deployConfig, ".rvault_asset.withdraw_cool_down_period");
+        lzReceiveGasLimit = uint128(vm.parseTomlUint(deployConfig, ".layerzero.lz_receive_gas_limit"));
+        lzComposeGasLimit = uint128(vm.parseTomlUint(deployConfig, ".layerzero.lz_compose_gas_limit"));
         RVaultAsset(deployedContracts.rVaultAsset).setAllLimits(lzReceiveGasLimit, lzComposeGasLimit, maxDepositLimit);
 
         RVaultAsset(deployedContracts.rVaultAsset).initialize(
@@ -194,8 +205,8 @@ contract LendingPoolDeployer is Script {
             rTokenName: vm.parseTomlString(deployConfig, ".rToken.name"),
             rTokenSymbol: vm.parseTomlString(deployConfig, ".rToken.symbol"),
             variableDebtTokenImpl: deployedContracts.variableDebtTokenImpl,
-            variableDebtTokenName: vm.parseTomlString(deployConfig, ".variableDebtToken.name"),
-            variableDebtTokenSymbol: vm.parseTomlString(deployConfig, ".variableDebtToken.symbol"),
+            variableDebtTokenName: vm.parseTomlString(deployConfig, ".variable_debt_token.name"),
+            variableDebtTokenSymbol: vm.parseTomlString(deployConfig, ".variable_debt_token.symbol"),
             interestRateStrategyAddress: deployedContracts.defaultReserveInterestRateStrategy,
             treasury: treasury,
             incentivesController: incentivesController,
@@ -328,12 +339,12 @@ contract LendingPoolDeployer is Script {
     function deploySuperAsset() internal returns (address) {
         return _deployWithCreate2(
             "SuperAsset",
-            ".superToken.salt",
+            ".super_token.salt",
             type(SuperAsset).creationCode,
             abi.encode(
                 deployedContracts.underlying,
-                vm.parseTomlString(deployConfig, ".superToken.name"),
-                vm.parseTomlString(deployConfig, ".superToken.symbol"),
+                vm.parseTomlString(deployConfig, ".super_token.name"),
+                vm.parseTomlString(deployConfig, ".super_token.symbol"),
                 currentChainWethAddress
             )
         );
@@ -366,18 +377,15 @@ contract LendingPoolDeployer is Script {
     }
 
     function deployDefaultReserveInterestRateStrategy(address lpAddressProvider) internal returns (address) {
-        ILendingPoolAddressesProvider provider = ILendingPoolAddressesProvider(lpAddressProvider);
-        uint256 optimalUtilizationRate =
-            vm.parseTomlUint(deployConfig, ".default_reserve_interest_rate_strategy.optimalUtilizationRate");
-        uint256 baseVariableBorrowRate =
-            vm.parseTomlUint(deployConfig, ".default_reserve_interest_rate_strategy.baseVariableBorrowRate");
-        uint256 variableRateSlope1 =
-            vm.parseTomlUint(deployConfig, ".default_reserve_interest_rate_strategy.variableRateSlope1");
-        uint256 variableRateSlope2 =
-            vm.parseTomlUint(deployConfig, ".default_reserve_interest_rate_strategy.variableRateSlope2");
+        provider = ILendingPoolAddressesProvider(lpAddressProvider);
 
-        bytes memory constructorArgs =
-            abi.encode(provider, optimalUtilizationRate, baseVariableBorrowRate, variableRateSlope1, variableRateSlope2);
+        bytes memory constructorArgs = abi.encode(
+            provider,
+            vm.parseTomlUint(deployConfig, ".default_reserve_interest_rate_strategy.optimalUtilizationRate"),
+            vm.parseTomlUint(deployConfig, ".default_reserve_interest_rate_strategy.baseVariableBorrowRate"),
+            vm.parseTomlUint(deployConfig, ".default_reserve_interest_rate_strategy.variableRateSlope1"),
+            vm.parseTomlUint(deployConfig, ".default_reserve_interest_rate_strategy.variableRateSlope2")
+        );
 
         return _deployWithCreate2(
             "DefaultReserveInterestRateStrategy",
