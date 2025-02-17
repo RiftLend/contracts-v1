@@ -335,7 +335,7 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         });
 
         // ======== Initialize and Activate Reserves ========
-        vm.prank(poolAdmin1);
+        vm.startPrank(poolAdmin1);
         proxyConfigurator2.batchInitReserve(pool1_input);
 
         reserveData = proxyLp1.getReserveData(address(aRVaultAsset));
