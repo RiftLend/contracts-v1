@@ -18,6 +18,17 @@ contract LendingPoolTestBorrow is LendingPoolTestDeposit {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                    Test Functions                            */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+    uint256[] amounts;
+    address onBehalfOf;
+    uint16 referralCode;
+    uint256[] chainIds;
+    uint256 sendToChainId;
+    address asset;
+    address originAddress = address(0x4200000000000000000000000000000000000023);
+    bytes eventData;
+    DataTypes.BorrowEventParams borrowEventParams;
+    DataTypes.CrosschainBorrowData crossChainBorrowData;
+    bytes32 selector;
 
     function test_lpBorrow() public {
         super.setUp();
@@ -26,9 +37,13 @@ contract LendingPoolTestBorrow is LendingPoolTestDeposit {
     }
 
     function _borrow(uint256[] memory _amounts) internal {
+        Vm.Log[] memory entries;
+        Identifier[] memory _identifier;
+        bytes[] memory _eventData;
+        uint256[] memory _logindex;
+
         test_lpDeposit();
-        (uint256[] memory amounts, address onBehalfOf, uint16 referralCode, uint256[] memory chainIds) =
-            getActionXConfig();
+        (amounts, onBehalfOf, referralCode, chainIds) = getActionXConfig();
         if (_amounts.length > 0) {
             amounts = _amounts;
         } else {
@@ -38,8 +53,8 @@ contract LendingPoolTestBorrow is LendingPoolTestDeposit {
             }
         }
 
-        uint256 sendToChainId = supportedChains[0].chainId;
-        address asset = address(underlyingAsset);
+        sendToChainId = supportedChains[0].chainId;
+        asset = address(underlyingAsset);
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*                    Cross-Chain Borrow Setup                   */
@@ -49,27 +64,25 @@ contract LendingPoolTestBorrow is LendingPoolTestDeposit {
         vm.recordLogs();
         vm.prank(onBehalfOf);
         router.borrow(asset, amounts, referralCode, onBehalfOf, sendToChainId, chainIds);
-        Vm.Log[] memory entries = vm.getRecordedLogs();
+        entries = vm.getRecordedLogs();
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*                 Processing Cross-Chain Borrow Event        */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-        Identifier[] memory _identifier = new Identifier[](entries.length);
-        bytes[] memory _eventData = new bytes[](entries.length);
-        uint256[] memory _logindex = new uint256[](entries.length);
-        address originAddress = address(0x4200000000000000000000000000000000000023);
+        _identifier = new Identifier[](entries.length);
+        _eventData = new bytes[](entries.length);
+        _logindex = new uint256[](entries.length);
 
-        bytes memory eventData = entries[0].data;
+        eventData = entries[0].data;
         _identifier[0] = Identifier(originAddress, block.number, 0, block.timestamp, block.chainid);
         _logindex[0] = 0;
 
-        (DataTypes.CrosschainBorrowData memory crossChainBorrowData) =
-            abi.decode(eventData, (DataTypes.CrosschainBorrowData));
+        (crossChainBorrowData) = abi.decode(eventData, (DataTypes.CrosschainBorrowData));
 
-        bytes32 _selector = ILendingPool.CrossChainBorrow.selector;
+        selector = ILendingPool.CrossChainBorrow.selector;
         _eventData[0] = abi.encode(
-            _selector,
+            selector,
             crossChainBorrowData.borrowFromChainId,
             crossChainBorrowData.sendToChainId,
             crossChainBorrowData.sender,
@@ -100,7 +113,7 @@ contract LendingPoolTestBorrow is LendingPoolTestDeposit {
 
         eventData = EventUtils.findEventsBySelector(entries, ILendingPool.Borrow.selector)[0];
 
-        (DataTypes.BorrowEventParams memory borrowEventParams) = abi.decode(eventData, (DataTypes.BorrowEventParams));
+        (borrowEventParams) = abi.decode(eventData, (DataTypes.BorrowEventParams));
 
         _eventData[0] = abi.encode(
             ILendingPool.Borrow.selector,
@@ -120,10 +133,8 @@ contract LendingPoolTestBorrow is LendingPoolTestDeposit {
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
         console.log("sync state of borrow for updating crosschain balances");
-        uint256 srcChain = block.chainid;
-
         for (uint256 i = 0; i < supportedChains.length; i++) {
-            if (supportedChains[i].chainId != srcChain) {
+            if (supportedChains[i].chainId != block.chainid) {
                 vm.chainId(supportedChains[i].chainId);
                 vm.prank(relayer);
                 router.dispatch(ValidationMode.CUSTOM, _identifier, _eventData, bytes(""), _logindex);

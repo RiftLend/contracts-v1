@@ -27,6 +27,7 @@ import {EventValidator, ValidationMode, Identifier} from "../libraries/EventVali
 import {Predeploys} from "../libraries/Predeploys.sol";
 import {MessagingFee} from "src/libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
 import {DataTypes} from "src/libraries/types/DataTypes.sol";
+import {LendingPool} from "src/LendingPool.sol";
 
 /**
  * @title Aave ERC20 RToken
@@ -50,7 +51,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
 
     bytes32 public DOMAIN_SEPARATOR;
 
-    ILendingPool internal _pool;
+    LendingPool internal _pool;
     address internal _treasury;
     address internal _underlyingAsset;
     IAaveIncentivesController internal _incentivesController;
@@ -64,7 +65,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     modifier onlyLendingPool() {
-        require(_msgSender() == address(_pool), CT_CALLER_MUST_BE_LENDING_POOL);
+        require(msg.sender == address(_pool), CT_CALLER_MUST_BE_LENDING_POOL);
         _;
     }
 
@@ -121,16 +122,16 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         _setSymbol(initParams.rTokenSymbol);
         _setDecimals(initParams.rTokenDecimals);
 
-        _pool = initParams.pool;
+        _addressesProvider = initParams.addressesProvider;
+        _pool = LendingPool(_addressesProvider.getLendingPool());
         _treasury = initParams.treasury;
         _underlyingAsset = initParams.underlyingAsset;
         _incentivesController = initParams.incentivesController;
-        _addressesProvider = initParams.addressesProvider;
         _eventValidator = EventValidator(initParams.eventValidator);
         emit Initialized(
             DataTypes.RTokenInitializedEventParams(
                 initParams.underlyingAsset,
-                address(initParams.pool),
+                address(_pool),
                 initParams.treasury,
                 address(initParams.incentivesController),
                 initParams.rTokenDecimals,
@@ -255,7 +256,8 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     {
         uint256 previousBalance = super.balanceOf(user);
 
-        uint256 amountScaled = amount.rayDiv(index);
+        uint256 amountScaled = amount;
+        amountScaled = amount.rayDiv(index);
         require(amountScaled != 0, CT_INVALID_MINT_AMOUNT);
         _mint(user, amountScaled);
         crosschainUnderlyingAsset[user] += amount;
@@ -391,7 +393,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
      * @dev Returns the address of the lending pool where this rToken is used
      *
      */
-    function POOL() public view returns (ILendingPool) {
+    function POOL() public view returns (LendingPool) {
         return _pool;
     }
 
@@ -481,7 +483,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
      *
      */
     function _transfer(address from, address to, uint256 amount, bool validate) internal {
-        ILendingPool pool = _pool;
+        LendingPool pool = _pool;
 
         uint256 index = pool.getReserveNormalizedIncome(_underlyingAsset);
 
@@ -515,4 +517,9 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
             _unpause();
         }
     }
+
+    /*..•°.*°.˚:*•˚°.*°.˚: •°.*:*•*/
+    /*       Receive Method       */
+    /*.•°:°.´+˚+°.• • °.•´+°.•´+•*/
+    receive() external payable {}
 }

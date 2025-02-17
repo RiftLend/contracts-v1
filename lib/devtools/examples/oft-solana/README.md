@@ -81,7 +81,7 @@ cp .env.example .env
 
 In the `.env` just created, set `SOLANA_PRIVATE_KEY` to your private key value in base58 format. Since the locally stored keypair is in an integer array format, we'd need to encode it into base58 first.
 
-You can run the `npx hardhat lz:solana:base-58` to output your private key in base58 format. Optionally, pass in a value for the `--keypair-file` flag if you want to use the keypair other than the default at `~/.config/solana.id.json`
+You can run the `npx hardhat lz:solana:base-58` to output your private key in base58 format. Optionally, pass in a value for the `--keypair-file` flag if you want to use the keypair other than the default at `~/.config/solana/id.json`
 
 Also set the `RPC_URL_SOLANA_TESTNET` value. Note that while the naming used here is `TESTNET`, it refers to the [Solana Devnet](https://docs.layerzero.network/v2/developers/evm/technical-reference/deployed-contracts#solana-testnet). We use `TESTNET` to keep it consistent with the existing EVM testnets.
 
@@ -100,7 +100,13 @@ anchor keys sync
 
 :warning: `--force` flag overwrites the existing keys with the ones you generate.
 
-Run `anchor keys list` to view the generated programIds (public keys). The output should look something like this:
+Run
+
+```
+anchor keys list
+```
+
+to view the generated programIds (public keys). The output should look something like this:
 
 ```
 endpoint: <ENDPOINT_PROGRAM_ID>
@@ -151,12 +157,14 @@ Rent-exempt minimum: 3.87415872 SOL
 #### Deploy the Solana OFT
 
 ```bash
-solana program deploy --program-id target/deploy/oft-keypair.json target/verifiable/oft.so -u devnet
+solana program deploy --program-id target/deploy/oft-keypair.json target/verifiable/oft.so -u devnet --max-len $(wc -c < target/verifiable/oft.so)
 ```
 
 :information_source: the `-u` flag specifies the RPC URL that should be used. The options are `mainnet-beta, devnet, testnet, localhost`, which also have their respective shorthands: `-um, -ud, -ut, -ul`
 
-:warning: If the deployment is slow, it could be that the network is congested. If so, you can either wait it out or opt to include a `priorityFee`.
+:information_source: Regarding `--max-len $(wc -c < target/verifiable/oft.so)` - as we are using Solana CLI `v1.17.31`, the program deploy command would be allocating twice the size of the program bytecode, which leads to needing twice the amount of rent. On mainnet this can be costly. This behavior was changed in `v1.18` to require only the exact size of the program bytecode. To emulate this, we are using the `--max-len` flag and passing it the actual size of the program bytecode.
+
+:warning: If the deployment is slow, it could be that the network is congested. If so, you can either wait it out or opt to include a priority fee (see below).
 
 #### (optional) Deploying with a priority fee
 
@@ -214,13 +222,15 @@ pnpm hardhat lz:oft:solana:create --eid 40168 --program-id <PROGRAM_ID>
 pnpm hardhat lz:oft-adapter:solana:create --eid 40168 --program-id <PROGRAM_ID> --mint <TOKEN_MINT> --token-program <TOKEN_PROGRAM_ID>
 ```
 
+:information_source: You can use OFT Adapter if you want to use an existing token on Solana. For OFT Adapter, tokens will be locked when sending to other chains and unlocked when receiving from other chains.
+
 #### For OFT Mint-And-Burn Adapter (MABA):
 
 ```bash
 pnpm hardhat lz:oft:solana:create --eid 40168 --program-id <PROGRAM_ID> --mint <TOKEN_MINT> --token-program <TOKEN_PROGRAM_ID>
 ```
 
-:warning: Use `--additional-minters` flag to add a CSV of additional minter addresses to the Mint Authority Multisig. If you do not want to, you must specify `--only-oft-store true`.
+:information_source: You can use OFT Mint-And-Burn Adapter if you want to use an existing token on Solana. For OFT Mint-And-Burn Adapter, tokens will be burned when sending to other chains and minted when receiving from other chains. Note that before attempting any cross-chain transfers, you must transfer the Mint Authority to the OFT Store address for `lz_receive` to work, as that is not handled in the script. You cannot use this option if your token's Mint Authority has been renounced.
 
 ### Update [layerzero.config.ts](./layerzero.config.ts)
 
@@ -233,6 +243,8 @@ const solanaContract: OmniPointHardhat = {
 };
 ```
 
+:warning: Ensure that you only specify `address` for the solana contract object. Do not specify addresses for the EVM chain contract objects. Under the hood, we use `hardhat-deploy` to retrieve the contract addresses of the deployed EVM chain contracts. You will run into an error if you specify `address` for an EVM chain contract object.
+
 ### Deploy a sepolia OFT peer
 
 ```bash
@@ -243,7 +255,7 @@ Note: If you are on testnet, consider using `MyOFTMock` to allow test token mint
 
 ### Initialize the Solana OFT
 
-:warning: Only do this the first time you are initializing the OFT.
+:warning: Do this only when initializing the OFT for the first time. The only exception is if a new pathway is added later. If so, run this again to properly initialize the pathway.
 
 ```bash
 npx hardhat lz:oapp:init:solana --oapp-config layerzero.config.ts --solana-secret-key <SECRET_KEY> --solana-program-id <PROGRAM_ID>
@@ -271,7 +283,7 @@ First, you need to create the Associated Token Account for your address.
 spl-token create-account <TOKEN_MINT>
 ```
 
-Then, you can mint.
+Then, you can mint. Remember this is in local decimals, so with local decimals of 9, you would need to pass in `--amount 1000000000` to mint 1 OFT.
 
 ```bash
 spl-token mint <TOKEN_MINT> <AMOUNT> --multisig-signer ~/.config/solana/id.json --owner <MINT_AUTHORITY>

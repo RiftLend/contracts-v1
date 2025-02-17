@@ -41,24 +41,30 @@ contract LendingPoolTestFlashloan is LendingPoolTestDeposit, IFlashLoanReceiver 
     uint256 totalBorrowedAmount = 0;
     uint256 srcChainId;
     DataTypes.FlashLoanEventParams flashLoanEventParams;
-    address rToken;
+    address _rVaultAsset;
+    address _superAsset;
+    bytes eventData;
+    bytes[] _eventData;
+    bytes[] events;
+    DataTypes.InitiateFlashloanParams initiateFlashloanParams;
+    uint256 contract_vdebt_balance;
+    address rTokenAddress;
 
     function setUp() public override {
         super.setUp();
         deal(address(underlyingAsset), user1, INITIAL_BALANCE);
         // Deal some rVaultAsset to the rToken
         deal(address(underlyingAsset), address(this), INITIAL_BALANCE);
-        address _rVaultAsset = proxyLp.getRVaultAssetOrRevert(address(underlyingAsset));
-        uint256 pool_type = proxyLp.pool_type();
-        if (pool_type == 1) {
-            address _superAsset = IRVaultAsset(_rVaultAsset).asset();
+        _rVaultAsset = proxyLp.getRVaultAssetOrRevert(address(underlyingAsset));
+        if (proxyLp.pool_type() == 1) {
+            _superAsset = IRVaultAsset(_rVaultAsset).asset();
             IERC20(address(underlyingAsset)).approve(address(_superAsset), type(uint256).max);
             ISuperAsset(_superAsset).deposit(address(this), INITIAL_BALANCE);
             IERC20(_superAsset).approve(address(_rVaultAsset), type(uint256).max);
         }
-        rToken = proxyLp.getReserveData(address(rVaultAsset1)).rTokenAddress;
+        rTokenAddress = proxyLp.getReserveData(address(rVaultAsset1)).rTokenAddress;
         IRVaultAsset(_rVaultAsset).deposit(INITIAL_BALANCE, address(this));
-        IERC20(_rVaultAsset).transfer(rToken, INITIAL_BALANCE / 2);
+        IERC20(_rVaultAsset).transfer(rTokenAddress, INITIAL_BALANCE / 2);
     }
 
     function test_lpFlashLoanBorrow() public {
@@ -79,21 +85,18 @@ contract LendingPoolTestFlashloan is LendingPoolTestDeposit, IFlashLoanReceiver 
      * - false: Test repayment path with premium return
      */
     function execute_flashloan(bool shouldBorrow) internal {
-        bytes memory eventData;
-        bytes[] memory _eventData;
         Identifier[] memory _identifier;
         uint256[] memory _logindex;
         Vm.Log[] memory entries;
-        bytes[] memory events;
 
         test_lpDeposit();
 
-        rToken = proxyLp.getReserveData(address(rVaultAsset1)).rTokenAddress;
+        rTokenAddress = proxyLp.getReserveData(address(rVaultAsset1)).rTokenAddress;
         // for returning premium
         if (!shouldBorrow) {
-            uint256 bal = IERC20(rToken).balanceOf(user1);
+            uint256 bal = IERC20(rTokenAddress).balanceOf(user1);
             vm.prank(user1);
-            IRToken(rToken).transfer(address(this), bal / 4);
+            IRToken(rTokenAddress).transfer(address(this), bal / 4);
         }
 
         /////////////////////////////////////
@@ -132,7 +135,6 @@ contract LendingPoolTestFlashloan is LendingPoolTestDeposit, IFlashLoanReceiver 
         _identifier = new Identifier[](events.length);
         _eventData = new bytes[](events.length);
         _logindex = new uint256[](events.length);
-        DataTypes.InitiateFlashloanParams memory initiateFlashloanParams;
 
         for (uint256 index = 0; index < events.length; index++) {
             eventData = events[index];
@@ -191,7 +193,7 @@ contract LendingPoolTestFlashloan is LendingPoolTestDeposit, IFlashLoanReceiver 
             /*     Assert Cross-Chain  Variable Debt Token  Balance is increased for user1 **/
             /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.°•.°+.*•´°•.°+.*•´•*/
             console.log("Assert Cross-Chain  Variable Debt Token  Token Balance ");
-            uint256 contract_vdebt_balance = VariableDebtToken(
+            contract_vdebt_balance = VariableDebtToken(
                 address(proxyLp.getReserveData(address(rVaultAsset1)).variableDebtTokenAddress)
             ).crossChainUserBalance(user1);
             console.log(contract_vdebt_balance, totalBorrowedAmount);

@@ -76,9 +76,9 @@ contract RVaultAssetTestMisc is RVaultAssetTestBase {
 
         // for rVaultAsset2 the underlying is superasset
 
-        uint256 user1UnderlyingBalanceBefore = IERC20(underlyingAsset).balanceOf(user1);
+        uint256 user1UnderlyingBalanceBefore = underlyingAsset.balanceOf(user1);
         vm.prank(user1);
-        IERC20(underlyingAsset).approve(address(rVaultAsset2), 10 ether);
+        underlyingAsset.approve(address(rVaultAsset2), 10 ether);
         vm.prank(user1);
         IRVaultAsset(rVaultAsset2).mint(10 ether, user1);
 

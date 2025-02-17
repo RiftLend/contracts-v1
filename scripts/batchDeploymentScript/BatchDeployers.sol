@@ -24,7 +24,7 @@ import {BatchDataTypes} from "./BatchDataTypes.sol";
 ///         TestERC20, EventValidator, SuperAsset, ProxyAdmin, LendingPoolAddressesProvider,
 ///         DefaultReserveInterestRateStrategy, and MockPriceOracle.
 contract BatchDeployer1 {
-    address public testERC20;
+    address public underlying;
     address public eventValidator;
     address public superAsset;
     address public proxyAdmin;
@@ -34,7 +34,7 @@ contract BatchDeployer1 {
     // Group all deployed addresses in a struct for easier access.
 
     struct Addresses {
-        address testERC20;
+        address underlying;
         address eventValidator;
         address superAsset;
         address proxyAdmin;
@@ -44,11 +44,13 @@ contract BatchDeployer1 {
     }
 
     constructor(BatchDataTypes.Batch1Params memory params) {
-        testERC20 = address(new TestERC20(params.underlyingName, params.underlyingSymbol, params.underlyingDecimals));
+        underlying = address(
+            new TestERC20(params.underlyingName, params.underlyingSymbol, params.underlyingDecimals, params.owner)
+        );
         eventValidator = address(new EventValidator{salt: params.eventValidatorSalt}(params.crossL2ProverAddress));
         superAsset = address(
             new SuperAsset{salt: params.superAssetSalt}(
-                testERC20, params.superAssetName, params.superAssetSymbol, params.currentChainWethAddress
+                underlying, params.superAssetName, params.superAssetSymbol, params.currentChainWethAddress
             )
         );
         proxyAdmin = address(new ProxyAdmin(params.ownerAddress));
@@ -72,7 +74,7 @@ contract BatchDeployer1 {
     // Return all deployed addresses as one struct.
     function getDeployedAddresses() external view returns (Addresses memory) {
         return Addresses({
-            testERC20: testERC20,
+            underlying: underlying,
             eventValidator: eventValidator,
             superAsset: superAsset,
             proxyAdmin: proxyAdmin,
@@ -132,39 +134,19 @@ contract BatchDeployer3 {
 ///         Pass in lendingPool, lendingPoolAddressesProvider, eventValidator, and proxyAdmin.
 contract BatchDeployer4 {
     address public lendingPoolCollateralManager;
-    address public routerImpl;
-    address public transparentUpgradeableProxy;
     address public router;
 
-    constructor(
-        address lendingPool,
-        address lendingPoolAddressesProvider,
-        address eventValidator,
-        address proxyAdmin,
-        bytes32 routerSalt
-    ) {
+    constructor(bytes32 routerSalt) {
         lendingPoolCollateralManager = address(new LendingPoolCollateralManager());
-        routerImpl = address(new Router{salt: routerSalt}());
-        bytes memory initData = abi.encodeWithSelector(
-            Router.initialize.selector, lendingPool, lendingPoolAddressesProvider, eventValidator
-        );
-        transparentUpgradeableProxy = address(new TransparentUpgradeableProxy(routerImpl, proxyAdmin, initData));
-        router = transparentUpgradeableProxy;
+        router = address(new Router{salt: routerSalt}());
     }
 
     struct Addresses {
         address lendingPoolCollateralManager;
-        address routerImpl;
-        address transparentUpgradeableProxy;
         address router;
     }
 
     function getDeployedAddresses() external view returns (Addresses memory) {
-        return Addresses({
-            lendingPoolCollateralManager: lendingPoolCollateralManager,
-            routerImpl: routerImpl,
-            transparentUpgradeableProxy: transparentUpgradeableProxy,
-            router: router
-        });
+        return Addresses({lendingPoolCollateralManager: lendingPoolCollateralManager, router: router});
     }
 }

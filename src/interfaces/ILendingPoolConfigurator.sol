@@ -85,7 +85,7 @@ interface ILendingPoolConfigurator {
      */
     event ReserveActivated(address indexed asset);
 
-    event RvaultAssetForUnderlyingChanged(address asset, address rVaultAsset);
+    event RvaultAssetForUnderlyingChanged(address pool, address asset, address rVaultAsset);
 
     /**
      * @dev Emitted when a reserve is deactivated

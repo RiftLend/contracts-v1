@@ -353,4 +353,9 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
     function transferOwnership(address newOwner) public payable override(SuperOwnable, Ownable) {
         SuperOwnable.transferOwnership(newOwner);
     }
+
+    /*..•°.*°.˚:*•˚°.*°.˚: •°.*:*•*/
+    /*       Receive Method       */
+    /*.•°:°.´+˚+°.• • °.•´+°.•´+•*/
+    receive() external payable {}
 }

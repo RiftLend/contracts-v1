@@ -224,7 +224,7 @@ library GenericLogic {
     ) internal pure returns (uint256) {
         if (totalDebtInETH == 0) return type(uint256).max;
 
-        return (totalCollateralInETH.percentMul(liquidationThreshold)) / 1e18;
+        return (totalCollateralInETH.percentMul(liquidationThreshold)) / totalDebtInETH;
     }
 
     /**

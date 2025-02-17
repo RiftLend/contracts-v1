@@ -64,29 +64,6 @@ contract Base is TestHelperOz5 {
     /*                    Structs Definition                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    struct temps {
-        address owner;
-        address emergencyAdmin;
-        address proxyAdmin;
-        address poolAdmin;
-        address lendingPoolConfigurator;
-        address lendingPoolAddressesProvider;
-        mapping(address underlyingAsset => Market) markets;
-    }
-
-    struct Market {
-        uint256 marketId;
-        address underlyingAsset;
-        address rTokenImpl;
-        address variableDebtTokenImpl;
-        address SuperAsset;
-        address rToken;
-        address variableDebtToken;
-        address interestRateStrategy;
-        address treasury;
-        address incentivesController;
-    }
-
     struct ChainDetails {
         uint256 forkId;
         uint256 chainId;
@@ -100,7 +77,6 @@ contract Base is TestHelperOz5 {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     address testToken;
-    mapping(uint256 chainId => temps) public config;
     ChainDetails[2] supportedChains;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -113,6 +89,7 @@ contract Base is TestHelperOz5 {
     address user2 = makeAddr("user2");
     address liquidityProvider = makeAddr("liquidityProvider");
     address liquidator = makeAddr("liquidator");
+    address bootStrapper = makeAddr("bootStrapper");
 
     address relayer = makeAddr("relayer");
     address emergencyAdmin = makeAddr("emergencyAdmin");
@@ -132,6 +109,11 @@ contract Base is TestHelperOz5 {
     address strategy;
     address rVaultAsset1;
     address rVaultAsset2;
+    MockPriceOracle oracle1;
+    MockPriceOracle oracle2;
+    RToken rToken;
+    LendingPoolCollateralManager lpCollateralManager;
+    VariableDebtToken variableDebtTokenImpl;
 
     LendingPool proxyLp;
     LendingPool implementationLp;
@@ -212,7 +194,7 @@ contract Base is TestHelperOz5 {
 
         // ################ Deploy UnderlyingAsset ################
         vm.prank(owner);
-        underlyingAsset = new TestERC20(underlyingAssetName, underlyingAssetSymbol, underlyingAssetDecimals);
+        underlyingAsset = new TestERC20(underlyingAssetName, underlyingAssetSymbol, underlyingAssetDecimals, owner);
         vm.label(address(underlyingAsset), "underlyingAsset");
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -220,11 +202,9 @@ contract Base is TestHelperOz5 {
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
         // Deploy LendingPoolAddressesProvider
-        bytes32 lp_type = keccak256("OpSuperchain_LENDING_POOL");
-        lpAddressProvider1 = new LendingPoolAddressesProvider("TUSDC", owner, proxyAdmin, lp_type);
-
-        lp_type = keccak256("ARB_LENDING_POOL");
-        lpAddressProvider2 = new LendingPoolAddressesProvider("TUSDC", owner, proxyAdmin, lp_type);
+        lpAddressProvider1 =
+            new LendingPoolAddressesProvider("TUSDC", owner, proxyAdmin, keccak256("OpSuperchain_LENDING_POOL"));
+        lpAddressProvider2 = new LendingPoolAddressesProvider("TUSDC", owner, proxyAdmin, keccak256("ARB_LENDING_POOL"));
 
         // Deploy LendingPool Implementation
         vm.prank(owner);
@@ -255,9 +235,9 @@ contract Base is TestHelperOz5 {
 
         // Deploy Oracle
         vm.prank(owner);
-        MockPriceOracle oracle1 = new MockPriceOracle(owner);
+        oracle1 = new MockPriceOracle(owner);
         vm.prank(owner);
-        MockPriceOracle oracle2 = new MockPriceOracle(owner);
+        oracle2 = new MockPriceOracle(owner);
 
         // Setup LayerZero Endpoint
         lzEndpoint = EndpointV2(supportedChains[0].endpoint);
@@ -324,12 +304,12 @@ contract Base is TestHelperOz5 {
 
         // Deploy and Initialize RToken
         vm.prank(owner);
-        RToken rToken = new RToken{salt: "rToken"}();
+        rToken = new RToken{salt: "rToken"}();
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*              Pool Configuration                             */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-        LendingPoolCollateralManager lpCollateralManager = new LendingPoolCollateralManager();
+        lpCollateralManager = new LendingPoolCollateralManager();
 
         // Set Addresses in LpAddressesProvider
         vm.startPrank(owner);
@@ -354,7 +334,7 @@ contract Base is TestHelperOz5 {
 
         // Deploy VariableDebtToken
         vm.prank(owner);
-        VariableDebtToken variableDebtTokenImpl = new VariableDebtToken{salt: "variableDebtTokenImpl"}();
+        variableDebtTokenImpl = new VariableDebtToken{salt: "variableDebtTokenImpl"}();
 
         // Deploy and Configure LendingPoolConfigurator
         lpConfigurator = new LendingPoolConfigurator();

@@ -1,6 +1,7 @@
 # Compiler files
 cache/
 out/
+lib/
 
 # Ignores development broadcast logs
 /broadcast
@@ -17,3 +18,5 @@ node_modules/
 .gitpod.yml
 pnpm-lock.yaml
 count_lines.py
+lib/devtools/
+lib/

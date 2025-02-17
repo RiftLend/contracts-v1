@@ -3,8 +3,10 @@
 pragma solidity 0.8.25;
 
 import {ILendingPoolAddressesProvider} from "src/interfaces/ILendingPoolAddressesProvider.sol";
+
 import {LendingPoolConfigurator} from "src/LendingPoolConfigurator.sol";
 import {BatchDeployer1, BatchDeployer2, BatchDeployer3, BatchDeployer4} from "./BatchDeployers.sol";
+import {LendingPool} from "src/LendingPool.sol";
 
 library BatchDataTypes {
     struct Batch1Params {
@@ -26,6 +28,7 @@ library BatchDataTypes {
         bytes32 eventValidatorSalt;
         bytes32 lpAddressProviderSalt;
         bytes32 oracleSalt;
+        address owner;
     }
 
     /* ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
@@ -41,6 +44,7 @@ library BatchDataTypes {
         bytes32 lpType;
         ILendingPoolAddressesProvider lpProvider;
         LendingPoolConfigurator proxyConfigurator;
+        LendingPool proxyLp;
     }
 
     /* ╔══════════════════════════════╗
@@ -48,7 +52,7 @@ library BatchDataTypes {
     ╚══════════════════════════════╝ */
 
     struct Batch1Addresses {
-        address testERC20;
+        address underlying;
         address eventValidator;
         address superAsset;
         address proxyAdmin;
@@ -80,8 +84,7 @@ library BatchDataTypes {
     struct Batch4Addresses {
         address lendingPoolCollateralManager;
         address routerImpl;
-        address transparentUpgradeableProxy;
-        address router;
+        address proxyRouter;
     }
 
     // ╔══════════════════════════════╗

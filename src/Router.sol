@@ -18,6 +18,7 @@ import {EventValidator, ValidationMode, Identifier} from "src/libraries/EventVal
 import {DataTypes} from "src/libraries/types/DataTypes.sol";
 import {ReserveLogic} from "src/libraries/logic/ReserveLogic.sol";
 import {MessagingFee} from "src/libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
+import {console} from "forge-std/console.sol";
 
 contract Router is Initializable, SuperPausable {
     using SafeERC20 for IERC20;
@@ -58,6 +59,11 @@ contract Router is Initializable, SuperPausable {
         pool_type = ILendingPool(lendingPool).pool_type();
     }
 
+    // event logger(string message);
+    // event loggerBytes(bytes message);
+    // event loggerBytes32(bytes32 message);
+    // event loggerUint(uint);
+
     function dispatch(
         ValidationMode _mode,
         Identifier[] calldata _identifier,
@@ -66,16 +72,21 @@ contract Router is Initializable, SuperPausable {
         uint256[] calldata _logIndex
     ) external whenNotPaused {
         if (ILendingPoolAddressesProvider(addressesProvider).getRelayer() != msg.sender) revert NOT_RELAYER();
+
         if (_mode == ValidationMode.CROSS_L2_PROVER_RECEIPT) {
             EventValidator(eventValidator).validate(_mode, _identifier[0], _data, _logIndex, _proof);
         }
+
         for (uint256 i = 0; i < _identifier.length; i++) {
             if (_mode != ValidationMode.CUSTOM && _mode != ValidationMode.CROSS_L2_PROVER_RECEIPT) {
                 EventValidator(eventValidator).validate(_mode, _identifier[i], _data, _logIndex, _proof);
             }
+
             _dispatch(_identifier[i], _data[i]);
         }
     }
+
+    event logger(string message);
 
     function _dispatch(Identifier calldata _identifier, bytes calldata _data) internal {
         bytes32 selector = abi.decode(_data[:32], (bytes32));
@@ -94,9 +105,17 @@ contract Router is Initializable, SuperPausable {
             );
         }
         if (selector == ILendingPool.CrossChainDeposit.selector) {
-            (DataTypes.CrosschainDepositData memory params) = abi.decode(_data[32:], (DataTypes.CrosschainDepositData));
-            if (params.fromChainId == block.chainid) {
-                lendingPool.deposit(params.sender, params.asset, params.amount, params.onBehalfOf, params.referralCode);
+            (
+                uint256 fromChainId,
+                address sender,
+                address asset,
+                uint256 amount,
+                address onBehalfOf,
+                uint16 referralCode
+            ) = abi.decode(_data[32:], (uint256, address, address, uint256, address, uint16));
+            if (fromChainId == block.chainid) {
+                emit logger("deposit");
+                lendingPool.deposit(sender, asset, amount, onBehalfOf, referralCode);
             }
         }
 
@@ -172,13 +191,13 @@ contract Router is Initializable, SuperPausable {
 
                 IERC20(params.asset).safeTransferFrom(params.sender, address(this), params.amount);
                 if (pool_type == 1) {
+                    // TODO: remove redundant approves for gas savings , by calling each time lp.setRVaultAssetForUnderlying is called
                     IERC20(params.asset).approve(reserve_superAsset, params.amount);
                     ISuperAsset(reserve_superAsset).deposit(address(this), params.amount);
                     IERC20(reserve_superAsset).approve(rVaultAsset, params.amount);
-                    IRVaultAsset(rVaultAsset).deposit(params.amount, address(this));
-                } else {
-                    IERC20(params.asset).safeTransfer(address(this), params.amount);
                 }
+                IRVaultAsset(rVaultAsset).deposit(params.amount, address(this));
+
                 MessagingFee memory fee;
                 if (params.debtChainId != block.chainid) {
                     (, fee) =
@@ -247,7 +266,7 @@ contract Router is Initializable, SuperPausable {
 
         if (selector == ILendingPool.FlashLoan.selector) {
             (DataTypes.FlashLoanEventParams memory params) = abi.decode(_data[32:], (DataTypes.FlashLoanEventParams));
-            if (params.chainId != block.chainid && params.borrowExecuted) {
+            if (params.chainId != block.chainid) {
                 lendingPool.updateStates(params.asset, 0, params.amount, UPDATE_RATES_AND_STATES_MASK);
             }
         }

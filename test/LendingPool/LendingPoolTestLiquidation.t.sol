@@ -19,7 +19,6 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
     address collateralAsset;
     address debtAsset;
     bool receiveRToken = true;
-    address originAddress = address(0x4200000000000000000000000000000000000023);
     DataTypes.LiquidationCallEventParams liquidationCallEventParams;
     DataTypes.CrosschainLiquidationCallData crossChainLiquidationCallData;
     address collateralRVaultAsset;
@@ -29,16 +28,14 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
     uint256 liquidator_rToken_balance_before_liquidation;
     uint256 user1_vdebt_balance_after_liquidation;
     uint256 liquidator_rToken_balance_after_liquidation;
+    uint256[] debtToCover;
+    bytes[] events;
 
     function test_lpLiquidation() external {
         Identifier[] memory _identifier;
         bytes[] memory _eventData;
         uint256[] memory _logindex;
-        uint256[] memory amounts;
-        uint256[] memory chainIds;
-        uint256[] memory debtToCover;
         Vm.Log[] memory entries;
-        bytes[] memory events;
 
         super.setUp();
 
@@ -53,7 +50,7 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
             address(proxyLp.getReserveData(address(rVaultAsset1)).variableDebtTokenAddress)
         ).crossChainUserBalance(user1);
         liquidator_rToken_balance_before_liquidation = RToken(
-            address(proxyLp.getReserveData(address(rVaultAsset1)).rTokenAddress)
+            payable(proxyLp.getReserveData(address(rVaultAsset1)).rTokenAddress)
         ).crossChainUserBalance(liquidator);
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -149,10 +146,8 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
             );
         }
 
-        uint256 srcChain = block.chainid;
-
         for (uint256 i = 0; i < supportedChains.length; i++) {
-            if (supportedChains[i].chainId != srcChain) {
+            if (supportedChains[i].chainId != block.chainid) {
                 vm.chainId(supportedChains[i].chainId);
                 vm.prank(relayer);
                 router.dispatch(ValidationMode.CUSTOM, _identifier, _eventData, bytes(""), _logindex);
@@ -166,7 +161,7 @@ contract LendingPoolTestLiquidation is LendingPoolTestBorrow {
             address(proxyLp.getReserveData(address(rVaultAsset1)).variableDebtTokenAddress)
         ).crossChainUserBalance(user1);
         liquidator_rToken_balance_after_liquidation = RToken(
-            address(proxyLp.getReserveData(address(rVaultAsset1)).rTokenAddress)
+            payable(proxyLp.getReserveData(address(rVaultAsset1)).rTokenAddress)
         ).crossChainUserBalance(liquidator);
 
         assert(user1_vdebt_balance_before_liquidation > user1_vdebt_balance_after_liquidation);

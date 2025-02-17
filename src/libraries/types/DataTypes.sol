@@ -284,7 +284,6 @@ library DataTypes {
      * @param eventValidator The address of the event validator
      */
     struct RTokenInitializeParams {
-        ILendingPool pool;
         address treasury;
         address underlyingAsset;
         IAaveIncentivesController incentivesController;

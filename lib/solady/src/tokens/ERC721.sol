@@ -19,7 +19,7 @@ pragma solidity ^0.8.4;
 ///   the balance of an owner MUST always be equal to their number of ownership slots.
 ///   The transfer functions do not have an underflow guard for user token balances.
 /// - Make sure all variables written to storage are properly cleaned
-//    (e.g. the bool value for `isApprovedForAll` MUST be either 1 or 0 under the hood).
+///   (e.g. the bool value for `isApprovedForAll` MUST be either 1 or 0 under the hood).
 /// - Check that the overridden function is actually used in the function you want to
 ///   change the behavior of. Much of the code has been manually inlined for performance.
 abstract contract ERC721 {
@@ -294,14 +294,14 @@ abstract contract ERC721 {
             {
                 mstore(0x00, to)
                 let toBalanceSlot := keccak256(0x0c, 0x1c)
-                let p := sload(toBalanceSlot) // `toBalanceSlotPacked`.
-                // Revert if `to` is the zero address, or if the account balance is maxed.
-                if iszero(mul(to, xor(and(p, _MAX_ACCOUNT_BALANCE), _MAX_ACCOUNT_BALANCE))) {
+                let toBalanceSlotPacked := add(sload(toBalanceSlot), 1)
+                // Revert if `to` is the zero address, or if the account balance overflows.
+                if iszero(mul(to, and(toBalanceSlotPacked, _MAX_ACCOUNT_BALANCE))) {
                     // `TransferToZeroAddress()`, `AccountBalanceOverflow()`.
                     mstore(shl(2, iszero(to)), 0xea553b3401336cea)
                     revert(0x1c, 0x04)
                 }
-                sstore(toBalanceSlot, add(1, p))
+                sstore(toBalanceSlot, toBalanceSlotPacked)
             }
             // Emit the {Transfer} event.
             log4(codesize(), 0x00, _TRANSFER_EVENT_SIGNATURE, from, to, id)
@@ -466,14 +466,14 @@ abstract contract ERC721 {
             {
                 mstore(0x00, to)
                 let balanceSlot := keccak256(0x0c, 0x1c)
-                let p := sload(balanceSlot) // `balanceSlotPacked`.
-                // Revert if `to` is the zero address, or if the account balance is maxed.
-                if iszero(mul(to, xor(and(p, _MAX_ACCOUNT_BALANCE), _MAX_ACCOUNT_BALANCE))) {
+                let balanceSlotPacked := add(sload(balanceSlot), 1)
+                // Revert if `to` is the zero address, or if the account balance overflows.
+                if iszero(mul(to, and(balanceSlotPacked, _MAX_ACCOUNT_BALANCE))) {
                     // `TransferToZeroAddress()`, `AccountBalanceOverflow()`.
                     mstore(shl(2, iszero(to)), 0xea553b3401336cea)
                     revert(0x1c, 0x04)
                 }
-                sstore(balanceSlot, add(1, p))
+                sstore(balanceSlot, balanceSlotPacked)
             }
             // Emit the {Transfer} event.
             log4(codesize(), 0x00, _TRANSFER_EVENT_SIGNATURE, 0, to, id)
@@ -503,14 +503,14 @@ abstract contract ERC721 {
             {
                 mstore(0x00, to)
                 let balanceSlot := keccak256(0x0c, 0x1c)
-                let p := sload(balanceSlot) // `balanceSlotPacked`.
-                // Revert if `to` is the zero address, or if the account balance is maxed.
-                if iszero(mul(to, xor(and(p, _MAX_ACCOUNT_BALANCE), _MAX_ACCOUNT_BALANCE))) {
+                let balanceSlotPacked := add(sload(balanceSlot), 1)
+                // Revert if `to` is the zero address, or if the account balance overflows.
+                if iszero(mul(to, and(balanceSlotPacked, _MAX_ACCOUNT_BALANCE))) {
                     // `TransferToZeroAddress()`, `AccountBalanceOverflow()`.
                     mstore(shl(2, iszero(to)), 0xea553b3401336cea)
                     revert(0x1c, 0x04)
                 }
-                sstore(balanceSlot, add(1, p))
+                sstore(balanceSlot, balanceSlotPacked)
             }
             // Emit the {Transfer} event.
             log4(codesize(), 0x00, _TRANSFER_EVENT_SIGNATURE, 0, to, id)
@@ -788,14 +788,14 @@ abstract contract ERC721 {
             {
                 mstore(0x00, to)
                 let toBalanceSlot := keccak256(0x0c, 0x1c)
-                let p := sload(toBalanceSlot) // `toBalanceSlotPacked`.
-                // Revert if `to` is the zero address, or if the account balance is maxed.
-                if iszero(mul(to, xor(and(p, _MAX_ACCOUNT_BALANCE), _MAX_ACCOUNT_BALANCE))) {
+                let toBalanceSlotPacked := add(sload(toBalanceSlot), 1)
+                // Revert if `to` is the zero address, or if the account balance overflows.
+                if iszero(mul(to, and(toBalanceSlotPacked, _MAX_ACCOUNT_BALANCE))) {
                     // `TransferToZeroAddress()`, `AccountBalanceOverflow()`.
                     mstore(shl(2, iszero(to)), 0xea553b3401336cea)
                     revert(0x1c, 0x04)
                 }
-                sstore(toBalanceSlot, add(1, p))
+                sstore(toBalanceSlot, toBalanceSlotPacked)
             }
             // Emit the {Transfer} event.
             log4(codesize(), 0x00, _TRANSFER_EVENT_SIGNATURE, from, to, id)

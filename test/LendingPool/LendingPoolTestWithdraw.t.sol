@@ -60,6 +60,23 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
     // ======== Pool Configuration ========
     LendingPoolConfigurator proxyConfigurator1; // Configurator for chain A
     LendingPoolConfigurator proxyConfigurator2; // Configurator for chain B
+    LendingPoolConfigurator lpConfigurator1;
+    LendingPoolConfigurator lpConfigurator2;
+    RToken rTokenImpl1;
+    RToken rTokenImpl2;
+    VariableDebtToken variableDebtTokenImpl1;
+    VariableDebtToken variableDebtTokenImpl2;
+    DataTypes.ReserveData reserveData;
+    DataTypes.ReserveData reserveData2;
+    address rToken1;
+    address rToken2;
+    DataTypes.WithdrawEventParams withdrawEventParams;
+    DataTypes.CrosschainWithdrawData crossChainWithdrawData;
+    DataTypes.DepositEventParams depositEventParams;
+    address onBehalfOf;
+    uint16 referralCode;
+    bytes eventData;
+    bytes32 _selector;
 
     /**
      * @notice Sets up the complete test environment
@@ -71,19 +88,28 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
 
         // ======== Initial User Setup ========
         // Provide test users with initial ETH balances
-        vm.deal(user1, 1000 ether);
-        vm.deal(user2, 1000 ether);
+        vm.deal(bootStrapper, 100000 ether); //100k eth
+        console.log(address(bootStrapper).balance);
+
+        vm.prank(bootStrapper);
+        {
+            bool success;
+            (success,) = user1.call{value: INITIAL_BALANCE}("");
+            require(success, "Failed to send ETH to user1");
+            vm.prank(bootStrapper);
+            (success,) = user2.call{value: INITIAL_BALANCE}("");
+            require(success, "Failed to send ETH to user2");
+        }
 
         // Initialize LayerZero endpoints using UltraLightNode
         setUpEndpoints(2, LibraryType.UltraLightNode);
 
         // ======== Deploy Address Providers ========
-        // Create unique identifier for lending pools
-        bytes32 lp_type = keccak256("OpSuperchain_LENDING_POOL");
-
         // Deploy address providers for both chains
-        lpAddressProvider1 = new LendingPoolAddressesProvider("TUSDC1", owner, proxyAdmin, lp_type);
-        lpAddressProvider2 = new LendingPoolAddressesProvider("TUSDC2", owner, proxyAdmin, lp_type);
+        lpAddressProvider1 =
+            new LendingPoolAddressesProvider("TUSDC1", owner, proxyAdmin, keccak256("OpSuperchain_LENDING_POOL"));
+        lpAddressProvider2 =
+            new LendingPoolAddressesProvider("TUSDC2", owner, proxyAdmin, keccak256("OpSuperchain_LENDING_POOL"));
 
         // ======== Deploy & Initialize LendingPools ========
         vm.startPrank(owner);
@@ -122,8 +148,8 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         vm.startPrank(owner);
 
         // Deploy configurator implementations
-        LendingPoolConfigurator lpConfigurator1 = new LendingPoolConfigurator();
-        LendingPoolConfigurator lpConfigurator2 = new LendingPoolConfigurator();
+        lpConfigurator1 = new LendingPoolConfigurator();
+        lpConfigurator2 = new LendingPoolConfigurator();
 
         // Initialize configurators
         lpConfigurator1.initialize(ILendingPoolAddressesProvider(address(lpAddressProvider1)), proxyAdmin);
@@ -171,7 +197,7 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         vm.startPrank(owner);
 
         // Deploy and initialize vault asset for chain A
-        aRVaultAsset = RVaultAsset(_deployOApp(type(RVaultAsset).creationCode, bytes("")));
+        aRVaultAsset = RVaultAsset(payable(_deployOApp(type(RVaultAsset).creationCode, bytes(""))));
         aRVaultAsset.initialize(
             RVaultAssetInitializeParams(
                 address(superAsset),
@@ -189,7 +215,7 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         );
 
         // Deploy and initialize vault asset for chain B
-        bRVaultAsset = RVaultAsset(_deployOApp(type(RVaultAsset).creationCode, bytes("")));
+        bRVaultAsset = RVaultAsset(payable(_deployOApp(type(RVaultAsset).creationCode, bytes(""))));
         bRVaultAsset.initialize(
             RVaultAssetInitializeParams(
                 address(superAsset),
@@ -209,19 +235,24 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         vm.stopPrank();
 
         // Bootstraping initial ETH to vault assets for lzCalls
-        vm.deal(address(aRVaultAsset), 10 ether);
-        vm.deal(address(bRVaultAsset), 10 ether);
+        {
+            bool success;
+            vm.prank(bootStrapper);
+            (success,) = payable(aRVaultAsset).call{value: 10 ether}("");
+            require(success, "Failed to send ETH to aRVaultAsset");
 
+            vm.prank(bootStrapper);
+            (success,) = payable(bRVaultAsset).call{value: 10 ether}("");
+            require(success, "Failed to send ETH to bRVaultAsset");
+        }
         // ======== Configure Cross-Chain Communication ========
         // Setup peer connections between vault assets
         address[] memory ofts = new address[](2);
         ofts[0] = address(aRVaultAsset);
         ofts[1] = address(bRVaultAsset);
-
-        uint256 size = ofts.length;
-        for (uint256 i = 0; i < size; i++) {
+        for (uint256 i = 0; i < ofts.length; i++) {
             IOAppSetPeer localOApp = IOAppSetPeer(ofts[i]);
-            for (uint256 j = 0; j < size; j++) {
+            for (uint256 j = 0; j < ofts.length; j++) {
                 if (i == j) continue;
                 IOAppSetPeer remoteOApp = IOAppSetPeer(ofts[j]);
                 uint32 remoteEid = (remoteOApp.endpoint()).eid();
@@ -235,18 +266,18 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
 
         // Deploy and initialize RTokens
         console.log("deploying rTokenImpl1");
-        RToken rTokenImpl1 = new RToken{salt: "rToken1"}();
+        rTokenImpl1 = new RToken{salt: "rToken1"}();
         console.log("deploying rTokenImpl2");
-        RToken rTokenImpl2 = new RToken{salt: "rToken2"}();
+        rTokenImpl2 = new RToken{salt: "rToken2"}();
 
         // Deploy and initialize Variable Debt Tokens
-        VariableDebtToken variableDebtTokenImpl1 = new VariableDebtToken{salt: "variableDebtTokenImpl1"}();
-        VariableDebtToken variableDebtTokenImpl2 = new VariableDebtToken{salt: "variableDebtTokenImpl2"}();
+        variableDebtTokenImpl1 = new VariableDebtToken{salt: "variableDebtTokenImpl1"}();
+        variableDebtTokenImpl2 = new VariableDebtToken{salt: "variableDebtTokenImpl2"}();
         vm.stopPrank();
 
         // ======== Deploy Interest Rate Strategy ========
         // Deploy strategy with initial parameters
-        address strategy = address(
+        strategy = address(
             new DefaultReserveInterestRateStrategy(
                 ILendingPoolAddressesProvider(address(lpAddressProvider1)),
                 0.8 * 1e27, // optimalUtilizationRate
@@ -279,11 +310,12 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
             rTokenImpl: address(rTokenImpl1),
             eventValidator: address(eventValidator)
         });
+        // ======== Initialize and Activate Reserves ========
+        vm.prank(poolAdmin1);
+        proxyConfigurator1.batchInitReserve(pool1_input);
 
         // Prepare initialization input for chain B
-        ILendingPoolConfigurator.InitReserveInput[] memory pool2_input =
-            new ILendingPoolConfigurator.InitReserveInput[](1);
-        pool2_input[0] = ILendingPoolConfigurator.InitReserveInput({
+        pool1_input[0] = ILendingPoolConfigurator.InitReserveInput({
             rTokenName: rTokenName2,
             rTokenSymbol: rTokenSymbol2,
             variableDebtTokenImpl: address(variableDebtTokenImpl2),
@@ -303,20 +335,15 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         });
 
         // ======== Initialize and Activate Reserves ========
-        vm.startPrank(poolAdmin1);
+        vm.prank(poolAdmin1);
+        proxyConfigurator2.batchInitReserve(pool1_input);
 
-        // Initialize reserves on both chains
-        proxyConfigurator1.batchInitReserve(pool1_input);
-        proxyConfigurator2.batchInitReserve(pool2_input);
-
-        DataTypes.ReserveData memory reserveData = proxyLp1.getReserveData(address(aRVaultAsset));
-        address rToken1 = reserveData.rTokenAddress;
+        reserveData = proxyLp1.getReserveData(address(aRVaultAsset));
+        rToken1 = reserveData.rTokenAddress;
         require(rToken1 != address(0), "RToken not initialized in reserves");
-        vm.deal(address(rToken1), 100 ether);
 
-        DataTypes.ReserveData memory reserveData2 = proxyLp2.getReserveData(address(bRVaultAsset));
-        address rToken2 = reserveData2.rTokenAddress;
-        vm.deal(address(rToken2), 100 ether);
+        reserveData2 = proxyLp2.getReserveData(address(bRVaultAsset));
+        rToken2 = reserveData2.rTokenAddress;
 
         // Activate reserves and set RVaultAsset mappings
         proxyConfigurator1.activateReserve(address(aRVaultAsset));
@@ -325,6 +352,18 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         proxyConfigurator2.setRvaultAssetForUnderlying(address(underlyingAsset), address(bRVaultAsset));
 
         vm.stopPrank();
+
+        // Bootsrapping initial gas funds
+        {
+            bool success;
+            vm.prank(bootStrapper);
+            (success,) = address(rToken1).call{value: 100 ether}("");
+            require(success, "Failed to send ETH to rToken1");
+
+            vm.prank(bootStrapper);
+            (success,) = address(rToken2).call{value: 100 ether}("");
+            require(success, "Failed to send ETH to rToken1");
+        }
 
         // ======== Cross-Chain Configuration ========
         // Set chain ID mappings for cross-chain communication
@@ -385,11 +424,13 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
      * @notice Tests the complete cross-chain withdrawal flow
      * @dev Verifies deposit setup, withdrawal execution, and cross-chain message handling
      */
+    DataTypes.CrosschainDepositData crosschainDepositData;
+
     function test_lpWithdraw() public {
         // ======== Test Configuration ========
         // Setup deposit parameters
-        address onBehalfOf = user1;
-        uint16 referralCode = 0;
+        onBehalfOf = user1;
+        referralCode = 0;
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = 5 ether;
         uint256[] memory chainIds = new uint256[](1);
@@ -401,7 +442,7 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         // ======== Initial Deposit Setup ========
         // Approve spending
         vm.prank(user1);
-        IERC20(underlyingAsset).approve(address(proxyLp1), amounts[0]);
+        underlyingAsset.approve(address(proxyLp1), amounts[0]);
 
         // Record events and execute deposit
         vm.recordLogs();
@@ -419,11 +460,11 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
             Identifier(address(0x4200000000000000000000000000000000000023), block.number, 0, block.timestamp, aEid);
 
         // Decode deposit event data
-        (DataTypes.CrosschainDepositData memory crosschainDepositData) =
-            abi.decode(entries[0].data, (DataTypes.CrosschainDepositData));
+        (crosschainDepositData) = abi.decode(entries[0].data, (DataTypes.CrosschainDepositData));
 
         // Prepare and dispatch event
-        bytes32 _selector = ILendingPool.CrossChainDeposit.selector;
+
+        _selector = ILendingPool.CrossChainDeposit.selector;
         _eventData[0] = abi.encode(
             _selector,
             crosschainDepositData.fromChainId,
@@ -440,10 +481,9 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         router1.dispatch(ValidationMode.CUSTOM, _identifier, _eventData, bytes(""), _logindex);
 
         entries = vm.getRecordedLogs();
-        bytes memory eventData;
         eventData = EventUtils.findEventsBySelector(entries, ILendingPool.Deposit.selector)[0];
 
-        (DataTypes.DepositEventParams memory depositEventParams) = abi.decode(eventData, (DataTypes.DepositEventParams));
+        (depositEventParams) = abi.decode(eventData, (DataTypes.DepositEventParams));
 
         _eventData[0] = abi.encode(
             ILendingPool.Deposit.selector,
@@ -463,7 +503,7 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
 
         /// assert cross chain balances of rtoken
         assert(
-            RToken(address(proxyLp1.getReserveData(address(aRVaultAsset)).rTokenAddress))
+            RToken(payable(proxyLp1.getReserveData(address(aRVaultAsset)).rTokenAddress))
                 .totalCrosschainUnderlyingAssets() == depositEventParams.amount
         );
 
@@ -485,8 +525,7 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
             Identifier(address(0x4200000000000000000000000000000000000023), block.number, 0, block.timestamp, aEid);
 
         // Decode withdrawal event data
-        (DataTypes.CrosschainWithdrawData memory crossChainWithdrawData) =
-            abi.decode(entries[0].data, (DataTypes.CrosschainWithdrawData));
+        (crossChainWithdrawData) = abi.decode(entries[0].data, (DataTypes.CrosschainWithdrawData));
 
         _selector = ILendingPool.CrossChainWithdraw.selector;
         _eventData[0] = abi.encode(
@@ -508,8 +547,7 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         entries = vm.getRecordedLogs();
         eventData = EventUtils.findEventsBySelector(entries, ILendingPool.Withdraw.selector)[0];
 
-        (DataTypes.WithdrawEventParams memory withdrawEventParams) =
-            abi.decode(eventData, (DataTypes.WithdrawEventParams));
+        (withdrawEventParams) = abi.decode(eventData, (DataTypes.WithdrawEventParams));
 
         // Verify withdrawal parameters
         assert(withdrawEventParams.user == address(user1));
@@ -531,7 +569,7 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
 
         /// assert cross chain balances of rtoken
         assert(
-            RToken(address(proxyLp1.getReserveData(address(aRVaultAsset)).rTokenAddress))
+            RToken(payable(proxyLp1.getReserveData(address(aRVaultAsset)).rTokenAddress))
                 .totalCrosschainUnderlyingAssets() == 0
         );
 

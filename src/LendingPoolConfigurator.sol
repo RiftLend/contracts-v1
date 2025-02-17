@@ -20,6 +20,7 @@ import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.s
 import {ReserveConfiguration} from "./libraries/configuration/ReserveConfiguration.sol";
 import {PercentageMath} from "./libraries/math/PercentageMath.sol";
 import {DataTypes} from "./libraries/types/DataTypes.sol";
+import {LendingPool} from "./LendingPool.sol";
 
 /**
  * @title LendingPoolConfigurator contract
@@ -61,19 +62,19 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
      */
     function batchInitReserve(InitReserveInput[] calldata input) external {
         onlyPoolAdmin();
-        ILendingPool cachedPool = pool;
         for (uint256 i = 0; i < input.length; i++) {
-            _initReserve(cachedPool, input[i]);
+            _initReserve(input[i]);
         }
     }
 
-    function _initReserve(ILendingPool _pool, InitReserveInput calldata input) internal {
+    function _initReserve(InitReserveInput calldata input) internal {
+        LendingPool proxyLp = LendingPool(ILendingPoolAddressesProvider(addressesProvider).getLendingPool());
+
         address RTokenProxyAddress = _initTokenWithProxy(
             input.rTokenImpl,
             abi.encodeWithSelector(
                 IInitializableRToken.initialize.selector,
                 DataTypes.RTokenInitializeParams(
-                    _pool,
                     input.treasury,
                     input.underlyingAsset,
                     IAaveIncentivesController(input.incentivesController),
@@ -92,7 +93,7 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
             input.variableDebtTokenImpl,
             abi.encodeWithSelector(
                 IInitializableDebtToken.initialize.selector,
-                _pool,
+                ILendingPool(address(proxyLp)),
                 input.underlyingAsset,
                 IAaveIncentivesController(input.incentivesController),
                 addressesProvider,
@@ -104,7 +105,7 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
             input.salt
         );
 
-        _pool.initReserve(
+        proxyLp.initReserve(
             input.underlyingAsset,
             input.superAsset,
             RTokenProxyAddress,
@@ -112,14 +113,14 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
             input.interestRateStrategyAddress
         );
 
-        DataTypes.ReserveConfigurationMap memory currentConfig = _pool.getConfiguration(input.underlyingAsset);
+        DataTypes.ReserveConfigurationMap memory currentConfig = proxyLp.getConfiguration(input.underlyingAsset);
 
         currentConfig.setDecimals(input.underlyingAssetDecimals);
 
         currentConfig.setActive(true);
         currentConfig.setFrozen(false);
 
-        _pool.setConfiguration(input.underlyingAsset, currentConfig.data);
+        proxyLp.setConfiguration(input.underlyingAsset, currentConfig.data);
 
         emit ReserveInitialized(
             input.underlyingAsset, RTokenProxyAddress, variableDebtTokenProxyAddress, input.interestRateStrategyAddress
@@ -360,7 +361,7 @@ contract LendingPoolConfigurator is Initializable, ILendingPoolConfigurator {
         onlyPoolAdmin();
 
         pool.setRvaultAssetForUnderlying(asset, rVaultAsset);
-        emit RvaultAssetForUnderlyingChanged(asset, rVaultAsset);
+        emit RvaultAssetForUnderlyingChanged(address(pool), asset, rVaultAsset);
     }
 
     function _initTokenWithProxy(address implementation, bytes memory initParams, bytes32 _salt)

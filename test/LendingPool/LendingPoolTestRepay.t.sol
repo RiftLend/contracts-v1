@@ -14,22 +14,16 @@ contract LendingPoolTestRepay is LendingPoolTestBorrow {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     bytes32 _selector;
-    address onBehalfOf;
-    address originAddress = address(0x4200000000000000000000000000000000000023);
-    address asset;
     uint256 srcChain;
+    bytes[] events;
+    uint256[] debtChains;
 
     function test_lpRepay() external {
         super.setUp();
-
-        uint256[] memory amounts;
-        uint256[] memory chainIds;
         Identifier[] memory _identifier;
         bytes[] memory _eventData;
         uint256[] memory _logindex;
-        bytes[] memory events;
         Vm.Log[] memory entries;
-        uint256[] memory debtChains;
 
         _borrow(amounts);
         (amounts, onBehalfOf,, chainIds) = getActionXConfig();

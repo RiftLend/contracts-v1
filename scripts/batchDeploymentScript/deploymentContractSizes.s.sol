@@ -27,7 +27,7 @@ import {RVaultAssetInitializeParams} from "src/interfaces/IRVaultAsset.sol";
 import {Script, console} from "forge-std/Script.sol";
 
 contract DeploymentContractSizes is Script {
-    function run() public view {
+    function run() public pure {
         console.log("TestERC20 creation code size:", type(TestERC20).creationCode.length);
         console.log("EventValidator creation code size:", type(EventValidator).creationCode.length);
         console.log("SuperAsset creation code size:", type(SuperAsset).creationCode.length);

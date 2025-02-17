@@ -23,6 +23,9 @@ import {RVaultAsset} from "src/RVaultAsset.sol";
 import {MockPriceOracle} from "test/utils/MockPriceOracle.sol";
 import {RVaultAssetInitializeParams} from "src/interfaces/IRVaultAsset.sol";
 import {ILendingPoolConfigurator} from "src/interfaces/ILendingPoolConfigurator.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
+import {Vm} from "forge-std/Vm.sol";
+import {DataTypes} from "src/libraries/types/DataTypes.sol";
 
 /* ╔════════════════════════════════════════╗
    ║         BATCH DEPLOYERS IMPORT         ║
@@ -131,12 +134,13 @@ contract MainDeployer is Script {
                 vm.parseTomlBytes32(deployConfig, ".super_token.salt"),
                 vm.parseTomlBytes32(deployConfig, ".event_validator.salt"),
                 vm.parseTomlBytes32(deployConfig, ".lending_pool_addresses_provider.salt"),
-                vm.parseTomlBytes32(deployConfig, ".price_oracle.salt")
+                vm.parseTomlBytes32(deployConfig, ".price_oracle.salt"),
+                vm.parseTomlAddress(deployConfig, ".owner.address")
             )
         );
         BatchDeployer1.Addresses memory a1 = batchDeployerSet.bd1.getDeployedAddresses();
         batchAddressesSet.batch1Addrs = BatchDataTypes.Batch1Addresses(
-            a1.testERC20,
+            a1.underlying,
             a1.eventValidator,
             a1.superAsset,
             a1.proxyAdmin,
@@ -170,19 +174,12 @@ contract MainDeployer is Script {
         });
 
         // Batch 4 deployer: LendingPoolCollateralManager & Router (via proxy).
-        batchDeployerSet.bd4 = new BatchDeployer4(
-            batchAddressesSet.batch2Addrs.lendingPoolImpl,
-            batchAddressesSet.batch1Addrs.lendingPoolAddressesProvider,
-            batchAddressesSet.batch1Addrs.eventValidator,
-            batchAddressesSet.batch1Addrs.proxyAdmin,
-            vm.parseTomlBytes32(deployConfig, ".router.salt")
-        );
+        batchDeployerSet.bd4 = new BatchDeployer4(vm.parseTomlBytes32(deployConfig, ".router.salt"));
         BatchDeployer4.Addresses memory a4 = batchDeployerSet.bd4.getDeployedAddresses();
         batchAddressesSet.batch4Addrs = BatchDataTypes.Batch4Addresses({
             lendingPoolCollateralManager: a4.lendingPoolCollateralManager,
-            routerImpl: a4.routerImpl,
-            transparentUpgradeableProxy: a4.transparentUpgradeableProxy,
-            router: a4.router
+            routerImpl: a4.router,
+            proxyRouter: address(0) //updated
         });
     }
 
@@ -229,7 +226,7 @@ contract MainDeployer is Script {
             uint128(vm.parseTomlUint(deployConfig, ".layerzero.lz_compose_gas_limit"))
         );
 
-        systemConfigManager.initialize(
+        (batchAddressesSet.batch4Addrs.proxyRouter) = systemConfigManager.initialize(
             vars,
             batchAddressesSet,
             reserveInputs,
@@ -238,6 +235,14 @@ contract MainDeployer is Script {
         );
 
         vars.proxyConfigurator = LendingPoolConfigurator(vars.lpProvider.getLendingPoolConfigurator());
+        LendingPool proxyLp = LendingPool(ILendingPoolAddressesProvider(vars.lpProvider).getLendingPool());
+        vars.proxyLp = proxyLp;
+
+        // Get proxy addresses for initialized tokens
+        DataTypes.ReserveData memory reserveData =
+            vars.proxyLp.getReserveData(batchAddressesSet.batch3Addrs.rVaultAsset);
+        batchAddressesSet.batch3Addrs.rToken = reserveData.rTokenAddress;
+        batchAddressesSet.batch3Addrs.variableDebtToken = reserveData.variableDebtTokenAddress;
     }
 
     /* 
@@ -247,55 +252,55 @@ contract MainDeployer is Script {
     */
     function outputDeploymentResults() internal {
         console.log("Batch 1 Addresses:");
-        console.log("  TestERC20:", batchAddressesSet.batch1Addrs.testERC20);
-        console.log("  EventValidator:", batchAddressesSet.batch1Addrs.eventValidator);
+        console.log("  Underlying:", batchAddressesSet.batch1Addrs.underlying);
         console.log("  SuperAsset:", batchAddressesSet.batch1Addrs.superAsset);
-        console.log("  ProxyAdmin:", batchAddressesSet.batch1Addrs.proxyAdmin);
+        console.log("  RVaultAsset:", batchAddressesSet.batch3Addrs.rVaultAsset);
+        console.log("  RToken:", batchAddressesSet.batch3Addrs.rToken);
+
+        console.log("  LendingPool:", address(vars.proxyLp));
+        console.log("  LendingPoolConfigurator:", batchAddressesSet.batch2Addrs.lendingPoolConfigurator);
         console.log("  LendingPoolAddressesProvider:", batchAddressesSet.batch1Addrs.lendingPoolAddressesProvider);
+        console.log("  LendingPoolCollateralManager:", batchAddressesSet.batch4Addrs.lendingPoolCollateralManager);
+
+        console.log("  Router :", batchAddressesSet.batch4Addrs.proxyRouter);
+
         console.log(
             "  DefaultReserveInterestRateStrategy:", batchAddressesSet.batch1Addrs.defaultReserveInterestRateStrategy
         );
+        console.log("  EventValidator:", batchAddressesSet.batch1Addrs.eventValidator);
+        console.log("  ProxyAdmin:", batchAddressesSet.batch1Addrs.proxyAdmin);
+
         console.log("  MockPriceOracle:", batchAddressesSet.batch1Addrs.mockPriceOracle);
-        console.log("Batch 2 Addresses:");
-        console.log("  LendingPoolImpl:", batchAddressesSet.batch2Addrs.lendingPoolImpl);
-        console.log("  LendingPoolConfigurator:", batchAddressesSet.batch2Addrs.lendingPoolConfigurator);
-        console.log("Batch 3 Addresses:");
-        console.log("  RVaultAsset:", batchAddressesSet.batch3Addrs.rVaultAsset);
-        console.log("  RToken:", batchAddressesSet.batch3Addrs.rToken);
         console.log("  VariableDebtToken:", batchAddressesSet.batch3Addrs.variableDebtToken);
-        console.log("Batch 4 Addresses:");
-        console.log("  LendingPoolCollateralManager:", batchAddressesSet.batch4Addrs.lendingPoolCollateralManager);
-        console.log("  RouterImpl:", batchAddressesSet.batch4Addrs.routerImpl);
-        console.log("  TransparentUpgradeableProxy:", batchAddressesSet.batch4Addrs.transparentUpgradeableProxy);
-        console.log("  Router (Proxy):", batchAddressesSet.batch4Addrs.router);
+
+        string memory deploymentFile = "deployment.json";
 
         string memory obj = "result";
-        vm.serializeAddress(obj, "TestERC20", batchAddressesSet.batch1Addrs.testERC20);
-        vm.serializeAddress(obj, "EventValidator", batchAddressesSet.batch1Addrs.eventValidator);
+
+        vm.serializeAddress(obj, "Underlying", batchAddressesSet.batch1Addrs.underlying);
         vm.serializeAddress(obj, "SuperAsset", batchAddressesSet.batch1Addrs.superAsset);
-        vm.serializeAddress(obj, "ProxyAdmin", batchAddressesSet.batch1Addrs.proxyAdmin);
+        vm.serializeAddress(obj, "RVaultAsset", batchAddressesSet.batch3Addrs.rVaultAsset);
+        vm.serializeAddress(obj, "RToken", batchAddressesSet.batch3Addrs.rToken);
+        vm.serializeAddress(obj, "VariableDebtToken", batchAddressesSet.batch3Addrs.variableDebtToken);
         vm.serializeAddress(
             obj, "LendingPoolAddressesProvider", batchAddressesSet.batch1Addrs.lendingPoolAddressesProvider
+        );
+        vm.serializeAddress(obj, "LendingPool", address(vars.proxyLp));
+        vm.serializeAddress(obj, "LendingPoolConfigurator", batchAddressesSet.batch2Addrs.lendingPoolConfigurator);
+        vm.serializeAddress(obj, "Router", batchAddressesSet.batch4Addrs.proxyRouter);
+        vm.serializeAddress(
+            obj, "LendingPoolCollateralManager", batchAddressesSet.batch4Addrs.lendingPoolCollateralManager
         );
         vm.serializeAddress(
             obj, "DefaultReserveInterestRateStrategy", batchAddressesSet.batch1Addrs.defaultReserveInterestRateStrategy
         );
         vm.serializeAddress(obj, "MockPriceOracle", batchAddressesSet.batch1Addrs.mockPriceOracle);
+        vm.serializeAddress(obj, "EventValidator", batchAddressesSet.batch1Addrs.eventValidator);
+        vm.serializeAddress(obj, "ProxyAdmin", batchAddressesSet.batch1Addrs.proxyAdmin);
 
-        vm.serializeAddress(obj, "LendingPoolImpl", batchAddressesSet.batch2Addrs.lendingPoolImpl);
-        vm.serializeAddress(obj, "LendingPoolConfigurator", batchAddressesSet.batch2Addrs.lendingPoolConfigurator);
-
-        vm.serializeAddress(obj, "RVaultAsset", batchAddressesSet.batch3Addrs.rVaultAsset);
-        vm.serializeAddress(obj, "RToken", batchAddressesSet.batch3Addrs.rToken);
-        vm.serializeAddress(obj, "VariableDebtToken", batchAddressesSet.batch3Addrs.variableDebtToken);
-
-        vm.serializeAddress(
-            obj, "LendingPoolCollateralManager", batchAddressesSet.batch4Addrs.lendingPoolCollateralManager
-        );
-        vm.serializeAddress(obj, "RouterImpl", batchAddressesSet.batch4Addrs.routerImpl);
-        string memory jsonOutput = vm.serializeAddress(obj, "Router", batchAddressesSet.batch4Addrs.router);
-
-        vm.writeJson(jsonOutput, "deployment.json");
+        string memory jsonOutput =
+            vm.serializeAddress(obj, "Owner", vm.parseTomlAddress(deployConfig, ".owner.address"));
+        vm.writeJson(jsonOutput, deploymentFile);
     }
 
     /* 

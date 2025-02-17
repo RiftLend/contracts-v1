@@ -53,6 +53,15 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     error LP_NO_MORE_RESERVES_ALLOWED();
     error RVAULT_NOT_FOUND_FOR_ASSET();
     error LP_RESERVE_NOT_FOUND();
+
+    event logger(string message);
+    event loggerBytes(bytes message);
+    event loggerBytes32(bytes32 message);
+    event loggerUint(uint256);
+    event loggerAddress(address);
+    event logAddresses(address[] addresses);
+    event RVaultAssetUpdated(address asset, address rVaultAsset);
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                  Modifiers                                 */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -101,28 +110,25 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
      */
     function deposit(address sender, address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external {
         onlyRouter();
+
         address rVaultAsset = getRVaultAssetOrRevert(asset);
         DataTypes.ReserveData storage reserve = _reserves[rVaultAsset];
         _updateStates(reserve, rVaultAsset, amount, 0, UPDATE_RATES_AND_STATES_MASK);
-
         address rToken = reserve.rTokenAddress;
-
         ValidationLogic.validateDeposit(reserve, amount);
-
-        // transfer user's tokens to the contract
-
         IERC20(asset).safeTransferFrom(sender, address(this), amount);
 
-        //If pool is on op_superchain,
-        // wrap them into superAsset with lendingPool as receiver
+        // // //If pool is on op_superchain,
+        // // // wrap them into superAsset with lendingPool as receiver
 
-        if (pool_type == 1) ISuperAsset(reserve.superAsset).deposit(address(this), amount);
-
+        if (pool_type == 1) {
+            ISuperAsset(reserve.superAsset).deposit(address(this), amount);
+        }
         IRVaultAsset(rVaultAsset).mint(amount, rToken);
-
         // We now mint RTokens to the user as a receipt of their deposit
         (bool isFirstDeposit, uint256 mintMode, uint256 amountScaled) =
             IRToken(rToken).mint(onBehalfOf, amount, reserve.liquidityIndex);
+
         if (isFirstDeposit) {
             unchecked {
                 _usersConfig[onBehalfOf].setUsingAsCollateral(reserve.id, true);
@@ -542,6 +548,15 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     function setRvaultAssetForUnderlying(address asset, address rVaultAsset) external {
         onlyLendingPoolConfigurator();
         _rVaultAsset[asset] = rVaultAsset;
+        if (pool_type == 1) {
+            address superAsset = IRVaultAsset(rVaultAsset).underlying();
+            IERC20(asset).approve(superAsset, type(uint256).max);
+            IERC20(superAsset).approve(rVaultAsset, type(uint256).max);
+        } else {
+            IERC20(asset).approve(rVaultAsset, type(uint256).max);
+        }
+
+        emit RVaultAssetUpdated(asset, rVaultAsset);
     }
     /**
      * @dev Sets the configuration bitmap of the reserve as a whole
@@ -618,9 +633,14 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         }
     }
 
-    function getRVaultAssetOrRevert(address asset) public view returns (address rVaultAsset) {
+    function getRVaultAssetOrRevert(address asset) public returns (address rVaultAsset) {
         rVaultAsset = _rVaultAsset[asset];
-        if (rVaultAsset == address(0)) revert RVAULT_NOT_FOUND_FOR_ASSET();
+        emit logger("Asset: ");
+        emit loggerAddress(asset);
+        emit logger("rVaultAsset: ");
+        emit loggerAddress(rVaultAsset);
+
+        // if (rVaultAsset == address(0)) revert RVAULT_NOT_FOUND_FOR_ASSET();
     }
 
     function getReserveById(uint256 id) public view returns (address asset) {

@@ -118,7 +118,7 @@ interface ILendingPool {
 
     function getAddressesProvider() external view returns (ILendingPoolAddressesProvider);
 
-    function getRVaultAssetOrRevert(address asset) external view returns (address rVaultAsset);
+    function getRVaultAssetOrRevert(address asset) external returns (address rVaultAsset);
 
     function _flashLoanPremiumTotal() external view returns (uint256);
 
