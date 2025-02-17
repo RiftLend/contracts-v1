@@ -1,6 +1,6 @@
 {
   "name": "solidity-bytes-utils",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "description": "Solidity bytes tightly packed arrays utility library.",
   "main": "truffle.js",
   "repository": {
@@ -20,13 +20,12 @@
   "authors": [
     "Gonçalo Sá <goncalo.sa@consensys.net>"
   ],
+  "scripts": {
+    "test": "forge test"
+  },
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/GNSPS/solidity-bytes-utils/issues"
   },
-  "homepage": "https://github.com/GNSPS/solidity-bytes-utils#readme",
-  "dependencies": {
-    "ds-test": "github:dapphub/ds-test",
-    "forge-std": "^1.1.2"
-  }
+  "homepage": "https://github.com/GNSPS/solidity-bytes-utils#readme"
 }

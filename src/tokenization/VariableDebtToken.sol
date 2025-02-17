@@ -2,11 +2,13 @@
 pragma solidity 0.8.25;
 
 import {IVariableDebtToken} from "../interfaces/IVariableDebtToken.sol";
-import {WadRayMath} from "../libraries/math/WadRayMath.sol";
-import {Errors} from "../libraries/helpers/Errors.sol";
-import {DebtTokenBase} from "./base/DebtTokenBase.sol";
 import {ILendingPool} from "../interfaces/ILendingPool.sol";
 import {IAaveIncentivesController} from "../interfaces/IAaveIncentivesController.sol";
+import {ILendingPoolAddressesProvider} from "../interfaces/ILendingPoolAddressesProvider.sol";
+
+import {WadRayMath} from "../libraries/math/WadRayMath.sol";
+import {CT_INVALID_MINT_AMOUNT, ONLY_ROUTER_CALL, CT_INVALID_BURN_AMOUNT} from "../libraries/helpers/Errors.sol";
+import {DebtTokenBase} from "./base/DebtTokenBase.sol";
 
 /**
  * @title VariableDebtToken
@@ -21,13 +23,19 @@ contract VariableDebtToken is DebtTokenBase, IVariableDebtToken {
     uint256 public constant DEBT_TOKEN_REVISION = 0x1;
 
     ILendingPool internal _pool;
-    address internal _underlyingAsset;
+    address internal _underlyingAsset; // _underlyingAsset=RVaultAsset
     IAaveIncentivesController internal _incentivesController;
+    ILendingPoolAddressesProvider internal _addressesProvider;
+
+    modifier onlyRouter() {
+        require(_addressesProvider.getRouter() == msg.sender, ONLY_ROUTER_CALL);
+        _;
+    }
 
     /**
      * @dev Initializes the debt token.
-     * @param pool The address of the lending pool where this aToken will be used
-     * @param underlyingAsset The address of the underlying asset of this aToken (E.g. WETH for aWETH)
+     * @param pool The address of the lending pool where this rToken will be used
+     * @param underlyingAsset The address of the underlying asset of this rToken (E.g. WETH for aWETH)
      * @param incentivesController The smart contract managing potential incentives distribution
      * @param debtTokenDecimals The decimals of the debtToken, same as the underlying asset's
      * @param debtTokenName The name of the token
@@ -37,6 +45,7 @@ contract VariableDebtToken is DebtTokenBase, IVariableDebtToken {
         ILendingPool pool,
         address underlyingAsset,
         IAaveIncentivesController incentivesController,
+        ILendingPoolAddressesProvider addressesProvider,
         uint8 debtTokenDecimals,
         string memory debtTokenName,
         string memory debtTokenSymbol,
@@ -49,6 +58,7 @@ contract VariableDebtToken is DebtTokenBase, IVariableDebtToken {
         _pool = pool;
         _underlyingAsset = underlyingAsset;
         _incentivesController = incentivesController;
+        _addressesProvider = addressesProvider;
 
         emit Initialized(
             underlyingAsset,
@@ -90,11 +100,7 @@ contract VariableDebtToken is DebtTokenBase, IVariableDebtToken {
      * @param amountScaled The amount scaled
      * @param mode The mode
      */
-    function updateCrossChainBalance(address user, uint256 amountScaled, uint256 mode)
-        external
-        override
-        onlyLendingPool
-    {
+    function updateCrossChainBalance(address user, uint256 amountScaled, uint256 mode) external override onlyRouter {
         if (mode == 1) {
             crossChainUserBalance[user] += amountScaled;
             _totalCrossChainSupply += amountScaled;
@@ -127,7 +133,7 @@ contract VariableDebtToken is DebtTokenBase, IVariableDebtToken {
 
         uint256 previousBalance = super.balanceOf(onBehalfOf);
         uint256 amountScaled = amount.rayDiv(index);
-        require(amountScaled != 0, Errors.CT_INVALID_MINT_AMOUNT);
+        require(amountScaled != 0, CT_INVALID_MINT_AMOUNT);
 
         _mint(onBehalfOf, amountScaled);
 
@@ -152,7 +158,7 @@ contract VariableDebtToken is DebtTokenBase, IVariableDebtToken {
         returns (uint256, uint256)
     {
         uint256 amountScaled = amount.rayDiv(index);
-        require(amountScaled != 0, Errors.CT_INVALID_BURN_AMOUNT);
+        require(amountScaled != 0, CT_INVALID_BURN_AMOUNT);
 
         _burn(user, amountScaled);
 
@@ -209,7 +215,7 @@ contract VariableDebtToken is DebtTokenBase, IVariableDebtToken {
     }
 
     /**
-     * @dev Returns the address of the underlying asset of this aToken (E.g. WETH for aWETH)
+     * @dev Returns the address of the underlying asset of this rToken (E.g. WETH for aWETH)
      *
      */
     function UNDERLYING_ASSET_ADDRESS() public view returns (address) {
@@ -225,7 +231,7 @@ contract VariableDebtToken is DebtTokenBase, IVariableDebtToken {
     }
 
     /**
-     * @dev Returns the address of the lending pool where this aToken is used
+     * @dev Returns the address of the lending pool where this rToken is used
      *
      */
     function POOL() public view returns (ILendingPool) {

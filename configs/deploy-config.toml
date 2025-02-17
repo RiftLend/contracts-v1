@@ -1,51 +1,71 @@
 [deploy_config]
-salt = "ethers phoenix"
-chains = ["op_chain_a","op_chain_b"]
+# riftlend
+salt = "0x726966746c656e64000000000000000000000000000000000000000000000000" 
 
-[token]
-salt = "ethers phoenix"
-owner_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
-name = "TestSuperchainERC20"
-symbol = "TSU"
+chains = ["eth_mainnet","op_mainnet","sepolia-eth"]
+[owner]
+address = "0xb09aC2fE0A0b8f1132cA1a046DCEBC7989b65596"
+
+[underlying]
+# riftlendUnderlying
+salt = "0x726966746c656e64556e6465726c79696e670000000000000000000000000000"
+name = "TestUSDC"
+symbol = "TUSDC"
 decimals = 18
 
-[rTokenImpl]
-salt = "ethers phoenix rTokenImpl"
+[super_token]
+# riftlendSuperToken
+salt = "0x726966746c656e645375706572546f6b656e0000000000000000000000000000"
+name = "superTestUSDC"
+symbol = "STUSDC"
+decimals = 18
 
-[stableDebtTokenImpl]
-salt = "ethers phoenix stableDebtTokenImpl"
+[rvault_asset]
+# riftlendRVaultAsset
+salt="0x726966746c656e64525661756c74417373657400000000000000000000000000"
+max_deposit_limit="1000000000000000000000" # 1000 ether
+withdraw_cool_down_period=86400
+name = "rVaultAsset-TUSDC"
+symbol = "rVaultAsset-rTUSDC"
 
-[variableDebtTokenImpl]
-salt = "ethers phoenix variableDebtTokenImpl"
+[rToken]
+# riftlendRToken
+salt = "0x726966746c656e6452546f6b656e000000000000000000000000000000000000"
+name = "rToken-TestUSDC"
+symbol = "rTUSDC"
+decimals = 18
+
+[variable_debt_token]
+# riftlendVdebt
+salt = "0x726966746c656e64566465627400000000000000000000000000000000000000"
+name = "variableDebt-TUSDC"
+symbol = "vdebt-TUSDC"
 
 [lending_pool_addresses_provider]
-salt = "ethers phoenix lpap"
-owner_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
-marketId = "TSU Market"
+# riftlendLpAddressesProvider
+salt = "0x726966746c656e644c7041646472657373657350726f76696465720000000000"
+marketId = "TUSDC Market"
+lpType="OpSuperchain_LENDING_POOL"
 
 [proxy_admin]
-salt = "ethers phoenix proxyAdmin"
-owner_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+# riftlendProxyAdmin
+salt = "0x726966746c656e6450726f787941646d696e0000000000000000000000000000"
 
-[superchain_asset_1]
-salt = "ethers phoenix sa1"
-owner_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
-name = "SuperTestSuperchainERC20"
-symbol = "STSU"
-decimals = 18
-# TODO:Add correct lz addresses
-lzEndpoint = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
-lzDelegate = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+[pool_admin]
+address="0xb09aC2fE0A0b8f1132cA1a046DCEBC7989b65596"
 
 
-[lending_pool_impl]
-salt = "ethers phoenix laimpl"
+[lending_pool]
+# riftlendLendingPool
+salt = "0x726966746c656e644c656e64696e67506f6f6c00000000000000000000000000"
 
 [lending_pool_configurator]
-salt = "ethers phoenix lpc"
+# riftlendLpConfigurator
+salt = "0x726966746c656e644c70436f6e666967757261746f7200000000000000000000"
 
 [default_reserve_interest_rate_strategy]
-salt = "ethers phoenix drirs"
+# riftlendDefaultStrategy
+salt = "0x726966746c656e6444656661756c745374726174656779000000000000000000"
 # These are random values. TODO these should be in ray terms
 optimalUtilizationRate = 1
 baseVariableBorrowRate = 2
@@ -54,34 +74,58 @@ variableRateSlope2 = 6
 stableRateSlope1 = 4
 stableRateSlope2 = 5
 
-[lending_rate_oracle]
-salt = "ethers phoenix lro"
-owner_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+[price_oracle]
+# riftlendPriceOracle
+salt = "0x726966746c656e6450726963654f7261636c6500000000000000000000000000"
+owner_address = "0xb09aC2fE0A0b8f1132cA1a046DCEBC7989b65596"
+
+[event_validator]
+# riftlendEventValidator
+salt = "0x726966746c656e644576656e7456616c696461746f7200000000000000000000"
+
+[relayer]
+address="0xb09aC2fE0A0b8f1132cA1a046DCEBC7989b65596"
 
 [treasury]
-address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+address = "0xb09aC2fE0A0b8f1132cA1a046DCEBC7989b65596"
 
 [incentives_controller]
-address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+address = "0x0000000000000000000000000000000000000000"
 
-[aToken1]
-name = "A-TestSuperchainERC20"
-symbol = "ATUSDC"
-
-[variableDebtToken1]
-name = "VDebt-TestSuperchainERC20"
-symbol = "VDTUSDC"
-
-[stableDebtToken1]
-name = "SDebt-TestSuperchainERC20"
-symbol = "SDTUSDC"
 
 [router]
-salt = "ethers phoenix router"
+# riftlendRouter
+salt = "0x726966746c656e64526f75746572000000000000000000000000000000000000"
+
+[layerzero]
+lz_receive_gas_limit=200000
+lz_compose_gas_limit=500000
 
 [forks]
-chain_a_rpc_url = "https://opt-mainnet.g.alchemy.com/v2/xFdbkJe3ZbpjHxU2qIpikVBgN7TIMyX8"
-chain_a_chain_id = 10
+chain_a_rpc_url = "https://eth-mainnet.g.alchemy.com/v2/muWMumYKuC6W7Oa572HjryTPZMMLbPK3"
+chain_a_chain_id = 1
 chain_a_cross_l2_prover_address="0x1CCb363c18484A568DCB0Ec37fE5ad716C1D6e77"
-chain_a_weth="0x4200000000000000000000000000000000000006"
+chain_a_weth="0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
 chain_a_lz_endpoint_v2="0x1a44076050125825900e736c501f859c50fE728c"
+chain_a_lz_delegate="0xf9E5bFE615853BC0ce310Dd3187277B0bbAC112c"
+
+chain_b_rpc_url = "https://opt-mainnet.g.alchemy.com/v2/muWMumYKuC6W7Oa572HjryTPZMMLbPK3"
+chain_b_chain_id = 10
+chain_b_cross_l2_prover_address="0x1CCb363c18484A568DCB0Ec37fE5ad716C1D6e77"
+chain_b_weth="0x4200000000000000000000000000000000000006"
+chain_b_lz_endpoint_v2="0x1a44076050125825900e736c501f859c50fE728c"
+chain_b_lz_delegate="0xf9E5bFE615853BC0ce310Dd3187277B0bbAC112c"
+
+chain_c_rpc_url = "https://opt-sepolia.g.alchemy.com/v2/muWMumYKuC6W7Oa572HjryTPZMMLbPK3"
+chain_c_chain_id = 11155420
+chain_c_cross_l2_prover_address="0xb8AcB3FE3117A67b665Bc787c977623612f8a461"
+chain_c_weth="0xC355F97a3Aa2808Acb536E555764b8FB26fB4b37"
+chain_c_lz_endpoint_v2="0x6EDCE65403992e310A62460808c4b910D972f10f"
+chain_c_lz_delegate="0xf9E5bFE615853BC0ce310Dd3187277B0bbAC112c"
+
+chain_d_rpc_url = "https://base-sepolia.g.alchemy.com/v2/muWMumYKuC6W7Oa572HjryTPZMMLbPK3"
+chain_d_chain_id = 84532
+chain_d_cross_l2_prover_address = "0xcDa03d74DEc5B24071D1799899B2e0653C24e5Fa"  
+chain_d_weth = "0x4200000000000000000000000000000000000006" 
+chain_d_lz_endpoint_v2 = "0x6EDCE65403992e310A62460808c4b910D972f10f"  
+chain_d_lz_delegate="0xf9E5bFE615853BC0ce310Dd3187277B0bbAC112c"

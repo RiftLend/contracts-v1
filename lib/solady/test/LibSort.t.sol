@@ -1297,4 +1297,64 @@ contract LibSortTest is SoladyTest {
         }
         assertEq(orAll >> 160, 0);
     }
+
+    function testGroupSum() public {
+        uint256 n = 32;
+        uint256[] memory keys = new uint256[](n);
+        uint256[] memory values = new uint256[](n);
+        uint256 total;
+        unchecked {
+            for (uint256 i; i < n; ++i) {
+                keys[i] = (i + 1) % 7;
+                values[i] = i;
+                total += i;
+            }
+        }
+        LibSort.groupSum(keys, values);
+        assertEq(keys.length, 7);
+        assertEq(values.length, 7);
+        assertEq(_sum(values), total);
+    }
+
+    function testGroupSum(bytes32) public {
+        if (_randomChance(2)) {
+            _misalignFreeMemoryPointer();
+            _brutalizeMemory();
+        }
+        uint256 n = _random() & 0x1f;
+        uint256[] memory keys = new uint256[](n);
+        uint256[] memory values = new uint256[](n);
+        unchecked {
+            for (uint256 i; i < n; ++i) {
+                uint256 k = _randomUniform() & 0xf;
+                uint256 v = _randomUniform() & 0xff;
+                keys[i] = k;
+                values[i] = v;
+            }
+        }
+        uint256 oriSum = _sum(values);
+        uint256[] memory uniqueKeys = LibSort.copy(keys);
+        LibSort.insertionSort(uniqueKeys);
+        LibSort.uniquifySorted(uniqueKeys);
+        uint256[] memory sums = new uint256[](uniqueKeys.length);
+        unchecked {
+            for (uint256 i; i < n; ++i) {
+                (, uint256 j) = LibSort.searchSorted(uniqueKeys, keys[i]);
+                sums[j] += values[i];
+            }
+        }
+        LibSort.groupSum(keys, values);
+        _checkMemory(sums);
+        assertEq(keys, uniqueKeys);
+        assertEq(values, sums);
+        assertEq(_sum(sums), oriSum);
+    }
+
+    function _sum(uint256[] memory a) internal pure returns (uint256 result) {
+        unchecked {
+            for (uint256 i; i < a.length; ++i) {
+                result += a[i];
+            }
+        }
+    }
 }

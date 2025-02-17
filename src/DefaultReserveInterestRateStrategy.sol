@@ -2,11 +2,13 @@
 pragma solidity 0.8.25;
 
 import {IReserveInterestRateStrategy} from "./interfaces/IReserveInterestRateStrategy.sol";
-import {WadRayMath} from "./libraries/math/WadRayMath.sol";
-import {PercentageMath} from "./libraries/math/PercentageMath.sol";
 import {ILendingPoolAddressesProvider} from "./interfaces/ILendingPoolAddressesProvider.sol";
 import {ILendingRateOracle} from "./interfaces/ILendingRateOracle.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IRToken} from "./interfaces/IRToken.sol";
+
+import {WadRayMath} from "./libraries/math/WadRayMath.sol";
+import {PercentageMath} from "./libraries/math/PercentageMath.sol";
 
 /**
  * @title DefaultReserveInterestRateStrategy contract
@@ -91,13 +93,13 @@ contract DefaultReserveInterestRateStrategy is IReserveInterestRateStrategy {
      */
     function calculateInterestRates(
         address reserve,
-        address RToken,
+        address rToken,
         uint256 liquidityAdded,
         uint256 liquidityTaken,
         uint256 totalVariableDebt,
         uint256 reserveFactor
     ) external view override returns (uint256, uint256) {
-        uint256 availableLiquidity = IERC20(reserve).balanceOf(RToken);
+        uint256 availableLiquidity = IRToken(rToken).totalCrosschainUnderlyingAssets();
         availableLiquidity = availableLiquidity + liquidityAdded - liquidityTaken;
 
         return calculateInterestRates(reserve, availableLiquidity, totalVariableDebt, reserveFactor);

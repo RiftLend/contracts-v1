@@ -17,6 +17,8 @@ contract SuperAsset is SuperchainERC20 {
     uint8 _decimals;
     address public WETH;
 
+    error UNDERLYING_NOT_WETH();
+
     constructor(address underlying_, string memory name_, string memory symbol_, address WETH_) {
         underlying = underlying_;
         _name = name_;
@@ -25,8 +27,9 @@ contract SuperAsset is SuperchainERC20 {
         WETH = WETH_;
     }
 
-    function deposit(address _to, uint256 _amount) external payable {
-        if (msg.value == _amount) {
+    function deposit(address _to, uint256 _amount) public payable {
+        if (msg.value != 0) {
+            if (WETH != underlying) revert UNDERLYING_NOT_WETH();
             assembly ("memory-safe") {
                 let underlyingAddr := sload(underlying.slot)
                 pop(call(gas(), underlyingAddr, callvalue(), codesize(), 0x00, codesize(), 0x00))
@@ -65,10 +68,6 @@ contract SuperAsset is SuperchainERC20 {
     }
 
     receive() external payable {
-        assembly ("memory-safe") {
-            let underlyingAddr := sload(underlying.slot)
-            pop(call(gas(), underlyingAddr, callvalue(), codesize(), 0x00, codesize(), 0x00))
-        }
-        _mint(msg.sender, msg.value);
+        deposit(msg.sender, msg.value);
     }
 }

@@ -21,8 +21,11 @@
     "stop": "docker compose down",
     "test": "$npm_execpath turbo run test $DOCKER_COMPOSE_RUN_TESTS_TURBO_ARGS",
     "test:ci": "docker compose run --build --rm $DOCKER_COMPOSE_ARGS tests",
+    "test:jest": "$npm_execpath turbo run test:jest $DOCKER_COMPOSE_RUN_TESTS_TURBO_ARGS",
     "test:local": ". bin/env && $npm_execpath start && $npm_execpath test",
-    "test:user": "docker compose -f docker-compose.registry.yaml run --build --rm $DOCKER_COMPOSE_ARGS tests"
+    "test:local:jest": ". bin/env && $npm_execpath start && $npm_execpath test:jest",
+    "test:user": "docker compose -f docker-compose.registry.yaml run --build --rm $DOCKER_COMPOSE_ARGS tests",
+    "ton:message-info": "ts-node packages/devtools-ton/scripts/debugTon.ts"
   },
   "lint-staged": {
     "**/*.{js,ts,tsx,json}": [
@@ -31,6 +34,7 @@
     ]
   },
   "resolutions": {
+    "@ton/ton": "npm:@layerzerolabs/ton@15.2.0-rc.3",
     "es5-ext": "git://github.com/LayerZero-Labs/es5-ext",
     "ethers": "^5.7.2",
     "hardhat-deploy": "^0.12.1",
@@ -51,7 +55,7 @@
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-prettier": "^5.1.3",
     "eslint-plugin-promise": "^6.1.1",
-    "eslint-plugin-turbo": "^1.12.3",
+    "eslint-plugin-turbo": "^2.4.0",
     "husky": "^8.0.3",
     "lint-staged": "^15.2.2",
     "prettier": "^3.2.5",
