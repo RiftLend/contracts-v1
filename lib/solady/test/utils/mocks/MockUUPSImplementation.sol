@@ -9,7 +9,7 @@ import {Brutalizer} from "../Brutalizer.sol";
 contract MockUUPSImplementation is UUPSUpgradeable, Brutalizer {
     uint256 public value;
 
-    address owner;
+    address public owner;
 
     error Unauthorized();
 

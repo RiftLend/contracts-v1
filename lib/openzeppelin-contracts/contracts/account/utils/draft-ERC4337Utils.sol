@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v5.2.0) (account/utils/draft-ERC4337Utils.sol)
 
 pragma solidity ^0.8.20;
 
@@ -114,7 +115,7 @@ library ERC4337Utils {
         return uint128(self.accountGasLimits.extract_32_16(0));
     }
 
-    /// @dev Returns `accountGasLimits` from the {PackedUserOperation}.
+    /// @dev Returns `callGasLimit` from the {PackedUserOperation}.
     function callGasLimit(PackedUserOperation calldata self) internal pure returns (uint256) {
         return uint128(self.accountGasLimits.extract_32_16(16));
     }

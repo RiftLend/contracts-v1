@@ -62,6 +62,15 @@ interface IRToken is IERC20, IScaledBalanceToken, IInitializableRToken {
     event CrossChainMint(address user, uint256 amountScaled);
 
     /**
+     * @dev Emitted during the cross-chain balance update action
+     * @param user The address receiving the minted tokens
+     * @param amountScaled The amount being minted, scaled to the pool's unit
+     * @param mode 1 if minting, 2 if burning
+     *
+     */
+    event CrossChainBalanceUpdate(address user, uint256 amount, uint256 amountScaled, uint256 mode);
+
+    /**
      * @dev Burns rTokens from `user` and sends the equivalent amount of underlying to `receiverOfUnderlying`
      * @param user The owner of the rTokens, getting them burned
      * @param receiverOfUnderlying The address that will receive the underlying
@@ -83,7 +92,7 @@ interface IRToken is IERC20, IScaledBalanceToken, IInitializableRToken {
     function mintToTreasury(uint256 amount, uint256 index) external returns (uint256, uint256);
 
     /**
-     * @dev Transfers rTokens in the event of a borrow being liquidated, in case the liquidators reclaims the aToken
+     * @dev Transfers rTokens in the event of a borrow being liquidated, in case the liquidators reclaims the rToken
      * @param from The address getting liquidated, current owner of the rTokens
      * @param to The recipient
      * @param value The amount of tokens getting transferred
@@ -104,7 +113,7 @@ interface IRToken is IERC20, IScaledBalanceToken, IInitializableRToken {
         returns (uint256);
 
     /**
-     * @dev Invoked to execute actions on the aToken side after a repayment.
+     * @dev Invoked to execute actions on the rToken side after a repayment.
      * @param user The user executing the repayment
      * @param amount The amount getting repaid
      *
@@ -118,7 +127,7 @@ interface IRToken is IERC20, IScaledBalanceToken, IInitializableRToken {
     function getIncentivesController() external view returns (IAaveIncentivesController);
 
     /**
-     * @dev Returns the address of the underlying asset of this aToken (E.g. WETH for aWETH)
+     * @dev Returns the address of the underlying asset of this rToken (E.g. WETH for aWETH)
      *
      */
     function UNDERLYING_ASSET_ADDRESS() external view returns (address);
@@ -128,7 +137,7 @@ interface IRToken is IERC20, IScaledBalanceToken, IInitializableRToken {
      * @param amountScaled The amount scaled
      * @param mode 1 if minting, 2 if burning
      */
-    function updateCrossChainBalance(address user, uint256 amountScaled, uint256 mode) external;
+    function updateCrossChainBalance(address user, uint256 amount, uint256 amountScaled, uint256 mode) external;
 
     /**
      * @dev gets the cross chain balance of user
@@ -136,4 +145,6 @@ interface IRToken is IERC20, IScaledBalanceToken, IInitializableRToken {
      * @return The user balance
      */
     function getCrossChainUserBalance(address user) external view returns (uint256);
+
+    function totalCrosschainUnderlyingAssets() external view returns (uint256);
 }

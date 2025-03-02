@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.8.25;
 
-import {SuperOwnable} from "../interop-std/src/auth/SuperOwnable.sol";
-
 import {
     ITransparentUpgradeableProxy,
     TransparentUpgradeableProxy
 } from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
-
 import "../interfaces/ILendingPoolAddressesProvider.sol";
+
+import {SuperOwnable} from "../interop-std/src/auth/SuperOwnable.sol";
+import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
 /**
  * @title LendingPoolAddressesProvider contract
@@ -23,27 +22,32 @@ contract LendingPoolAddressesProvider is SuperOwnable {
     string private _marketId;
     mapping(bytes32 => address) private _addresses;
     address private _proxyAdmin;
-    bytes32 immutable LENDING_POOL; // naming will be like `"OpSuperchain_LENDING_POOL"` or `"EthArb_LENDING_POOL"`
+    bytes32 immutable LENDING_POOL_TYPE; // naming will be like `"OpSuperchain_LENDING_POOL"` or `"EthArb_LENDING_POOL"`
     bytes32 private constant UNDERLYING = "UNDERLYING";
+    bytes32 private constant LENDING_POOL = "LENDING_POOL";
+
     bytes32 private constant LENDING_POOL_CONFIGURATOR = "LENDING_POOL_CONFIGURATOR";
+
     bytes32 private constant POOL_ADMIN = "POOL_ADMIN";
     bytes32 private constant EMERGENCY_ADMIN = "EMERGENCY_ADMIN";
     bytes32 private constant LENDING_POOL_COLLATERAL_MANAGER = "COLLATERAL_MANAGER";
     bytes32 private constant PRICE_ORACLE = "PRICE_ORACLE";
     bytes32 private constant LENDING_RATE_ORACLE = "LENDING_RATE_ORACLE";
-    bytes32 private constant RELAYER = "RELAYER";
     bytes32 private constant ROUTER = "ROUTER";
 
-    event RelayerUpdated(address indexed relayer);
+    mapping(address => bool) public isRelayer;
+
     event RouterUpdated(address indexed router);
     event RVaultAssetUpdated(address indexed RVaultAsset);
     event UnderlyingUpdated(address indexed RVaultAsset);
+    event ProxyAdminUpdated(address indexed proxyAdmin);
+    event RelayerStatusUpdated(address relayer, bool isActive);
 
     constructor(string memory marketId, address initialOwner, address proxyAdmin, bytes32 _lendingPool) {
         _initializeSuperOwner(uint64(block.chainid), initialOwner);
         _setMarketId(marketId);
         _proxyAdmin = proxyAdmin;
-        LENDING_POOL = _lendingPool;
+        LENDING_POOL_TYPE = _lendingPool;
     }
 
     /**
@@ -57,6 +61,11 @@ contract LendingPoolAddressesProvider is SuperOwnable {
 
     function getProxyAdmin() external view returns (address) {
         return _proxyAdmin;
+    }
+
+    function setProxyAdmin(address proxyAdmin) external onlyOwner {
+        _proxyAdmin = proxyAdmin;
+        emit ProxyAdminUpdated(proxyAdmin);
     }
 
     /**
@@ -203,18 +212,19 @@ contract LendingPoolAddressesProvider is SuperOwnable {
         _addresses[LENDING_RATE_ORACLE] = lendingRateOracle;
         emit LendingRateOracleUpdated(lendingRateOracle);
     }
-
-    function getRelayer() external view returns (address) {
-        return getAddress(RELAYER);
+    
+    function getRelayerStatus(address adr) external view returns (bool){
+        return isRelayer[adr];
     }
 
-    function setRelayer(address relayer) external onlyOwner {
-        _addresses[RELAYER] = relayer;
-        emit RelayerUpdated(relayer);
+
+    function setRelayerStatus(address relayer, bool isActive) external onlyOwner {
+        isRelayer[relayer] = isActive;
+        emit RelayerStatusUpdated(relayer, isActive);
     }
 
     function getPoolType() external view returns (uint8) {
-        return LENDING_POOL == keccak256("OpSuperchain_LENDING_POOL") ? 1 : 2;
+        return LENDING_POOL_TYPE == keccak256("OpSuperchain_LENDING_POOL") ? 1 : 2;
     }
 
     /**

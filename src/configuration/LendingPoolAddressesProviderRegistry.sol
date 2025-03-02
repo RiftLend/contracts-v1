@@ -3,7 +3,6 @@ pragma solidity 0.8.25;
 
 import {Ownable} from "@openzeppelin/contracts-v5/access/Ownable.sol";
 import {ILendingPoolAddressesProviderRegistry} from "../interfaces/ILendingPoolAddressesProviderRegistry.sol";
-import {Errors} from "../libraries/helpers/Errors.sol";
 
 /**
  * @title LendingPoolAddressesProviderRegistry contract
@@ -17,6 +16,9 @@ import {Errors} from "../libraries/helpers/Errors.sol";
 contract LendingPoolAddressesProviderRegistry is Ownable, ILendingPoolAddressesProviderRegistry {
     mapping(address => uint256) private _addressesProviders;
     address[] private _addressesProvidersList;
+
+    error LPAPR_INVALID_ADDRESSES_PROVIDER_ID();
+    error LPAPR_PROVIDER_NOT_REGISTERED();
 
     constructor(address initialOwner) Ownable(initialOwner) {}
 
@@ -48,7 +50,7 @@ contract LendingPoolAddressesProviderRegistry is Ownable, ILendingPoolAddressesP
      *
      */
     function registerAddressesProvider(address provider, uint256 id) external override onlyOwner {
-        require(id != 0, Errors.LPAPR_INVALID_ADDRESSES_PROVIDER_ID);
+        if (id == 0) revert LPAPR_INVALID_ADDRESSES_PROVIDER_ID();
 
         _addressesProviders[provider] = id;
         _addToAddressesProvidersList(provider);
@@ -61,7 +63,7 @@ contract LendingPoolAddressesProviderRegistry is Ownable, ILendingPoolAddressesP
      *
      */
     function unregisterAddressesProvider(address provider) external override onlyOwner {
-        require(_addressesProviders[provider] > 0, Errors.LPAPR_PROVIDER_NOT_REGISTERED);
+        if (_addressesProviders[provider] == 0) revert LPAPR_PROVIDER_NOT_REGISTERED();
         _addressesProviders[provider] = 0;
         emit AddressesProviderUnregistered(provider);
     }

@@ -13,19 +13,28 @@ import {IRVaultAsset} from "../interfaces/IRVaultAsset.sol";
 
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
 import {WadRayMath} from "../libraries/math/WadRayMath.sol";
-import {Errors} from "../libraries/helpers/Errors.sol";
+import {
+    CT_CALLER_MUST_BE_LENDING_POOL,
+    ONLY_ROUTER_CALL,
+    ONLY_RELAYER_CALL,
+    LP_CALLER_NOT_LENDING_POOL_CONFIGURATOR,
+    CT_INVALID_BURN_AMOUNT,
+    CT_INVALID_MINT_AMOUNT
+} from "../libraries/helpers/Errors.sol";
 import {Initializable} from "@solady/utils/Initializable.sol";
 import {SuperPausable} from "../interop-std/src/utils/SuperPausable.sol";
 import {EventValidator, ValidationMode, Identifier} from "../libraries/EventValidator.sol";
 import {Predeploys} from "../libraries/Predeploys.sol";
 import {MessagingFee} from "src/libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
+import {DataTypes} from "src/libraries/types/DataTypes.sol";
+import {LendingPool} from "src/LendingPool.sol";
 
 /**
  * @title Aave ERC20 RToken
  * @dev Implementation of the interest bearing token for the Aave protocol
  * @author Aave
  */
-contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL", 0), IRToken, SuperPausable {
+contract RToken is Initializable, IncentivizedERC20, IRToken, SuperPausable {
     using WadRayMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -42,15 +51,25 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
 
     bytes32 public DOMAIN_SEPARATOR;
 
-    ILendingPool internal _pool;
+    LendingPool internal _pool;
     address internal _treasury;
     address internal _underlyingAsset;
     IAaveIncentivesController internal _incentivesController;
     ILendingPoolAddressesProvider internal _addressesProvider;
     EventValidator internal _eventValidator;
+    mapping(address => uint256) public crosschainUnderlyingAsset;
+    uint256 public totalCrosschainUnderlyingAssets;
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                  Events                                    */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                  Modifiers                                 */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     modifier onlyLendingPool() {
-        require(_msgSender() == address(_pool), Errors.CT_CALLER_MUST_BE_LENDING_POOL);
+        require(msg.sender == address(_pool), CT_CALLER_MUST_BE_LENDING_POOL);
         _;
     }
 
@@ -59,8 +78,17 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         _;
     }
 
+    modifier onlyRouter() {
+        _onlyRouter();
+        _;
+    }
+
+    function _onlyRouter() internal view {
+        require(_addressesProvider.getRouter() == msg.sender, ONLY_ROUTER_CALL);
+    }
+
     function _onlyRelayer() internal view {
-        require(_addressesProvider.getRelayer() == msg.sender, "!relayer");
+        require(_addressesProvider.getRelayerStatus(msg.sender)==true, ONLY_RELAYER_CALL);
     }
 
     modifier onlyLendingPoolConfigurator() {
@@ -69,28 +97,10 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     }
 
     function _onlyLendingPoolConfigurator() internal view {
-        require(
-            _addressesProvider.getLendingPoolConfigurator() == msg.sender,
-            Errors.LP_CALLER_NOT_LENDING_POOL_CONFIGURATOR
-        );
+        require(_addressesProvider.getLendingPoolConfigurator() == msg.sender, LP_CALLER_NOT_LENDING_POOL_CONFIGURATOR);
     }
 
-    function getRevision() internal pure virtual returns (uint256) {
-        return ATOKEN_REVISION;
-    }
-
-    function initialize(
-        ILendingPool pool,
-        address treasury,
-        address underlyingAsset,
-        IAaveIncentivesController incentivesController,
-        ILendingPoolAddressesProvider addressesProvider,
-        uint8 rTokenDecimals,
-        string calldata rTokenName,
-        string calldata rTokenSymbol,
-        bytes calldata params,
-        address eventValidator
-    ) external override initializer {
+    function initialize(DataTypes.RTokenInitializeParams memory initParams) external override initializer {
         uint256 chainId;
 
         //solium-disable-next-line
@@ -99,28 +109,34 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         }
 
         DOMAIN_SEPARATOR = keccak256(
-            abi.encode(EIP712_DOMAIN, keccak256(bytes(rTokenName)), keccak256(EIP712_REVISION), chainId, address(this))
+            abi.encode(
+                EIP712_DOMAIN,
+                keccak256(bytes(initParams.rTokenName)),
+                keccak256(EIP712_REVISION),
+                chainId,
+                address(this)
+            )
         );
 
-        _setName(rTokenName);
-        _setSymbol(rTokenSymbol);
-        _setDecimals(rTokenDecimals);
+        initialize(initParams.rTokenName, initParams.rTokenSymbol, initParams.rTokenDecimals);
 
-        _pool = pool;
-        _treasury = treasury;
-        _underlyingAsset = underlyingAsset;
-        _incentivesController = incentivesController;
-        _addressesProvider = addressesProvider;
-        _eventValidator = EventValidator(eventValidator);
+        _addressesProvider = initParams.addressesProvider;
+        _pool = LendingPool(_addressesProvider.getLendingPool());
+        _treasury = initParams.treasury;
+        _underlyingAsset = initParams.underlyingAsset;
+        _incentivesController = initParams.incentivesController;
+        _eventValidator = EventValidator(initParams.eventValidator);
         emit Initialized(
-            underlyingAsset,
-            address(pool),
-            treasury,
-            address(incentivesController),
-            rTokenDecimals,
-            rTokenName,
-            rTokenSymbol,
-            params
+            DataTypes.RTokenInitializedEventParams(
+                initParams.underlyingAsset,
+                address(_pool),
+                initParams.treasury,
+                address(initParams.incentivesController),
+                initParams.rTokenDecimals,
+                initParams.rTokenName,
+                initParams.rTokenSymbol,
+                initParams.params
+            )
         );
     }
 
@@ -146,11 +162,15 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
             (address user, uint256 amount) = abi.decode(_data[32:], (address, uint256));
             _totalCrossChainSupply += amount;
             crossChainUserBalance[user] += amount;
+            crosschainUnderlyingAsset[user] += amount;
+            totalCrosschainUnderlyingAssets += amount;
         }
         if (selector == BalanceTransfer.selector && _identifier.chainId != block.chainid) {
             (address from, address to, uint256 amount,) = abi.decode(_data[32:], (address, address, uint256, uint256));
             crossChainUserBalance[from] -= amount;
             crossChainUserBalance[to] += amount;
+            crosschainUnderlyingAsset[from] -= amount;
+            crosschainUnderlyingAsset[to] -= amount;
         }
     }
 
@@ -160,18 +180,23 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
      * @param mode The mode
      */
     // @audit
-    function updateCrossChainBalance(address user, uint256 amountScaled, uint256 mode)
+    function updateCrossChainBalance(address user, uint256 amount, uint256 amountScaled, uint256 mode)
         external
         override
-        onlyLendingPool
+        onlyRouter
     {
         if (mode == 1) {
             crossChainUserBalance[user] += amountScaled;
             _totalCrossChainSupply += amountScaled;
+            crosschainUnderlyingAsset[user] += amount;
+            totalCrosschainUnderlyingAssets += amount;
         } else if (mode == 2) {
             _totalCrossChainSupply -= amountScaled;
             crossChainUserBalance[user] -= amountScaled;
+            crosschainUnderlyingAsset[user] -= amount;
+            totalCrosschainUnderlyingAssets -= amount;
         }
+        emit CrossChainBalanceUpdate(user, amount, amountScaled, mode);
     }
 
     function getCrossChainUserBalance(address user) external view override returns (uint256) {
@@ -195,12 +220,18 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         returns (uint256, uint256)
     {
         uint256 amountScaled = amount.rayDiv(index);
-        require(amountScaled != 0, Errors.CT_INVALID_BURN_AMOUNT);
+        require(amountScaled != 0, CT_INVALID_BURN_AMOUNT);
         _burn(user, amountScaled);
 
-        (, MessagingFee memory fee) =
-            IRVaultAsset(_underlyingAsset).getFeeQuote(receiverOfUnderlying, toChainId, amount);
-        IRVaultAsset(_underlyingAsset).burn{value: fee.nativeFee}(receiverOfUnderlying, toChainId, amount);
+        MessagingFee memory fee;
+        address rVaultAddress = _underlyingAsset;
+        // todo: if lp rtoken does not have enough underlying to burn, skip burning
+        if (IERC20(rVaultAddress).balanceOf(address(this)) >= amount) {
+            if (toChainId != block.chainid) {
+                (, fee) = IRVaultAsset(rVaultAddress).getFeeQuote(receiverOfUnderlying, toChainId, amount);
+            }
+            IRVaultAsset(rVaultAddress).burn{value: fee.nativeFee}(receiverOfUnderlying, toChainId, amount);
+        }
 
         emit Transfer(user, address(0), amount);
         emit Burn(user, receiverOfUnderlying, amount, index);
@@ -224,9 +255,11 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     {
         uint256 previousBalance = super.balanceOf(user);
 
-        uint256 amountScaled = amount.rayDiv(index);
-        require(amountScaled != 0, Errors.CT_INVALID_MINT_AMOUNT);
+        uint256 amountScaled = amount;
+        amountScaled = amount.rayDiv(index);
+        require(amountScaled != 0, CT_INVALID_MINT_AMOUNT);
         _mint(user, amountScaled);
+        crosschainUnderlyingAsset[user] += amount;
 
         emit Transfer(address(0), user, amount);
         emit Mint(user, amount, index);
@@ -251,7 +284,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         }
 
         address treasury = _treasury;
-
+        crosschainUnderlyingAsset[treasury] += amount;
         // Compared to the normal mint, we don't check for rounding errors.
         // The amount to mint can easily be very small since it is a fraction of the interest ccrued.
         // In that case, the treasury will experience a (very small) loss, but it
@@ -266,7 +299,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     }
 
     /**
-     * @dev Transfers rTokens in the event of a borrow being liquidated, in case the liquidators reclaims the aToken
+     * @dev Transfers rTokens in the event of a borrow being liquidated, in case the liquidators reclaims the rToken
      * - Only callable by the LendingPool
      * @param from The address getting liquidated, current owner of the rTokens
      * @param to The recipient
@@ -314,7 +347,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     }
 
     /**
-     * @dev calculates the total supply of the specific aToken
+     * @dev calculates the total supply of the specific rToken
      * since the balance of every single user increases over time, the total supply
      * does that too.
      * @return the current total supply
@@ -340,7 +373,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     }
 
     /**
-     * @dev Returns the address of the Aave treasury, receiving the fees on this aToken
+     * @dev Returns the address of the Aave treasury, receiving the fees on this rToken
      *
      */
     function RESERVE_TREASURY_ADDRESS() public view returns (address) {
@@ -348,7 +381,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     }
 
     /**
-     * @dev Returns the address of the underlying asset of this aToken (E.g. WETH for aWETH)
+     * @dev Returns the address of the underlying asset of this rToken (E.g. WETH for aWETH)
      *
      */
     function UNDERLYING_ASSET_ADDRESS() public view override returns (address) {
@@ -356,10 +389,10 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     }
 
     /**
-     * @dev Returns the address of the lending pool where this aToken is used
+     * @dev Returns the address of the lending pool where this rToken is used
      *
      */
-    function POOL() public view returns (ILendingPool) {
+    function POOL() public view returns (LendingPool) {
         return _pool;
     }
 
@@ -393,14 +426,16 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         onlyLendingPool
         returns (uint256)
     {
-        (, MessagingFee memory fee) =
-            IRVaultAsset(_underlyingAsset).getFeeQuote(receiverOfUnderlying, toChainId, amount);
+        MessagingFee memory fee;
+        if (toChainId != block.chainid) {
+            (, fee) = IRVaultAsset(_underlyingAsset).getFeeQuote(receiverOfUnderlying, toChainId, amount);
+        }
         IRVaultAsset(_underlyingAsset).burn{value: fee.nativeFee}(receiverOfUnderlying, toChainId, amount);
         return amount;
     }
 
     /**
-     * @dev Invoked to execute actions on the aToken side after a repayment.
+     * @dev Invoked to execute actions on the rToken side after a repayment.
      * @param user The user executing the repayment
      * @param amount The amount getting repaid
      *
@@ -447,7 +482,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
      *
      */
     function _transfer(address from, address to, uint256 amount, bool validate) internal {
-        ILendingPool pool = _pool;
+        LendingPool pool = _pool;
 
         uint256 index = pool.getReserveNormalizedIncome(_underlyingAsset);
 
@@ -461,6 +496,10 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         }
 
         emit BalanceTransfer(from, to, amount, index);
+    }
+
+    function getRevision() internal pure virtual returns (uint256) {
+        return ATOKEN_REVISION;
     }
 
     /**
@@ -481,4 +520,9 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
             _unpause();
         }
     }
+
+    /*..•°.*°.˚:*•˚°.*°.˚: •°.*:*•*/
+    /*       Receive Method       */
+    /*.•°:°.´+˚+°.• • °.•´+°.•´+•*/
+    receive() external payable {}
 }

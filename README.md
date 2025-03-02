@@ -36,6 +36,13 @@ To get started with RiftLend:
 
 ---
 
+### Contracts libraries
+
+```bash
+forge install  @openzeppelin/openzeppelin-contracts Vectorized/solady layerzero-labs/devtools layerzero-labs/layerzero-v1 layerzero-labs/layerzero-v2  GNSPS/solidity-bytes-utils --no-commit
+
+```
+
 ## Contributing
 
 We welcome community contributions! Here's how to get involved:

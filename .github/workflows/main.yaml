@@ -33,9 +33,7 @@ jobs:
           node-version: 16.x.x
 
       - name: Install Foundry
-        uses: onbjerg/foundry-toolchain@v1
-        with:
-          version: nightly
+        uses: foundry-rs/foundry-toolchain@v1
 
       - name: Run Forge build
         run: "forge build"
@@ -52,12 +50,10 @@ jobs:
           node-version: 16.x.x
 
       - name: Install Foundry
-        uses: onbjerg/foundry-toolchain@v1
-        with:
-          version: nightly
+        uses: foundry-rs/foundry-toolchain@v1
 
       - name: Run Forge build
         run: "forge build"
 
       - name: Run Forge test
-        run: "forge test"
+        run: "forge test -vvv"

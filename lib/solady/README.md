@@ -3,6 +3,7 @@
 [![NPM][npm-shield]][npm-url]
 [![CI][ci-shield]][ci-url]
 [![Solidity][solidity-shield]][solidity-ci-url]
+[![Docs][docs-shield]][docs-url]
 
 Gas optimized Solidity snippets.
 
@@ -22,12 +23,17 @@ To install with [**Hardhat**](https://github.com/nomiclabs/hardhat):
 npm install solady
 ```
 
+## Documentation
+
+https://vectorized.github.io/solady
+
 ## Contracts
 
 The Solidity smart contracts are located in the `src` directory.
 
 ```ml
 accounts
+├─ EIP7702Proxy — "Relay proxy for EIP7702 delegations"
 ├─ ERC1271 — "ERC1271 mixin with nested EIP-712 approach"
 ├─ ERC4337 — "Simple ERC4337 account implementation"
 ├─ ERC4337Factory — "Simple ERC4337 account factory implementation"
@@ -54,6 +60,7 @@ tokens
 ├─ WETH — "Simple Wrapped Ether implementation"
 utils
 ├─ Base64 — "Library for Base64 encoding and decoding"
+├─ CallContextChecker — "Call context checker mixin"
 ├─ CREATE3 — "Deterministic deployments agnostic to the initialization code"
 ├─ DateTimeLib — "Library for date time operations"
 ├─ DeploylessPredeployQueryer — "Deployless queryer for predeploys"
@@ -77,7 +84,9 @@ utils
 ├─ LibPRNG — "Library for generating pseudorandom numbers"
 ├─ LibRLP — "Library for RLP encoding and CREATE address computation"
 ├─ LibSort — "Library for efficient sorting of memory arrays"
+├─ LibStorage — "Library for basic storage operations"
 ├─ LibString — "Library for converting numbers into strings and other string operations"
+├─ LibTransient — "Library for transient storage operations"
 ├─ LibZip — "Library for compressing and decompressing bytes"
 ├─ Lifebuoy — "Class that allows for rescue of ETH, ERC20, ERC721 tokens"
 ├─ MerkleProofLib — "Library for verification of Merkle proofs"
@@ -139,6 +148,11 @@ Some parts of Solady may not be compatible with chains with partial EVM equivale
 
 Please always check and test for compatibility accordingly.
 
+If you are deploying on ZKsync stack (e.g. Abstract) with partial EVM equivalence:
+
+- Run `node prep/zksync-compat-analysis.js` to scan the files.
+- For files that have incompatibilities (i.e. non-zero scores), look into the `ext/zksync` directories for substitutes. The substitutes may only have a subset of the original features. If there is no substitute, it means that the file is incompatible and infeasible to be implemented for ZKsync.
+
 ## Acknowledgements
 
 This repository is inspired by or directly modified from many sources, primarily:
@@ -158,3 +172,6 @@ This repository is inspired by or directly modified from many sources, primarily
 
 [solidity-shield]: https://img.shields.io/badge/solidity-%3E=0.8.4%20%3C=0.8.28-aa6746
 [solidity-ci-url]: https://github.com/Vectorized/solady/actions/workflows/ci-all-via-ir.yml
+
+[docs-shield]: https://img.shields.io/badge/docs-%F0%9F%93%84-blue
+[docs-url]: https://vectorized.github.io/solady

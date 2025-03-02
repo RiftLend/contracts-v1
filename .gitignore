@@ -17,3 +17,5 @@ node_modules/
 .gitpod.yml
 pnpm-lock.yaml
 count_lines.py
+lib
+lib/

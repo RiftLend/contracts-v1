@@ -2,75 +2,43 @@
 pragma solidity 0.8.25;
 
 import {IERC20} from "@openzeppelin/contracts-v5/token/ERC20/IERC20.sol";
-import "src/interfaces/ILendingPool.sol";
 import {ILendingPoolCollateralManager} from "src/interfaces/ILendingPoolCollateralManager.sol";
 import {ISuperAsset} from "src/interfaces/ISuperAsset.sol";
 import {IRToken} from "src/interfaces/IRToken.sol";
 import {IRVaultAsset} from "src/interfaces/IRVaultAsset.sol";
 import {IVariableDebtToken} from "src/interfaces/IVariableDebtToken.sol";
-import {ISuperchainTokenBridge} from "src/interfaces/ISuperchainTokenBridge.sol";
 import {ILendingPoolAddressesProvider} from "src/interfaces/ILendingPoolAddressesProvider.sol";
 import "src/interfaces/ILendingPool.sol";
-import {ILendingPoolCollateralManager} from "src/interfaces/ILendingPoolCollateralManager.sol";
-import {ISuperAsset} from "src/interfaces/ISuperAsset.sol";
-import {IRToken} from "src/interfaces/IRToken.sol";
-import {IRVaultAsset} from "src/interfaces/IRVaultAsset.sol";
-import {IVariableDebtToken} from "src/interfaces/IVariableDebtToken.sol";
-import {ISuperchainTokenBridge} from "src/interfaces/ISuperchainTokenBridge.sol";
-import {ILendingPoolAddressesProvider} from "src/interfaces/ILendingPoolAddressesProvider.sol";
 
 import {Initializable} from "@solady/utils/Initializable.sol";
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
 import {ReserveLogic} from "src/libraries/logic/ReserveLogic.sol";
-import {Errors} from "src/libraries/helpers/Errors.sol";
 import {SuperPausable} from "src/interop-std/src/utils/SuperPausable.sol";
-import {Predeploys} from "src/libraries/Predeploys.sol";
 import {EventValidator, ValidationMode, Identifier} from "src/libraries/EventValidator.sol";
 import {DataTypes} from "src/libraries/types/DataTypes.sol";
 import {ReserveLogic} from "src/libraries/logic/ReserveLogic.sol";
-import {Errors} from "src/libraries/helpers/Errors.sol";
-import {SuperPausable} from "src/interop-std/src/utils/SuperPausable.sol";
-import {Predeploys} from "src/libraries/Predeploys.sol";
-import {EventValidator, ValidationMode, Identifier} from "src/libraries/EventValidator.sol";
-import {DataTypes} from "src/libraries/types/DataTypes.sol";
 import {MessagingFee} from "src/libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
+import {console} from "forge-std/console.sol";
 
 contract Router is Initializable, SuperPausable {
     using SafeERC20 for IERC20;
     using ReserveLogic for DataTypes.ReserveData;
 
-    bytes2 public constant UPDATE_RATES_AND_STATES_MASK = bytes2(uint16(3));
-    uint256 public constant ROUTER_REVISION = 0x1;
+    bytes2 internal constant UPDATE_RATES_AND_STATES_MASK = bytes2(uint16(3));
+    uint256 internal constant ROUTER_REVISION = 0x1;
 
-    ILendingPool public lendingPool;
-    ILendingPoolAddressesProvider public addressesProvider;
-    address public relayer;
-    EventValidator public eventValidator;
-    uint8 pool_type;
+    ILendingPool internal lendingPool;
+    address internal addressesProvider;
+    address internal eventValidator;
+    address internal relayer;
+    uint8 internal pool_type;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                  Modifiers                                 */
+    /*                  Custom Erros                              */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    modifier onlyRelayer() {
-        _onlyRelayer();
-        _;
-    }
-
-    function _onlyRelayer() internal view {
-        require(addressesProvider.getRelayer() == msg.sender, "!relayer");
-    }
-
-    modifier onlyLendingPoolConfigurator() {
-        _onlyLendingPoolConfigurator();
-        _;
-    }
-
-    function _onlyLendingPoolConfigurator() internal view {
-        require(
-            addressesProvider.getLendingPoolConfigurator() == msg.sender, Errors.LP_CALLER_NOT_LENDING_POOL_CONFIGURATOR
-        );
-    }
+    error NOT_RELAYER();
+    error ONLY_LP_CONFIGURATOR();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                  External Functions                        */
@@ -81,12 +49,20 @@ contract Router is Initializable, SuperPausable {
      * @param _lendingPool The address of the LendingPool contract
      * @param _addressesProvider The address of the LendingPoolAddressesProvider contract
      */
-    function initialize(address _lendingPool, address _addressesProvider, address _eventValidator) public initializer {
+    function initialize(address _lendingPool, address _addressesProvider, address _eventValidator)
+        external
+        initializer
+    {
         lendingPool = ILendingPool(_lendingPool);
-        addressesProvider = ILendingPoolAddressesProvider(_addressesProvider);
-        eventValidator = EventValidator(_eventValidator);
+        addressesProvider = _addressesProvider;
+        eventValidator = _eventValidator;
         pool_type = ILendingPool(lendingPool).pool_type();
     }
+
+    // event logger(string message);
+    // event loggerBytes(bytes message);
+    // event loggerBytes32(bytes32 message);
+    // event loggerUint(uint);
 
     function dispatch(
         ValidationMode _mode,
@@ -94,17 +70,23 @@ contract Router is Initializable, SuperPausable {
         bytes[] calldata _data,
         bytes calldata _proof,
         uint256[] calldata _logIndex
-    ) external onlyRelayer whenNotPaused {
+    ) external whenNotPaused {
+        if (ILendingPoolAddressesProvider(addressesProvider).getRelayerStatus(msg.sender)!=true) revert NOT_RELAYER();
+
         if (_mode == ValidationMode.CROSS_L2_PROVER_RECEIPT) {
-            eventValidator.validate(_mode, _identifier[0], _data, _logIndex, _proof);
+            EventValidator(eventValidator).validate(_mode, _identifier[0], _data, _logIndex, _proof);
         }
+
         for (uint256 i = 0; i < _identifier.length; i++) {
             if (_mode != ValidationMode.CUSTOM && _mode != ValidationMode.CROSS_L2_PROVER_RECEIPT) {
-                eventValidator.validate(_mode, _identifier[i], _data, _logIndex, _proof);
+                EventValidator(eventValidator).validate(_mode, _identifier[i], _data, _logIndex, _proof);
             }
+
             _dispatch(_identifier[i], _data[i]);
         }
     }
+
+    event logger(string message);
 
     function _dispatch(Identifier calldata _identifier, bytes calldata _data) internal {
         bytes32 selector = abi.decode(_data[:32], (bytes32));
@@ -113,96 +95,129 @@ contract Router is Initializable, SuperPausable {
         /*                     DEPOSIT DISPATCH                       */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-        if (selector == Deposit.selector && _identifier.chainId != block.chainid) {
-            (, address asset, uint256 amount, address onBehalfOf,, uint256 mintMode, uint256 amountScaled) =
-                abi.decode(_data[64:], (address, address, uint256, address, uint16, uint256, uint256));
-            DataTypes.ReserveData memory reserve = lendingPool.getReserveData(asset);
-            IRToken(reserve.rTokenAddress).updateCrossChainBalance(onBehalfOf, amountScaled, mintMode);
-            lendingPool.updateStates(asset, amount, 0, UPDATE_RATES_AND_STATES_MASK);
+        if (selector == ILendingPool.Deposit.selector && _identifier.chainId != block.chainid) {
+            (DataTypes.DepositEventParams memory params) = abi.decode(_data[32:], (DataTypes.DepositEventParams));
+
+            DataTypes.ReserveData memory reserve = lendingPool.getReserveData(params.reserve);
+            lendingPool.updateStates(params.reserve, params.amount, 0, UPDATE_RATES_AND_STATES_MASK);
+            IRToken(reserve.rTokenAddress).updateCrossChainBalance(
+                params.onBehalfOf, params.amount, params.amountScaled, params.mintMode
+            );
         }
-        if (selector == CrossChainDeposit.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
-            (address sender, address asset, uint256 amount, address onBehalfOf, uint16 referralCode) =
-                abi.decode(_data[96:], (address, address, uint256, address, uint16));
-            lendingPool.deposit(sender, asset, amount, onBehalfOf, referralCode);
+        if (selector == ILendingPool.CrossChainDeposit.selector) {
+            (
+                uint256 fromChainId,
+                address sender,
+                address asset,
+                uint256 amount,
+                address onBehalfOf,
+                uint16 referralCode
+            ) = abi.decode(_data[32:], (uint256, address, address, uint256, address, uint16));
+            if (fromChainId == block.chainid) {
+                emit logger("deposit");
+                lendingPool.deposit(sender, asset, amount, onBehalfOf, referralCode);
+            }
         }
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*                    WITHDRAW DISPATCH                       */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+        if (selector == ILendingPool.Withdraw.selector && _identifier.chainId != block.chainid) {
+            (DataTypes.WithdrawEventParams memory params) = abi.decode(_data[32:], (DataTypes.WithdrawEventParams));
+            // params.reserve is rvault asset
 
-        if (selector == Withdraw.selector && _identifier.chainId != block.chainid) {
-            (, address asset, address to, uint256 amount, uint256 mintMode, uint256 amountScaled) =
-                abi.decode(_data[64:], (address, address, address, uint256, uint256, uint256));
-            DataTypes.ReserveData memory reserve = lendingPool.getReserveData(asset);
-            IRToken(reserve.rTokenAddress).updateCrossChainBalance(to, amountScaled, mintMode);
-            lendingPool.updateStates(asset, 0, amount, UPDATE_RATES_AND_STATES_MASK);
+            DataTypes.ReserveData memory reserve = lendingPool.getReserveData(params.reserve);
+            lendingPool.updateStates(params.reserve, 0, params.amount, UPDATE_RATES_AND_STATES_MASK);
+            IRToken(reserve.rTokenAddress).updateCrossChainBalance(
+                params.user, params.amount, params.amountScaled, params.mode
+            );
         }
-        if (selector == CrossChainWithdraw.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
-            (address sender, address asset, uint256 amount, address to, uint256 toChainId) =
-                abi.decode(_data[96:], (address, address, uint256, address, uint256));
-            lendingPool.withdraw(sender, asset, amount, to, toChainId);
+
+        if (selector == ILendingPool.CrossChainWithdraw.selector) {
+            (DataTypes.CrosschainWithdrawData memory params) =
+                abi.decode(_data[32:], (DataTypes.CrosschainWithdrawData));
+            if (params.fromChainId == block.chainid) {
+                lendingPool.withdraw(params.sender, params.asset, params.amount, params.to, params.toChainId);
+            }
         }
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*                    BORROW DISPATCH                         */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-        if (selector == Borrow.selector && _identifier.chainId != block.chainid) {
-            (address asset, uint256 amount,, address onBehalfOf,,, uint256 mintMode, uint256 amountScaled,) =
-                abi.decode(_data[32:], (address, uint256, address, address, uint256, uint256, uint256, uint256, uint16));
-            DataTypes.ReserveData memory reserve = lendingPool.getReserveData(asset);
+        if (selector == ILendingPool.Borrow.selector && _identifier.chainId != block.chainid) {
+            DataTypes.BorrowEventParams memory params = abi.decode(_data[32:], (DataTypes.BorrowEventParams));
+            DataTypes.ReserveData memory reserve = lendingPool.getReserveData(params.reserve);
+            lendingPool.updateStates(params.reserve, 0, params.amount, UPDATE_RATES_AND_STATES_MASK);
             IVariableDebtToken(reserve.variableDebtTokenAddress).updateCrossChainBalance(
-                onBehalfOf, amountScaled, mintMode
+                params.onBehalfOf, params.amountScaled, params.mintMode
             );
-
-            lendingPool.updateStates(asset, 0, amount, UPDATE_RATES_AND_STATES_MASK);
         }
-        if (selector == CrossChainBorrow.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
-            (
-                uint256 sendToChainId,
-                address sender,
-                address asset,
-                uint256 amount,
-                address onBehalfOf,
-                uint16 referralCode
-            ) = abi.decode(_data[96:], (uint256, address, address, uint256, address, uint16));
-            lendingPool.borrow(sender, asset, amount, onBehalfOf, sendToChainId, referralCode);
+
+        if (selector == ILendingPool.CrossChainBorrow.selector) {
+            (DataTypes.CrosschainBorrowData memory params) = abi.decode(_data[32:], (DataTypes.CrosschainBorrowData));
+
+            if (params.borrowFromChainId == block.chainid) {
+                lendingPool.borrow(
+                    params.sender,
+                    params.asset,
+                    params.amount,
+                    params.onBehalfOf,
+                    params.sendToChainId,
+                    params.referralCode
+                );
+            }
         }
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*                    REPAY DISPATCH                          */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-        if (selector == Repay.selector && _identifier.chainId != block.chainid) {
-            (address asset, uint256 amount,, address repayer,, uint256 mintMode, uint256 amountBurned) =
-                abi.decode(_data[32:], (address, uint256, address, address, uint256, uint256, uint256));
-            DataTypes.ReserveData memory reserve = lendingPool.getReserveData(asset);
-            IVariableDebtToken(reserve.variableDebtTokenAddress).updateCrossChainBalance(
-                repayer, amountBurned, mintMode
-            );
-            lendingPool.updateStates(asset, amount, 0, UPDATE_RATES_AND_STATES_MASK);
-        } else if (selector == CrossChainRepay.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
-            (address sender, address asset, uint256 amount, address onBehalfOf, uint256 debtChainId) =
-                abi.decode(_data[64:], (address, address, uint256, address, uint256));
+        if (selector == ILendingPool.Repay.selector && _identifier.chainId != block.chainid) {
+            // emit Repay(asset, paybackAmount, onBehalfOf, sender, mode, amountBurned);
 
-            address rVaultAsset = lendingPool.getRVaultAssetOrRevert(asset);
+            (DataTypes.RepayEventParams memory params) = abi.decode(_data[32:], (DataTypes.RepayEventParams));
+            address rVaultAsset = lendingPool.getRVaultAssetOrRevert(params.reserve);
             DataTypes.ReserveData memory reserve = lendingPool.getReserveData(rVaultAsset);
+            lendingPool.updateStates(rVaultAsset, params.amount, 0, UPDATE_RATES_AND_STATES_MASK);
+            IVariableDebtToken(reserve.variableDebtTokenAddress).updateCrossChainBalance(
+                params.user, params.amountBurned, params.mode
+            );
+        } else if (selector == ILendingPool.CrossChainRepay.selector) {
+            (DataTypes.CrosschainRepayData memory params) = abi.decode(_data[32:], (DataTypes.CrosschainRepayData));
+            if (params.fundChainId == block.chainid) {
+                address rVaultAsset = lendingPool.getRVaultAssetOrRevert(params.asset);
+                address reserve_superAsset = lendingPool.getReserveData(rVaultAsset).superAsset;
 
-            IERC20(asset).safeTransferFrom(sender, address(this), amount);
-            if (pool_type == 1) {
-                IERC20(asset).approve(reserve.superAsset, amount);
-                ISuperAsset(reserve.superAsset).deposit(rVaultAsset, amount);
-            } else {
-                IERC20(asset).safeTransfer(rVaultAsset, amount);
+                IERC20(params.asset).safeTransferFrom(params.sender, address(this), params.amount);
+                if (pool_type == 1) {
+                    // TODO: remove redundant approves for gas savings , by calling each time lp.setRVaultAssetForUnderlying is called
+                    IERC20(params.asset).approve(reserve_superAsset, params.amount);
+                    ISuperAsset(reserve_superAsset).deposit(address(this), params.amount);
+                    IERC20(reserve_superAsset).approve(rVaultAsset, params.amount);
+                }
+                IRVaultAsset(rVaultAsset).deposit(params.amount, address(this));
+
+                MessagingFee memory fee;
+                if (params.debtChainId != block.chainid) {
+                    (, fee) =
+                        IRVaultAsset(rVaultAsset).getFeeQuote(params.onBehalfOf, params.debtChainId, params.amount);
+                }
+                IRVaultAsset(rVaultAsset).bridge{value: fee.nativeFee}(
+                    address(lendingPool), params.debtChainId, params.amount
+                );
+                emit ILendingPool.CrossChainRepayFinalize(
+                    DataTypes.CrosschainRepayFinalizeData(
+                        params.debtChainId, params.sender, params.onBehalfOf, params.amount, params.asset
+                    )
+                );
             }
-            (, MessagingFee memory fee) = IRVaultAsset(rVaultAsset).getFeeQuote(onBehalfOf, debtChainId, amount);
-            IRVaultAsset(rVaultAsset).bridge{value: fee.nativeFee}(address(lendingPool), debtChainId, amount);
-            emit CrossChainRepayFinalize(debtChainId, sender, onBehalfOf, amount, rVaultAsset);
-        } else if (selector == CrossChainRepayFinalize.selector && abi.decode(_data[32:64], (uint256)) == block.chainid)
-        {
-            (address sender, address onBehalfOf, uint256 amount, address asset) =
-                abi.decode(_data[64:], (address, address, uint256, address));
-            lendingPool.repay(sender, onBehalfOf, asset, amount);
+        } else if (selector == ILendingPool.CrossChainRepayFinalize.selector) {
+            (DataTypes.CrosschainRepayFinalizeData memory params) =
+                abi.decode(_data[32:], (DataTypes.CrosschainRepayFinalizeData));
+            if (params.debtChainId == block.chainid) {
+                lendingPool.repay(params.sender, params.onBehalfOf, params.asset, params.amount);
+            }
         }
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -210,66 +225,79 @@ contract Router is Initializable, SuperPausable {
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
         if (selector == ILendingPoolCollateralManager.LiquidationCall.selector && _identifier.chainId != block.chainid)
         {
-            (
-                address collateralAsset,
-                address debtAsset,
-                address user,
-                uint256 actualDebtToLiquidate,
-                uint256 maxCollateralToLiquidate,
-                , //liquidator
-                bool receiveRToken,
-                uint256 variableDebtBurned,
-                uint256 collateralRTokenBurned
-            ) = abi.decode(_data[32:], (address, address, address, uint256, uint256, address, bool, uint256, uint256));
+            (DataTypes.LiquidationCallEventParams memory params) =
+                abi.decode(_data[32:], (DataTypes.LiquidationCallEventParams));
 
-            DataTypes.ReserveData memory debtReserve = lendingPool.getReserveData(debtAsset);
+            DataTypes.ReserveData memory debtReserve = lendingPool.getReserveData(params.debtAsset);
             IVariableDebtToken(debtReserve.variableDebtTokenAddress).updateCrossChainBalance(
-                user, variableDebtBurned, 2
+                params.user, params.variableDebtBurned, 2
             );
-            lendingPool.updateStates(debtAsset, 0, actualDebtToLiquidate, UPDATE_RATES_AND_STATES_MASK);
-            if (!receiveRToken) {
-                DataTypes.ReserveData memory collateralReserve = lendingPool.getReserveData(collateralAsset);
-                IRToken(collateralReserve.rTokenAddress).updateCrossChainBalance(user, collateralRTokenBurned, 2);
-                lendingPool.updateStates(collateralAsset, 0, maxCollateralToLiquidate, UPDATE_RATES_AND_STATES_MASK);
+            lendingPool.updateStates(params.debtAsset, 0, params.debtToCover, UPDATE_RATES_AND_STATES_MASK);
+            if (!params.receiveRToken) {
+                DataTypes.ReserveData memory collateralReserve = lendingPool.getReserveData(params.collateralAsset);
+                lendingPool.updateStates(
+                    params.collateralAsset, 0, params.liquidatedCollateralAmount, UPDATE_RATES_AND_STATES_MASK
+                );
+                IRToken(collateralReserve.rTokenAddress).updateCrossChainBalance(
+                    params.user, params.liquidatedCollateralAmount, params.collateralRTokenBurned, 2
+                );
+            } else {
+                DataTypes.ReserveData memory collateralReserve = lendingPool.getReserveData(params.collateralAsset);
+                lendingPool.updateStates(
+                    params.collateralAsset, 0, params.liquidatedCollateralAmount, UPDATE_RATES_AND_STATES_MASK
+                );
+                IRToken(collateralReserve.rTokenAddress).updateCrossChainBalance(
+                    params.liquidator, params.liquidatedCollateralAmount, params.liquidatorSentScaled, 1
+                );
             }
         }
-        if (selector == CrossChainLiquidationCall.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
-            (
-                address sender,
-                address collateralAsset,
-                address debtAsset,
-                address user,
-                uint256 debtToCover,
-                bool receiveRToken
-            ) = abi.decode(_data[64:], (address, address, address, address, uint256, bool));
-            lendingPool.liquidationCall(
-                sender, collateralAsset, debtAsset, user, debtToCover, receiveRToken, block.chainid
-            );
+
+        if (selector == ILendingPool.CrossChainLiquidationCall.selector) {
+            (DataTypes.CrosschainLiquidationCallData memory params) =
+                abi.decode(_data[32:], (DataTypes.CrosschainLiquidationCallData));
+            if (params.chainId == block.chainid) {
+                lendingPool.liquidationCall(params);
+            }
         }
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
         /*                    FLASHLOAN DISPATCH                      */
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-        if (
-            selector == FlashLoan.selector && abi.decode(_data[32:64], (uint256)) != block.chainid
-                && abi.decode(_data[64:96], (bool))
-        ) {
-            (, address asset, uint256 amount) = abi.decode(_data[96:160], (address, address, uint256));
-            lendingPool.updateStates(asset, 0, amount, UPDATE_RATES_AND_STATES_MASK);
+        if (selector == ILendingPool.FlashLoan.selector) {
+            (DataTypes.FlashLoanEventParams memory params) = abi.decode(_data[32:], (DataTypes.FlashLoanEventParams));
+            if (params.chainId != block.chainid) {
+                lendingPool.updateStates(params.asset, 0, params.amount, UPDATE_RATES_AND_STATES_MASK);
+            }
         }
-        if (selector == CrossChainInitiateFlashloan.selector && abi.decode(_data[32:64], (uint256)) == block.chainid) {
-            (
-                address sender,
-                address receiverAddress,
-                address[] memory assets,
-                uint256[] memory amounts,
-                uint256[] memory modes,
-                address onBehalfOf,
-                bytes memory params,
-                uint16 referralCode
-            ) = abi.decode(_data[96:], (address, address, address[], uint256[], uint256[], address, bytes, uint16));
-            lendingPool.flashLoan(sender, receiverAddress, assets, amounts, modes, onBehalfOf, params, referralCode);
+
+        if (selector == ILendingPool.CrossChainInitiateFlashloan.selector) {
+            (, DataTypes.InitiateFlashloanParams memory initiateFlashloanParams) =
+                abi.decode(_data, (bytes32, DataTypes.InitiateFlashloanParams));
+
+            address sender = initiateFlashloanParams.sender;
+            DataTypes.FlashloanParams memory flashloanParams = initiateFlashloanParams.flashloanParams;
+
+            if (flashloanParams.chainid == block.chainid) {
+                address[] memory assets = new address[](1);
+                uint256[] memory amounts = new uint256[](1);
+                uint256[] memory modes = new uint256[](1);
+                assets[0] = flashloanParams.asset;
+                amounts[0] = flashloanParams.amount;
+                modes[0] = flashloanParams.mode;
+
+                // Execute the flashloan with the decoded parameters
+                lendingPool.flashLoan(
+                    sender,
+                    flashloanParams.receiverAddress,
+                    assets,
+                    amounts,
+                    modes,
+                    flashloanParams.onBehalfOf,
+                    flashloanParams.params,
+                    flashloanParams.referralCode
+                );
+            }
         }
     }
 
@@ -289,7 +317,9 @@ contract Router is Initializable, SuperPausable {
         uint256[] calldata chainIds
     ) external whenNotPaused {
         for (uint256 i = 0; i < chainIds.length; i++) {
-            emit CrossChainDeposit(chainIds[i], msg.sender, asset, amounts[i], onBehalfOf, referralCode);
+            emit ILendingPool.CrossChainDeposit(
+                DataTypes.CrosschainDepositData(chainIds[i], msg.sender, asset, amounts[i], onBehalfOf, referralCode)
+            );
         }
     }
 
@@ -308,7 +338,9 @@ contract Router is Initializable, SuperPausable {
         uint256[] calldata chainIds
     ) external whenNotPaused {
         for (uint256 i = 0; i < chainIds.length; i++) {
-            emit CrossChainWithdraw(chainIds[i], msg.sender, asset, amounts[i], to, toChainId);
+            emit ILendingPool.CrossChainWithdraw(
+                DataTypes.CrosschainWithdrawData(chainIds[i], msg.sender, asset, amounts[i], to, toChainId)
+            );
         }
     }
 
@@ -330,7 +362,11 @@ contract Router is Initializable, SuperPausable {
         uint256[] calldata chainIds
     ) external whenNotPaused {
         for (uint256 i = 0; i < chainIds.length; i++) {
-            emit CrossChainBorrow(chainIds[i], sendToChainId, msg.sender, asset, amounts[i], onBehalfOf, referralCode);
+            emit ILendingPool.CrossChainBorrow(
+                DataTypes.CrosschainBorrowData(
+                    chainIds[i], sendToChainId, msg.sender, asset, amounts[i], onBehalfOf, referralCode
+                )
+            );
         }
     }
 
@@ -344,32 +380,18 @@ contract Router is Initializable, SuperPausable {
     function repay(address _asset, address _onBehalfOf, DataTypes.RepayParam[] calldata _repayParams)
         external
         whenNotPaused
-        onlyRelayer
     {
         for (uint256 i = 0; i < _repayParams.length; i++) {
-            emit CrossChainRepay(
-                _repayParams[i].fundChainId,
-                msg.sender,
-                _asset,
-                _repayParams[i].amount,
-                _onBehalfOf,
-                _repayParams[i].debtChainId
+            emit ILendingPool.CrossChainRepay(
+                DataTypes.CrosschainRepayData(
+                    _repayParams[i].fundChainId,
+                    msg.sender,
+                    _asset,
+                    _repayParams[i].amount,
+                    _onBehalfOf,
+                    _repayParams[i].debtChainId
+                )
             );
-        }
-    }
-
-    /**
-     * @dev Allows depositors to enable/disable a specific deposited asset as collateral across multiple chains
-     * @param asset The address of the underlying asset deposited
-     * @param useAsCollateral `true` if the user wants to use the deposit as collateral, `false` otherwise
-     * @param chainIds Array of chain IDs where the collateral setting should be updated
-     */
-    function setUserUseReserveAsCollateral(address asset, bool[] calldata useAsCollateral, uint256[] calldata chainIds)
-        external
-        whenNotPaused
-    {
-        for (uint256 i = 0; i < chainIds.length; i++) {
-            emit SetUserUseReserveAsCollateralCrossChain(chainIds[i], msg.sender, asset, useAsCollateral[i]);
         }
     }
 
@@ -396,33 +418,18 @@ contract Router is Initializable, SuperPausable {
     ) external whenNotPaused {
         // DataTypes.ReserveData memory reserve = lendingPool.getReserveData(debtAsset);
         for (uint256 i = 0; i < chainIds.length; i++) {
-            emit CrossChainLiquidationCall(
-                chainIds[i], msg.sender, collateralAsset, debtAsset, user, debtToCover[i], receiveRToken
+            emit ILendingPool.CrossChainLiquidationCall(
+                DataTypes.CrosschainLiquidationCallData(
+                    chainIds[i], msg.sender, collateralAsset, debtAsset, user, debtToCover[i], receiveRToken
+                )
             );
         }
     }
 
-    function initiateFlashLoan(
-        uint256[] calldata chainIds,
-        address receiverAddress,
-        address[][] calldata assets,
-        uint256[][] calldata amounts,
-        uint256[][] calldata modes,
-        address onBehalfOf,
-        bytes[] calldata params,
-        uint16[] calldata referralCode
-    ) external whenNotPaused {
-        for (uint256 i = 0; i < chainIds.length; i++) {
-            emit CrossChainInitiateFlashloan(
-                chainIds[i],
-                msg.sender,
-                receiverAddress,
-                assets[i],
-                amounts[i],
-                modes[i],
-                onBehalfOf,
-                params[i],
-                referralCode[i]
+    function initiateFlashLoan(DataTypes.FlashloanParams[] calldata flashloanParams) external whenNotPaused {
+        for (uint256 i = 0; i < flashloanParams.length; i++) {
+            emit ILendingPool.CrossChainInitiateFlashloan(
+                DataTypes.InitiateFlashloanParams(msg.sender, flashloanParams[i])
             );
         }
     }
@@ -432,11 +439,11 @@ contract Router is Initializable, SuperPausable {
      * - Only callable by the LendingPoolConfigurator contract
      * @param val `true` to pause the reserve, `false` to un-pause it
      */
-    function setPause(bool val) external onlyLendingPoolConfigurator {
-        if (val) {
-            _pause();
-        } else {
-            _unpause();
+    function setPause(bool val) external {
+        if (ILendingPoolAddressesProvider(addressesProvider).getLendingPoolConfigurator() != msg.sender) {
+            revert ONLY_LP_CONFIGURATOR();
         }
+        if (val) _pause();
+        else _unpause();
     }
 }

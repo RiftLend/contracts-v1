@@ -71,7 +71,7 @@ library LibZip {
                 _ip := add(ip_, 1)
             }
             result := mload(0x40)
-            codecopy(result, codesize(), 0x8000) // Zeroize the hashmap.
+            calldatacopy(result, calldatasize(), 0x8000) // Zeroize the hashmap.
             let op := add(result, 0x8000)
             let a := add(data, 0x20)
             let ipStart := a
@@ -224,7 +224,7 @@ library LibZip {
                         let d := byte(31, mload(data))
                         // Fill with either 0xff or 0x00.
                         mstore(o, not(0))
-                        if iszero(gt(d, 0x7f)) { codecopy(o, codesize(), add(d, 1)) }
+                        if iszero(gt(d, 0x7f)) { calldatacopy(o, calldatasize(), add(d, 1)) }
                         o := add(o, add(and(d, 0x7f), 1))
                         continue
                     }
@@ -247,6 +247,7 @@ library LibZip {
     /// For efficiency, this function will directly return the results, terminating the context.
     /// If called internally, it must be called at the end of the function.
     function cdFallback() internal {
+        /// @solidity memory-safe-assembly
         assembly {
             if iszero(calldatasize()) { return(calldatasize(), calldatasize()) }
             let o := 0
@@ -259,7 +260,7 @@ library LibZip {
                     i := add(i, 1)
                     // Fill with either 0xff or 0x00.
                     mstore(o, not(0))
-                    if iszero(gt(d, 0x7f)) { codecopy(o, codesize(), add(d, 1)) }
+                    if iszero(gt(d, 0x7f)) { calldatacopy(o, calldatasize(), add(d, 1)) }
                     o := add(o, add(and(d, 0x7f), 1))
                     continue
                 }

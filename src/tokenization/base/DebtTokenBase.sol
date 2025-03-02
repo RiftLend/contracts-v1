@@ -5,18 +5,14 @@ import {ILendingPool} from "../../interfaces/ILendingPool.sol";
 import {ICreditDelegationToken} from "../../interfaces/ICreditDelegationToken.sol";
 import {Initializable} from "@solady/utils/Initializable.sol";
 import {IncentivizedERC20} from "../IncentivizedERC20.sol";
-import {Errors} from "../../libraries/helpers/Errors.sol";
+import {CT_CALLER_MUST_BE_LENDING_POOL} from "../../libraries/helpers/Errors.sol";
 
 /**
  * @title DebtTokenBase
  * @notice Base contract for different types of debt tokens, like StableDebtToken or VariableDebtToken
  * @author Aave
  */
-abstract contract DebtTokenBase is
-    IncentivizedERC20("DEBTTOKEN_IMPL", "DEBTTOKEN_IMPL", 0),
-    Initializable,
-    ICreditDelegationToken
-{
+abstract contract DebtTokenBase is IncentivizedERC20, Initializable, ICreditDelegationToken {
     mapping(address => mapping(address => uint256)) internal _borrowAllowances;
 
     /**
@@ -24,7 +20,7 @@ abstract contract DebtTokenBase is
      *
      */
     modifier onlyLendingPool() {
-        require(_msgSender() == address(_getLendingPool()), Errors.CT_CALLER_MUST_BE_LENDING_POOL);
+        require(_msgSender() == address(_getLendingPool()), CT_CALLER_MUST_BE_LENDING_POOL);
         _;
     }
 

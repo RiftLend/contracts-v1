@@ -1,5 +1,78 @@
 # @layerzerolabs/oft-solana-example
 
+## 0.7.5
+
+### Patch Changes
+
+- fe71c0e: fix typo and mention how to transfer ownership
+
+## 0.7.4
+
+### Patch Changes
+
+- 6bbe466: move solana init to own script and update task name
+
+## 0.7.3
+
+### Patch Changes
+
+- e5fffc3: fix import in createOFT.ts
+- fcf924d: docs: default to using solana 1.18
+
+## 0.7.2
+
+### Patch Changes
+
+- 274b8aa: Add task to get Solana rate limits
+
+## 0.7.1
+
+### Patch Changes
+
+- 213a76b: Enable optimizer explicitly
+
+## 0.7.0
+
+### Minor Changes
+
+- 57a80a8: added script to update metaplex metadata
+
+## 0.6.0
+
+### Minor Changes
+
+- 1ce802a: oft-solana - throw if trying to send more than owned
+
+## 0.5.1
+
+### Patch Changes
+
+- 12eaa61: oft-solana(getSimulationComputeUnits): increase backoff max delay from 3s to 10s
+
+## 0.5.0
+
+### Minor Changes
+
+- 4af9800: fallback for getSimulationComputeUnits
+
+## 0.4.9
+
+### Patch Changes
+
+- a2ecefd: fix missing return statement when user chooses no to 'continue with onlyOftStore'
+
+## 0.4.8
+
+### Patch Changes
+
+- af91805: Bump to lz-definitions 3.0.59+
+
+## 0.4.7
+
+### Patch Changes
+
+- ce03876: Get latest EndpointIds by bumping lz-definitions
+
 ## 0.4.6
 
 ### Patch Changes
