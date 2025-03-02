@@ -79,10 +79,17 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                           Constructor                      */
+    /*                  Constructor                               */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+    constructor(address ownerAddr) {
+        _initializeSuperOwner(uint64(block.chainid), ownerAddr);
+    }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*           Initialize Constructor Values                     */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    function initialize(RVaultAssetInitializeParams memory params) external initializer {
+    function initialize(RVaultAssetInitializeParams memory params) external initializer onlyOwner {
         underlying = params.underlying;
         provider = params.provider;
         pool_type = params.provider.getPoolType();
@@ -94,8 +101,7 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
         maxDepositLimit = params.maxDepositLimit;
         lzReceiveGasLimit = params.lzReceiveGasLimit;
         lzComposeGasLimit = params.lzComposeGasLimit;
-
-        _initializeSuperOwner(uint64(block.chainid), msg.sender);
+        _initializeSuperOwner(uint64(block.chainid), params.owner);
         OFT__Init(params.lzEndpoint, params.delegate, params.decimals);
     }
 

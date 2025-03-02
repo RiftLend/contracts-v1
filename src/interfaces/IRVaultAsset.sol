@@ -19,6 +19,7 @@ struct RVaultAssetInitializeParams {
     uint256 maxDepositLimit;
     uint128 lzReceiveGasLimit;
     uint128 lzComposeGasLimit;
+    address owner;
 }
 
 interface IRVaultAsset {

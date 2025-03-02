@@ -52,6 +52,7 @@ library ReserveLogic {
         uint256 variableBorrowIndex
     );
 
+    // event ReserveDataUpdated(address,uint256,uint256,uint256,uint256,uint256);
     /**
      * @dev Returns the ongoing normalized income for the reserve
      * A value of 1e27 means there is no income. As time passes, the income is accrued

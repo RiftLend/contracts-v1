@@ -23,6 +23,48 @@ import {BatchDataTypes} from "./BatchDataTypes.sol";
 /// @notice Batch Deployer 1 deploys contracts needed for underlying assets and pricing:
 ///         TestERC20, EventValidator, SuperAsset, ProxyAdmin, LendingPoolAddressesProvider,
 ///         DefaultReserveInterestRateStrategy, and MockPriceOracle.
+
+library Create2Helper {
+    function _implSalt(string memory salt) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(salt));
+    }
+
+    function deployContractWithArgs(
+        string memory contractName,
+        string memory salt,
+        bytes memory creationCode,
+        bytes memory constructorArgs
+    ) internal returns (address) {
+        return _deployWithCreate2(contractName, salt, creationCode, constructorArgs);
+    }
+
+    function _deployWithCreate2(
+        string memory, /*contractName*/
+        string memory salt,
+        bytes memory creationCode,
+        bytes memory constructorArgs
+    ) internal returns (address) {
+        bytes memory initCode = abi.encodePacked(creationCode, constructorArgs);
+        bytes32 saltBytes = _implSalt(salt);
+
+        address preComputedAddress = address(
+            uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), address(this), saltBytes, keccak256(initCode)))))
+        );
+
+        if (preComputedAddress.code.length > 0) {
+            return preComputedAddress;
+        }
+
+        address addr;
+        assembly {
+            addr := create2(0, add(initCode, 0x20), mload(initCode), saltBytes)
+            if iszero(extcodesize(addr)) { revert(0, 0) }
+        }
+
+        return addr;
+    }
+}
+
 contract BatchDeployer1 {
     address public underlying;
     address public eventValidator;
@@ -44,31 +86,41 @@ contract BatchDeployer1 {
     }
 
     constructor(BatchDataTypes.Batch1Params memory params) {
-        underlying = address(
-            new TestERC20(params.underlyingName, params.underlyingSymbol, params.underlyingDecimals, params.owner)
+        underlying = Create2Helper.deployContractWithArgs(
+            "TestERC20", params.underlyingSalt, type(TestERC20).creationCode, abi.encode(params.ownerAddress)
         );
-        eventValidator = address(new EventValidator{salt: params.eventValidatorSalt}(params.crossL2ProverAddress));
-        superAsset = address(
-            new SuperAsset{salt: params.superAssetSalt}(
-                underlying, params.superAssetName, params.superAssetSymbol, params.currentChainWethAddress
-            )
+
+        proxyAdmin = Create2Helper.deployContractWithArgs(
+            "ProxyAdmin", params.proxyAdminSalt, type(ProxyAdmin).creationCode, abi.encode(params.ownerAddress)
         );
-        proxyAdmin = address(new ProxyAdmin(params.ownerAddress));
-        lendingPoolAddressesProvider = address(
-            new LendingPoolAddressesProvider{salt: params.lpAddressProviderSalt}(
-                params.marketId, params.ownerAddress, params.ownerAddress, params.lpType
-            )
+        lendingPoolAddressesProvider = Create2Helper.deployContractWithArgs(
+            "LendingPoolAddressesProvider",
+            params.lpAddressProviderSalt,
+            type(LendingPoolAddressesProvider).creationCode,
+            abi.encode(params.marketId, params.ownerAddress, params.ownerAddress, params.lpType)
         );
-        defaultReserveInterestRateStrategy = address(
-            new DefaultReserveInterestRateStrategy(
-                ILendingPoolAddressesProvider(lendingPoolAddressesProvider),
-                params.optimalUtilizationRate,
-                params.baseVariableBorrowRate,
-                params.variableRateSlope1,
-                params.variableRateSlope2
-            )
+
+        eventValidator = Create2Helper.deployContractWithArgs(
+            "EventValidator",
+            params.eventValidatorSalt,
+            type(EventValidator).creationCode,
+            abi.encode(params.ownerAddress)
         );
-        mockPriceOracle = address(new MockPriceOracle{salt: params.oracleSalt}(params.ownerAddress));
+
+        superAsset = Create2Helper.deployContractWithArgs(
+            "SuperAsset", params.superAssetSalt, type(SuperAsset).creationCode, abi.encode(params.ownerAddress)
+        );
+
+        defaultReserveInterestRateStrategy = Create2Helper.deployContractWithArgs(
+            "DefaultReserveInterestRateStrategy",
+            params.strategySalt,
+            type(DefaultReserveInterestRateStrategy).creationCode,
+            abi.encode(params.ownerAddress)
+        );
+
+        mockPriceOracle = Create2Helper.deployContractWithArgs(
+            "MockPriceOracle", params.oracleSalt, type(MockPriceOracle).creationCode, abi.encode(params.ownerAddress)
+        );
     }
 
     // Return all deployed addresses as one struct.
@@ -91,9 +143,15 @@ contract BatchDeployer2 {
     address public lendingPoolImpl;
     address public lendingPoolConfigurator;
 
-    constructor(bytes32 lpSalt, bytes32 lpConfiguratorSalt) {
-        lendingPoolImpl = address(new LendingPool{salt: lpSalt}());
-        lendingPoolConfigurator = address(new LendingPoolConfigurator{salt: lpConfiguratorSalt}());
+    constructor(
+        string memory lpSalt,
+        string memory lpConfiguratorSalt
+    ) {
+        lendingPoolImpl =
+            Create2Helper.deployContractWithArgs("LendingPool", lpSalt, type(LendingPool).creationCode, "");
+        lendingPoolConfigurator = Create2Helper.deployContractWithArgs(
+            "LendingPoolConfigurator", lpConfiguratorSalt, type(LendingPoolConfigurator).creationCode, ""
+        );
     }
 
     struct Addresses {
@@ -112,10 +170,19 @@ contract BatchDeployer3 {
     address public rToken;
     address public variableDebtToken;
 
-    constructor(bytes32 rVaultAssetSalt, bytes32 rTokenSalt, bytes32 variableDebtTokenSalt) {
-        rVaultAsset = address(new RVaultAsset{salt: rVaultAssetSalt}());
-        rToken = address(new RToken{salt: rTokenSalt}());
-        variableDebtToken = address(new VariableDebtToken{salt: variableDebtTokenSalt}());
+    constructor(
+        string memory rVaultAssetSalt,
+        string memory rTokenSalt,
+        string memory variableDebtTokenSalt,
+        address ownerAddress
+    ) {
+        rVaultAsset = Create2Helper.deployContractWithArgs(
+            "RVaultAsset", rVaultAssetSalt, type(RVaultAsset).creationCode, abi.encode(ownerAddress)
+        );
+        rToken = Create2Helper.deployContractWithArgs("RToken", rTokenSalt, type(RToken).creationCode, "");
+        variableDebtToken = Create2Helper.deployContractWithArgs(
+            "VariableDebtToken", variableDebtTokenSalt, type(VariableDebtToken).creationCode, ""
+        );
     }
 
     struct Addresses {
@@ -136,9 +203,12 @@ contract BatchDeployer4 {
     address public lendingPoolCollateralManager;
     address public router;
 
-    constructor(bytes32 routerSalt) {
-        lendingPoolCollateralManager = address(new LendingPoolCollateralManager());
-        router = address(new Router{salt: routerSalt}());
+    constructor(string memory routerSalt, string memory lpCollateralManagerSalt) {
+        lendingPoolCollateralManager = Create2Helper.deployContractWithArgs(
+            "LendingPoolCollateralManager", lpCollateralManagerSalt, type(LendingPoolCollateralManager).creationCode, ""
+        );
+
+        router = Create2Helper.deployContractWithArgs("Router", routerSalt, type(Router).creationCode, "");
     }
 
     struct Addresses {

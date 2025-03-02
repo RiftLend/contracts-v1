@@ -116,7 +116,9 @@ contract Base is TestHelperOz5 {
     VariableDebtToken variableDebtTokenImpl;
 
     LendingPool proxyLp;
-    LendingPool implementationLp;
+    LendingPool implementationLp1;
+    LendingPool implementationLp2;
+
     SuperAsset superAsset;
     SuperAsset superAssetWeth;
     TestERC20 INR;
@@ -186,7 +188,10 @@ contract Base is TestHelperOz5 {
         vm.selectFork(supportedChains[0].forkId);
 
         // ################ Deploy Components ################
-        eventValidator = new EventValidator(supportedChains[0].crossL2Prover);
+        vm.prank(owner);
+        eventValidator = new EventValidator(owner);
+        vm.prank(owner);
+        eventValidator.initialize(supportedChains[0].crossL2Prover);
 
         vm.prank(owner);
         proxyAdmin = address(new ProxyAdmin{salt: "proxyAdmin"}(owner));
@@ -194,7 +199,9 @@ contract Base is TestHelperOz5 {
 
         // ################ Deploy UnderlyingAsset ################
         vm.prank(owner);
-        underlyingAsset = new TestERC20(underlyingAssetName, underlyingAssetSymbol, underlyingAssetDecimals, owner);
+        underlyingAsset = new TestERC20(owner);
+        vm.prank(owner);
+        underlyingAsset.initialize(underlyingAssetName, underlyingAssetSymbol, underlyingAssetDecimals, owner);
         vm.label(address(underlyingAsset), "underlyingAsset");
 
         /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -206,18 +213,23 @@ contract Base is TestHelperOz5 {
             new LendingPoolAddressesProvider("TUSDC", owner, proxyAdmin, keccak256("OpSuperchain_LENDING_POOL"));
         lpAddressProvider2 = new LendingPoolAddressesProvider("TUSDC", owner, proxyAdmin, keccak256("ARB_LENDING_POOL"));
 
+        vm.label(address(lpAddressProvider1), "lpAddressProvider1");
+        vm.label(address(lpAddressProvider2), "lpAddressProvider2");
+
         // Deploy LendingPool Implementation
         vm.prank(owner);
-        implementationLp = new LendingPool();
+        implementationLp1 = new LendingPool();
+        vm.label(address(implementationLp1), "implementationLp1");
+
         vm.prank(owner);
-        implementationLp.initialize(ILendingPoolAddressesProvider(address(lpAddressProvider1)));
-        vm.label(address(implementationLp), "implementationLp");
+        implementationLp2 = new LendingPool();
+        vm.label(address(implementationLp2), "implementationLp2");
 
         // Set LendingPool Implementation
         vm.prank(owner);
-        lpAddressProvider1.setLendingPoolImpl(address(implementationLp));
+        lpAddressProvider1.setLendingPoolImpl(address(implementationLp1));
         vm.prank(owner);
-        lpAddressProvider2.setLendingPoolImpl(address(implementationLp));
+        lpAddressProvider2.setLendingPoolImpl(address(implementationLp2));
         proxyLp = LendingPool(lpAddressProvider1.getLendingPool());
         vm.label(address(proxyLp), "proxyLp");
 
@@ -226,7 +238,9 @@ contract Base is TestHelperOz5 {
         /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
         // Deploy Router
+        vm.prank(owner);
         router = new Router{salt: "router"}();
+        vm.prank(owner);
         router.initialize(address(proxyLp), address(lpAddressProvider1), address(eventValidator));
         vm.deal(address(router), 100 ether);
 
@@ -248,18 +262,25 @@ contract Base is TestHelperOz5 {
 
         // Deploy SuperAsset
         vm.prank(owner);
-        superAsset =
-            new SuperAsset(address(underlyingAsset), superAssetTokenName, superAsseTokenSymbol, supportedChains[0].weth);
+        superAsset = new SuperAsset(owner);
+        vm.prank(owner);
+        superAsset.initialize(
+            address(underlyingAsset), superAssetTokenName, superAsseTokenSymbol, supportedChains[0].weth
+        );
 
         vm.prank(owner);
-        superAssetWeth = new SuperAsset(
+        superAssetWeth = new SuperAsset(owner);
+        vm.prank(owner);
+        superAssetWeth.initialize(
             address(supportedChains[0].weth), superAssetTokenName, superAsseTokenSymbol, supportedChains[0].weth
         );
         vm.label(address(superAsset), "superAsset");
+        vm.label(address(superAssetWeth), "superAssetWeth");
 
         // Deploy RVaultAsset
+        console.log("Deploying RVaultAsset");
         vm.startPrank(owner);
-        rVaultAsset1 = address(new RVaultAsset{salt: "rVaultAsset1Impl"}());
+        rVaultAsset1 = address(new RVaultAsset{salt: "rVaultAsset1Impl"}(owner));
         IRVaultAsset(rVaultAsset1).initialize(
             RVaultAssetInitializeParams(
                 address(superAsset),
@@ -272,11 +293,12 @@ contract Base is TestHelperOz5 {
                 vm.parseTomlUint(deployConfig, ".rvault_asset.withdraw_cool_down_period"),
                 1 ether * vm.parseTomlUint(deployConfig, ".rvault_asset.max_deposit_limit"),
                 uint128(vm.parseTomlUint(deployConfig, ".layerzero.lz_receive_gas_limit")),
-                uint128(vm.parseTomlUint(deployConfig, ".layerzero.lz_compose_gas_limit"))
+                uint128(vm.parseTomlUint(deployConfig, ".layerzero.lz_compose_gas_limit")),
+                vm.parseTomlAddress(deployConfig, ".owner.address")
             )
         );
 
-        rVaultAsset2 = address(new RVaultAsset{salt: "rVaultAsset2Impl"}());
+        rVaultAsset2 = address(new RVaultAsset{salt: "rVaultAsset2Impl"}(owner));
         IRVaultAsset(rVaultAsset2).initialize(
             RVaultAssetInitializeParams(
                 address(underlyingAsset),
@@ -289,7 +311,8 @@ contract Base is TestHelperOz5 {
                 1 days,
                 1000 ether,
                 200000,
-                500000
+                500000,
+                owner
             )
         );
         vm.stopPrank();
@@ -314,12 +337,12 @@ contract Base is TestHelperOz5 {
         // Set Addresses in LpAddressesProvider
         vm.startPrank(owner);
         lpAddressProvider1.setPoolAdmin(poolAdmin1);
-        lpAddressProvider1.setRelayer(relayer);
+        lpAddressProvider1.setRelayerStatus(relayer, true);
         lpAddressProvider1.setRouter(address(router));
         lpAddressProvider1.setLendingPoolCollateralManager(address(lpCollateralManager));
 
         lpAddressProvider2.setPoolAdmin(poolAdmin1);
-        lpAddressProvider2.setRelayer(relayer);
+        lpAddressProvider2.setRelayerStatus(relayer, true);
         lpAddressProvider2.setRouter(address(router));
         lpAddressProvider2.setLendingPoolCollateralManager(address(lpCollateralManager));
         lpAddressProvider1.setPriceOracle(address(oracle1));
@@ -337,7 +360,9 @@ contract Base is TestHelperOz5 {
         variableDebtTokenImpl = new VariableDebtToken{salt: "variableDebtTokenImpl"}();
 
         // Deploy and Configure LendingPoolConfigurator
+        vm.prank(owner);
         lpConfigurator = new LendingPoolConfigurator();
+        vm.prank(owner);
         lpConfigurator.initialize(ILendingPoolAddressesProvider(address(lpAddressProvider1)), proxyAdmin);
 
         vm.prank(owner);
@@ -356,14 +381,15 @@ contract Base is TestHelperOz5 {
         vm.stopPrank();
 
         // Deploy Interest Rate Strategy
-        strategy = address(
-            new DefaultReserveInterestRateStrategy(
-                ILendingPoolAddressesProvider(address(lpAddressProvider1)),
-                0.8 * 1e27, // optimalUtilizationRate
-                0.02 * 1e27, // baseVariableBorrowRate
-                0.04 * 1e27, // variableRateSlope1
-                0.75 * 1e27 // variableRateSlope2
-            )
+        vm.prank(owner);
+        strategy = address(new DefaultReserveInterestRateStrategy(owner));
+        vm.prank(owner);
+        DefaultReserveInterestRateStrategy(strategy).initialize(
+            ILendingPoolAddressesProvider(address(lpAddressProvider1)),
+            0.8 * 1e27, // optimalUtilizationRate
+            0.02 * 1e27, // baseVariableBorrowRate
+            0.04 * 1e27, // variableRateSlope1
+            0.75 * 1e27 // variableRateSlope2
         );
         vm.label(strategy, "DefaultReserveInterestRateStrategy");
 

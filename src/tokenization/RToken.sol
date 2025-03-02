@@ -34,7 +34,7 @@ import {LendingPool} from "src/LendingPool.sol";
  * @dev Implementation of the interest bearing token for the Aave protocol
  * @author Aave
  */
-contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL", 0), IRToken, SuperPausable {
+contract RToken is Initializable, IncentivizedERC20, IRToken, SuperPausable {
     using WadRayMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -61,7 +61,11 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     uint256 public totalCrosschainUnderlyingAssets;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                  Custom Errors                             */
+    /*                  Events                                    */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                  Modifiers                                 */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     modifier onlyLendingPool() {
@@ -84,7 +88,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
     }
 
     function _onlyRelayer() internal view {
-        require(_addressesProvider.getRelayer() == msg.sender, ONLY_RELAYER_CALL);
+        require(_addressesProvider.getRelayerStatus(msg.sender)==true, ONLY_RELAYER_CALL);
     }
 
     modifier onlyLendingPoolConfigurator() {
@@ -94,10 +98,6 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
 
     function _onlyLendingPoolConfigurator() internal view {
         require(_addressesProvider.getLendingPoolConfigurator() == msg.sender, LP_CALLER_NOT_LENDING_POOL_CONFIGURATOR);
-    }
-
-    function getRevision() internal pure virtual returns (uint256) {
-        return ATOKEN_REVISION;
     }
 
     function initialize(DataTypes.RTokenInitializeParams memory initParams) external override initializer {
@@ -118,9 +118,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
             )
         );
 
-        _setName(initParams.rTokenName);
-        _setSymbol(initParams.rTokenSymbol);
-        _setDecimals(initParams.rTokenDecimals);
+        initialize(initParams.rTokenName, initParams.rTokenSymbol, initParams.rTokenDecimals);
 
         _addressesProvider = initParams.addressesProvider;
         _pool = LendingPool(_addressesProvider.getLendingPool());
@@ -198,6 +196,7 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
             crosschainUnderlyingAsset[user] -= amount;
             totalCrosschainUnderlyingAssets -= amount;
         }
+        emit CrossChainBalanceUpdate(user, amount, amountScaled, mode);
     }
 
     function getCrossChainUserBalance(address user) external view override returns (uint256) {
@@ -497,6 +496,10 @@ contract RToken is Initializable, IncentivizedERC20("RTOKEN_IMPL", "RTOKEN_IMPL"
         }
 
         emit BalanceTransfer(from, to, amount, index);
+    }
+
+    function getRevision() internal pure virtual returns (uint256) {
+        return ATOKEN_REVISION;
     }
 
     /**

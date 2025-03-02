@@ -13,22 +13,73 @@ import {RVaultAssetInitializeParams} from "src/interfaces/IRVaultAsset.sol";
 import {BatchDataTypes} from "./BatchDataTypes.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {Router} from "src/Router.sol";
+import {SuperAsset} from "src/SuperAsset.sol";
+import {DefaultReserveInterestRateStrategy} from "src/DefaultReserveInterestRateStrategy.sol";
+import {TestERC20} from "test/utils/TestERC20.sol";
+import {EventValidator} from "src/libraries/EventValidator.sol";
 import {console} from "forge-std/Script.sol";
 
 contract SystemConfigManager is Initializable {
+    
+    address owner;
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                  Constructor                               */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+    
+    constructor(address _owner )  {
+        owner=_owner;
+    }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                  Initializer                               */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
     function initialize(
         BatchDataTypes.MainDeployerLocalVars calldata vars,
         BatchDataTypes.BatchAddressesSet calldata batchAddressesSet,
         ILendingPoolConfigurator.InitReserveInput[] calldata reserveInputs,
+        BatchDataTypes.DefaultStrategyInitParams memory strategyParams,
+        BatchDataTypes.UnderlyingInitParams memory underlyingInitParams,
         RVaultAssetInitializeParams calldata rVaultAssetInitializeParams,
-        address relayer
+        BatchDataTypes.SuperAssetInitParams memory superAssetInitParams
     ) external initializer returns (address proxyRouter) {
+        console.log(owner);
+        console.log(msg.sender);
+        
+        require(owner==msg.sender,"OnlyOwner");
+
         require(vars.ownerAddress != address(0), "Owner address cannot be zero");
+
+        // Initialize Basic Contract's params
+        EventValidator(batchAddressesSet.batch1Addrs.eventValidator).initialize(vars.crossL2ProverAddress);
+        DefaultReserveInterestRateStrategy(batchAddressesSet.batch1Addrs.defaultReserveInterestRateStrategy).initialize(
+            strategyParams.lendingPoolAddressesProvider,
+            strategyParams.optimalUtilizationRate,
+            strategyParams.baseVariableBorrowRate,
+            strategyParams.variableRateSlope1,
+            strategyParams.variableRateSlope2
+        );
+        TestERC20(payable(batchAddressesSet.batch1Addrs.underlying)).initialize(
+            underlyingInitParams.name,
+            underlyingInitParams.symbol,
+            underlyingInitParams.decimals,
+            underlyingInitParams.owner
+        );
+        SuperAsset(payable(batchAddressesSet.batch1Addrs.superAsset)).initialize(
+            superAssetInitParams.underlying,
+            superAssetInitParams.name,
+            superAssetInitParams.symbol,
+            superAssetInitParams.weth
+        );
 
         // Set core protocol parameters.
         vars.lpProvider.setPoolAdmin(address(this));
         vars.lpProvider.setLendingPoolImpl(batchAddressesSet.batch2Addrs.lendingPoolImpl);
-        vars.lpProvider.setRelayer(relayer);
+        for (uint256 i = 0; i < vars.relayers.length; i++) {
+            address relayer = vars.relayers[i];
+            vars.lpProvider.setRelayerStatus(relayer, true);
+        }
 
         vars.lpProvider.setLendingPoolCollateralManager(
             address(batchAddressesSet.batch4Addrs.lendingPoolCollateralManager)

@@ -30,7 +30,7 @@ import {DataTypes} from "src/libraries/types/DataTypes.sol";
 /* ╔════════════════════════════════════════╗
    ║         BATCH DEPLOYERS IMPORT         ║
    ╚════════════════════════════════════════╝ */
-import {BatchDeployer1, BatchDeployer2, BatchDeployer3, BatchDeployer4} from "./BatchDeployers.sol";
+import {BatchDeployer1, BatchDeployer2, BatchDeployer3, BatchDeployer4, Create2Helper} from "./BatchDeployers.sol";
 import {BatchDataTypes} from "./BatchDataTypes.sol";
 import {SystemConfigManager} from "./SystemConfigManager.sol";
 
@@ -76,13 +76,14 @@ contract MainDeployer is Script {
         // ╔══════════════════════════════╗
         // ║ CONFIGURATION PHASE          ║  🔥 System Configuration
         // ╚══════════════════════════════╝
+
         configureSystem();
 
         vm.stopBroadcast();
 
-        // ╔══════════════════════════════╗
-        // ║ OUTPUT DEPLOYMENT RESULTS    ║  🎉 Deployment Complete!
-        // ╚══════════════════════════════╝
+        // // ╔══════════════════════════════╗
+        // // ║ OUTPUT DEPLOYMENT RESULTS    ║  🎉 Deployment Complete!
+        // // ╚══════════════════════════════╝
         outputDeploymentResults();
     }
 
@@ -110,34 +111,45 @@ contract MainDeployer is Script {
     SystemConfigManager systemConfigManager;
 
     function deployBatches() internal {
-        // Batch 1 deployer: Underlying, Oracle, and Proxy-related contracts.
-        systemConfigManager = new SystemConfigManager();
+        string memory systemConfigManagerSalt = "systemConfigManager";
+        string memory batchDeployer1Salt = "batchDeployer1";
+        string memory batchDeployer2Salt = "batchDeployer2";
+        string memory batchDeployer3Salt = "batchDeployer3";
+        string memory batchDeployer4Salt = "batchDeployer4";
 
-        address initialOwner = address(systemConfigManager);
-
-        batchDeployerSet.bd1 = new BatchDeployer1(
-            BatchDataTypes.Batch1Params(
-                vm.parseTomlString(deployConfig, ".underlying.name"),
-                vm.parseTomlString(deployConfig, ".underlying.symbol"),
-                vars.underlyingDecimals,
-                vars.crossL2ProverAddress,
-                vm.parseTomlString(deployConfig, ".super_token.name"),
-                vm.parseTomlString(deployConfig, ".super_token.symbol"),
-                vars.currentChainWethAddress,
-                initialOwner,
-                vm.parseTomlString(deployConfig, ".lending_pool_addresses_provider.marketId"),
-                vars.lpType,
-                vm.parseTomlUint(deployConfig, ".default_reserve_interest_rate_strategy.optimalUtilizationRate"),
-                vm.parseTomlUint(deployConfig, ".default_reserve_interest_rate_strategy.baseVariableBorrowRate"),
-                vm.parseTomlUint(deployConfig, ".default_reserve_interest_rate_strategy.variableRateSlope1"),
-                vm.parseTomlUint(deployConfig, ".default_reserve_interest_rate_strategy.variableRateSlope2"),
-                vm.parseTomlBytes32(deployConfig, ".super_token.salt"),
-                vm.parseTomlBytes32(deployConfig, ".event_validator.salt"),
-                vm.parseTomlBytes32(deployConfig, ".lending_pool_addresses_provider.salt"),
-                vm.parseTomlBytes32(deployConfig, ".price_oracle.salt"),
-                vm.parseTomlAddress(deployConfig, ".owner.address")
+        systemConfigManager = SystemConfigManager(
+            Create2Helper.deployContractWithArgs(
+                "SystemConfigManager", systemConfigManagerSalt, type(SystemConfigManager).creationCode, abi.encode(
+                    vm.parseTomlAddress(deployConfig, ".owner.address")
+                )
             )
         );
+        address initialOwner = address(systemConfigManager);
+
+        // Batch 1 deployer: Underlying, Oracle, and Proxy-related contracts.
+        batchDeployerSet.bd1 = BatchDeployer1(
+            Create2Helper.deployContractWithArgs(
+                "BatchDeployer1",
+                batchDeployer1Salt,
+                type(BatchDeployer1).creationCode,
+                abi.encode(
+                    BatchDataTypes.Batch1Params(
+                        vm.parseTomlString(deployConfig, ".underlying.salt"),
+                        initialOwner,
+                        vm.parseTomlString(deployConfig, ".lending_pool_addresses_provider.marketId"),
+                        vars.lpType,
+                        vm.parseTomlString(deployConfig, ".super_token.salt"),
+                        vm.parseTomlString(deployConfig, ".event_validator.salt"),
+                        vm.parseTomlString(deployConfig, ".lending_pool_addresses_provider.salt"),
+                        vm.parseTomlString(deployConfig, ".price_oracle.salt"),
+                        vm.parseTomlAddress(deployConfig, ".owner.address"),
+                        vm.parseTomlString(deployConfig, ".proxy_admin.salt"),
+                        vm.parseTomlString(deployConfig, ".default_reserve_interest_rate_strategy.salt")
+                    )
+                )
+            )
+        );
+
         BatchDeployer1.Addresses memory a1 = batchDeployerSet.bd1.getDeployedAddresses();
         batchAddressesSet.batch1Addrs = BatchDataTypes.Batch1Addresses(
             a1.underlying,
@@ -149,11 +161,19 @@ contract MainDeployer is Script {
             a1.mockPriceOracle
         );
 
-        // Batch 2 deployer: LendingPool and LendingPoolConfigurator.
-        batchDeployerSet.bd2 = new BatchDeployer2(
-            vm.parseTomlBytes32(deployConfig, ".lending_pool.salt"),
-            vm.parseTomlBytes32(deployConfig, ".lending_pool_configurator.salt")
+        // // Batch 2 deployer: LendingPool and LendingPoolConfigurator.
+        batchDeployerSet.bd2 = BatchDeployer2(
+            Create2Helper.deployContractWithArgs(
+                "BatchDeployer2",
+                batchDeployer2Salt,
+                type(BatchDeployer2).creationCode,
+                abi.encode(
+                    vm.parseTomlString(deployConfig, ".lending_pool.salt"),
+                    vm.parseTomlString(deployConfig, ".lending_pool_configurator.salt")
+                )
+            )
         );
+
         BatchDeployer2.Addresses memory a2 = batchDeployerSet.bd2.getDeployedAddresses();
         batchAddressesSet.batch2Addrs = BatchDataTypes.Batch2Addresses({
             lendingPoolImpl: a2.lendingPoolImpl,
@@ -161,11 +181,20 @@ contract MainDeployer is Script {
         });
 
         // Batch 3 deployer: RVaultAsset, RToken, and VariableDebtToken.
-        batchDeployerSet.bd3 = new BatchDeployer3(
-            vm.parseTomlBytes32(deployConfig, ".rvault_asset.salt"),
-            vm.parseTomlBytes32(deployConfig, ".rToken.salt"),
-            vm.parseTomlBytes32(deployConfig, ".variable_debt_token.salt")
+        batchDeployerSet.bd3 = BatchDeployer3(
+            Create2Helper.deployContractWithArgs(
+                "BatchDeployer3",
+                batchDeployer3Salt,
+                type(BatchDeployer3).creationCode,
+                abi.encode(
+                    vm.parseTomlString(deployConfig, ".rvault_asset.salt"),
+                    vm.parseTomlString(deployConfig, ".rToken.salt"),
+                    vm.parseTomlString(deployConfig, ".variable_debt_token.salt"),
+                    initialOwner
+                )
+            )
         );
+
         BatchDeployer3.Addresses memory a3 = batchDeployerSet.bd3.getDeployedAddresses();
         batchAddressesSet.batch3Addrs = BatchDataTypes.Batch3Addresses({
             rVaultAsset: a3.rVaultAsset,
@@ -174,12 +203,23 @@ contract MainDeployer is Script {
         });
 
         // Batch 4 deployer: LendingPoolCollateralManager & Router (via proxy).
-        batchDeployerSet.bd4 = new BatchDeployer4(vm.parseTomlBytes32(deployConfig, ".router.salt"));
+        batchDeployerSet.bd4 = BatchDeployer4(
+            Create2Helper.deployContractWithArgs(
+                "BatchDeployer4",
+                batchDeployer4Salt,
+                type(BatchDeployer4).creationCode,
+                abi.encode(
+                    vm.parseTomlString(deployConfig, ".router.salt"),
+                    vm.parseTomlString(deployConfig, ".lending_pool_collateral_manager.salt")
+                )
+            )
+        );
+
         BatchDeployer4.Addresses memory a4 = batchDeployerSet.bd4.getDeployedAddresses();
         batchAddressesSet.batch4Addrs = BatchDataTypes.Batch4Addresses({
             lendingPoolCollateralManager: a4.lendingPoolCollateralManager,
             routerImpl: a4.router,
-            proxyRouter: address(0) //updated
+            proxyRouter: address(0) //updated later
         });
     }
 
@@ -223,15 +263,48 @@ contract MainDeployer is Script {
             vm.parseTomlUint(deployConfig, ".rvault_asset.withdraw_cool_down_period"),
             vm.parseTomlUint(deployConfig, ".rvault_asset.max_deposit_limit"),
             uint128(vm.parseTomlUint(deployConfig, ".layerzero.lz_receive_gas_limit")),
-            uint128(vm.parseTomlUint(deployConfig, ".layerzero.lz_compose_gas_limit"))
+            uint128(vm.parseTomlUint(deployConfig, ".layerzero.lz_compose_gas_limit")),
+            vm.parseTomlAddress(deployConfig, ".owner.address")
         );
+
+        BatchDataTypes.SuperAssetInitParams memory superAssetInitParams = BatchDataTypes.SuperAssetInitParams(
+            batchAddressesSet.batch1Addrs.underlying,
+            vm.parseTomlString(deployConfig, ".super_token.name"),
+            vm.parseTomlString(deployConfig, ".super_token.symbol"),
+            vars.currentChainWethAddress
+        );
+
+        // abi.encode(
+        //         params.underlyingName, params.underlyingSymbol, params.underlyingDecimals, params.owner
+        //     )
+        BatchDataTypes.UnderlyingInitParams memory underlyingInitParams = BatchDataTypes.UnderlyingInitParams(
+            vm.parseTomlString(deployConfig, ".underlying.name"),
+            vm.parseTomlString(deployConfig, ".underlying.symbol"),
+            vars.underlyingDecimals,
+            vm.parseTomlAddress(deployConfig, ".owner.address")
+        );
+
+        BatchDataTypes.DefaultStrategyInitParams memory strategyParams = BatchDataTypes.DefaultStrategyInitParams(
+            ILendingPoolAddressesProvider(batchAddressesSet.batch1Addrs.lendingPoolAddressesProvider),
+            vm.parseTomlUint(deployConfig, ".default_reserve_interest_rate_strategy.optimalUtilizationRate"),
+            vm.parseTomlUint(deployConfig, ".default_reserve_interest_rate_strategy.baseVariableBorrowRate"),
+            vm.parseTomlUint(deployConfig, ".default_reserve_interest_rate_strategy.variableRateSlope1"),
+            vm.parseTomlUint(deployConfig, ".default_reserve_interest_rate_strategy.variableRateSlope2")
+        );
+        vars.relayers = new address[](vm.parseTomlUint(deployConfig, ".relayers.total"));
+        for (uint256 i = 1; i <= vars.relayers.length; i++) {
+            vars.relayers[i-1] =
+                vm.parseTomlAddress(deployConfig, string.concat(".relayers.address", Strings.toString(i)));
+        }
 
         (batchAddressesSet.batch4Addrs.proxyRouter) = systemConfigManager.initialize(
             vars,
             batchAddressesSet,
             reserveInputs,
+            strategyParams,
+            underlyingInitParams,
             rvaultAssetInitializeParams,
-            vm.parseTomlAddress(deployConfig, ".relayer.address")
+            superAssetInitParams
         );
 
         vars.proxyConfigurator = LendingPoolConfigurator(vars.lpProvider.getLendingPoolConfigurator());
@@ -251,7 +324,6 @@ contract MainDeployer is Script {
     ╚════════════════════════════════╝
     */
     function outputDeploymentResults() internal {
-        console.log("Batch 1 Addresses:");
         console.log("  Underlying:", batchAddressesSet.batch1Addrs.underlying);
         console.log("  SuperAsset:", batchAddressesSet.batch1Addrs.superAsset);
         console.log("  RVaultAsset:", batchAddressesSet.batch3Addrs.rVaultAsset);
@@ -308,6 +380,7 @@ contract MainDeployer is Script {
     ║  GET CONFIG CHAIN ALIAS FUNCTION     ║   ( Chain Alias Owl 🦉)
     ╚══════════════════════════════════════╝
     */
+
     function getConfigChainAlias() internal view returns (string memory chainAlias) {
         // ────── Chain Selector ──────
         if (block.chainid == 1) {
@@ -315,9 +388,17 @@ contract MainDeployer is Script {
         } else if (block.chainid == 10) {
             chainAlias = "chain_b";
         } else if (block.chainid == 11155420) {
-            chainAlias = "chain_c";
+            chainAlias = "chain_test_a";
+        } else if (block.chainid == 84532) {
+            chainAlias = "chain_test_b";
+        } else if (block.chainid == 1301) {
+            chainAlias = "chain_test_c";
+        } else if (block.chainid == 421614) {
+            chainAlias = "chain_test_d";
+        } else if (block.chainid == 11155111) {
+            chainAlias = "chain_test_e";
         } else {
-            require(false, "UnsupportedChain");
+            require(false, "UnsupportedChain from script");
         }
     }
 }

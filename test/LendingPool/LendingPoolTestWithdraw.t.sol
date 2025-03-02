@@ -48,8 +48,6 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
     uint32 private bEid = 2; // Endpoint ID for chain B
 
     // ======== LendingPool Components ========
-    LendingPool implementationLp1; // Implementation contract for chain A
-    LendingPool implementationLp2; // Implementation contract for chain B
     LendingPool proxyLp1; // LendigPool Proxy contract for chain A
     LendingPool proxyLp2; // LendigPool Proxy contract for chain B
 
@@ -117,10 +115,6 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         implementationLp1 = new LendingPool();
         implementationLp2 = new LendingPool();
 
-        // Initialize implementations
-        implementationLp1.initialize(ILendingPoolAddressesProvider(address(lpAddressProvider1)));
-        implementationLp2.initialize(ILendingPoolAddressesProvider(address(lpAddressProvider1)));
-
         // Label contracts for better trace outputs
         vm.label(address(implementationLp1), "implementationLp1");
         vm.label(address(implementationLp2), "implementationLp2");
@@ -183,12 +177,12 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
 
         // Configure chain A provider
         lpAddressProvider1.setPoolAdmin(poolAdmin1);
-        lpAddressProvider1.setRelayer(relayer);
+        lpAddressProvider1.setRelayerStatus(relayer, true);
         lpAddressProvider1.setRouter(address(router1));
 
         // Configure chain B provider
         lpAddressProvider2.setPoolAdmin(poolAdmin1);
-        lpAddressProvider2.setRelayer(relayer);
+        lpAddressProvider2.setRelayerStatus(relayer, true);
         lpAddressProvider2.setRouter(address(router2));
 
         vm.stopPrank();
@@ -197,7 +191,7 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         vm.startPrank(owner);
 
         // Deploy and initialize vault asset for chain A
-        aRVaultAsset = RVaultAsset(payable(_deployOApp(type(RVaultAsset).creationCode, bytes(""))));
+        aRVaultAsset = RVaultAsset(payable(_deployOApp(type(RVaultAsset).creationCode, abi.encode(owner))));
         aRVaultAsset.initialize(
             RVaultAssetInitializeParams(
                 address(superAsset),
@@ -210,12 +204,13 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
                 1 days,
                 1000 ether,
                 200000,
-                500000
+                500000,
+                owner
             )
         );
 
         // Deploy and initialize vault asset for chain B
-        bRVaultAsset = RVaultAsset(payable(_deployOApp(type(RVaultAsset).creationCode, bytes(""))));
+        bRVaultAsset = RVaultAsset(payable(_deployOApp(type(RVaultAsset).creationCode, abi.encode(owner))));
         bRVaultAsset.initialize(
             RVaultAssetInitializeParams(
                 address(superAsset),
@@ -228,7 +223,8 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
                 1 days,
                 1000 ether,
                 200000,
-                500000
+                500000,
+                owner
             )
         );
 
@@ -277,14 +273,15 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
 
         // ======== Deploy Interest Rate Strategy ========
         // Deploy strategy with initial parameters
-        strategy = address(
-            new DefaultReserveInterestRateStrategy(
-                ILendingPoolAddressesProvider(address(lpAddressProvider1)),
-                0.8 * 1e27, // optimalUtilizationRate
-                0.02 * 1e27, // baseVariableBorrowRate
-                0.04 * 1e27, // variableRateSlope1
-                0.75 * 1e27 // variableRateSlope2
-            )
+        vm.prank(owner);
+        strategy = address(new DefaultReserveInterestRateStrategy(owner));
+        vm.prank(owner);
+        DefaultReserveInterestRateStrategy(strategy).initialize(
+            ILendingPoolAddressesProvider(address(lpAddressProvider1)),
+            0.8 * 1e27, // optimalUtilizationRate
+            0.02 * 1e27, // baseVariableBorrowRate
+            0.04 * 1e27, // variableRateSlope1
+            0.75 * 1e27 // variableRateSlope2
         );
         vm.label(strategy, "DefaultReserveInterestRateStrategy");
 

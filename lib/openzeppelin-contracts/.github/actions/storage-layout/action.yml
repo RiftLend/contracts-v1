@@ -50,8 +50,7 @@ runs:
       shell: bash
     - name: Save artifacts
       if: github.event_name != 'pull_request'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: layout
-        overwrite: true
         path: ${{ inputs.out_layout }}

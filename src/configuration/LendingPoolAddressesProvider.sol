@@ -33,14 +33,15 @@ contract LendingPoolAddressesProvider is SuperOwnable {
     bytes32 private constant LENDING_POOL_COLLATERAL_MANAGER = "COLLATERAL_MANAGER";
     bytes32 private constant PRICE_ORACLE = "PRICE_ORACLE";
     bytes32 private constant LENDING_RATE_ORACLE = "LENDING_RATE_ORACLE";
-    bytes32 private constant RELAYER = "RELAYER";
     bytes32 private constant ROUTER = "ROUTER";
 
-    event RelayerUpdated(address indexed relayer);
+    mapping(address => bool) public isRelayer;
+
     event RouterUpdated(address indexed router);
     event RVaultAssetUpdated(address indexed RVaultAsset);
     event UnderlyingUpdated(address indexed RVaultAsset);
     event ProxyAdminUpdated(address indexed proxyAdmin);
+    event RelayerStatusUpdated(address relayer, bool isActive);
 
     constructor(string memory marketId, address initialOwner, address proxyAdmin, bytes32 _lendingPool) {
         _initializeSuperOwner(uint64(block.chainid), initialOwner);
@@ -211,14 +212,15 @@ contract LendingPoolAddressesProvider is SuperOwnable {
         _addresses[LENDING_RATE_ORACLE] = lendingRateOracle;
         emit LendingRateOracleUpdated(lendingRateOracle);
     }
-
-    function getRelayer() external view returns (address) {
-        return getAddress(RELAYER);
+    
+    function getRelayerStatus(address adr) external view returns (bool){
+        return isRelayer[adr];
     }
 
-    function setRelayer(address relayer) external onlyOwner {
-        _addresses[RELAYER] = relayer;
-        emit RelayerUpdated(relayer);
+
+    function setRelayerStatus(address relayer, bool isActive) external onlyOwner {
+        isRelayer[relayer] = isActive;
+        emit RelayerStatusUpdated(relayer, isActive);
     }
 
     function getPoolType() external view returns (uint8) {

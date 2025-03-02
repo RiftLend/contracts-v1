@@ -1,28 +1,25 @@
 [deploy_config]
-# riftlend
-salt = "0x726966746c656e64000000000000000000000000000000000000000000000000" 
-
 chains = ["eth_mainnet","op_mainnet","sepolia-eth"]
 [owner]
-address = "0xb09aC2fE0A0b8f1132cA1a046DCEBC7989b65596"
+address = "0x34b13101802b97cbfbC33a4eb597017dd20dd31C"
 
 [underlying]
 # riftlendUnderlying
-salt = "0x726966746c656e64556e6465726c79696e670000000000000000000000000000"
+salt = "riftlendUnderlying"
 name = "TestUSDC"
 symbol = "TUSDC"
 decimals = 18
 
 [super_token]
 # riftlendSuperToken
-salt = "0x726966746c656e645375706572546f6b656e0000000000000000000000000000"
+salt = "riftlendSuperToken"
 name = "superTestUSDC"
 symbol = "STUSDC"
 decimals = 18
 
 [rvault_asset]
 # riftlendRVaultAsset
-salt="0x726966746c656e64525661756c74417373657400000000000000000000000000"
+salt="riftlendRVaultAsset"
 max_deposit_limit="1000000000000000000000" # 1000 ether
 withdraw_cool_down_period=86400
 name = "rVaultAsset-TUSDC"
@@ -30,42 +27,46 @@ symbol = "rVaultAsset-rTUSDC"
 
 [rToken]
 # riftlendRToken
-salt = "0x726966746c656e6452546f6b656e000000000000000000000000000000000000"
+salt = "riftlendRToken"
 name = "rToken-TestUSDC"
 symbol = "rTUSDC"
 decimals = 18
 
 [variable_debt_token]
 # riftlendVdebt
-salt = "0x726966746c656e64566465627400000000000000000000000000000000000000"
+salt = "riftlendVdebt"
 name = "variableDebt-TUSDC"
 symbol = "vdebt-TUSDC"
 
 [lending_pool_addresses_provider]
 # riftlendLpAddressesProvider
-salt = "0x726966746c656e644c7041646472657373657350726f76696465720000000000"
+salt = "riftlendLpAddressesProvider"
 marketId = "TUSDC Market"
 lpType="OpSuperchain_LENDING_POOL"
 
 [proxy_admin]
 # riftlendProxyAdmin
-salt = "0x726966746c656e6450726f787941646d696e0000000000000000000000000000"
+salt = "riftlendProxyAdmin"
 
 [pool_admin]
-address="0xb09aC2fE0A0b8f1132cA1a046DCEBC7989b65596"
+address="0x34b13101802b97cbfbC33a4eb597017dd20dd31C"
 
 
 [lending_pool]
 # riftlendLendingPool
-salt = "0x726966746c656e644c656e64696e67506f6f6c00000000000000000000000000"
+salt = "riftlendLendingPool"
 
 [lending_pool_configurator]
 # riftlendLpConfigurator
-salt = "0x726966746c656e644c70436f6e666967757261746f7200000000000000000000"
+salt = "riftlendLpConfigurator"
+
+[lending_pool_collateral_manager]
+# riftlendLpCollateralManager
+salt = "riftlendLpCollateralManager"
 
 [default_reserve_interest_rate_strategy]
 # riftlendDefaultStrategy
-salt = "0x726966746c656e6444656661756c745374726174656779000000000000000000"
+salt = "riftlendDefaultStrategy"
 # These are random values. TODO these should be in ray terms
 optimalUtilizationRate = 1
 baseVariableBorrowRate = 2
@@ -76,18 +77,24 @@ stableRateSlope2 = 5
 
 [price_oracle]
 # riftlendPriceOracle
-salt = "0x726966746c656e6450726963654f7261636c6500000000000000000000000000"
-owner_address = "0xb09aC2fE0A0b8f1132cA1a046DCEBC7989b65596"
+salt = "riftlendPriceOracle"
+owner_address = "0x34b13101802b97cbfbC33a4eb597017dd20dd31C"
 
 [event_validator]
 # riftlendEventValidator
-salt = "0x726966746c656e644576656e7456616c696461746f7200000000000000000000"
+salt = "riftlendEventValidator"
 
-[relayer]
-address="0xb09aC2fE0A0b8f1132cA1a046DCEBC7989b65596"
+[relayers]
+address1="0xa42Ba52a1c007F64CbEdfe5d68318c47479909B9"
+address2="0x5b82672fE0E4404d02982c57657e912FF2A2aCee"
+address3="0xeea6Fc4dbB9deD44fc97d25a181f4D1C84E4DFCB"
+address4="0x2E36797F103f7747B18171131B7DB321442E7426"
+address5="0x850647427a365238374f6E220EEFa8281ff35A70"
+address6="0x2EEB89646C0fC522980f08a6DF6f9843fefFBA77"
+total=6
 
 [treasury]
-address = "0xb09aC2fE0A0b8f1132cA1a046DCEBC7989b65596"
+address = "0x34b13101802b97cbfbC33a4eb597017dd20dd31C"
 
 [incentives_controller]
 address = "0x0000000000000000000000000000000000000000"
@@ -95,7 +102,7 @@ address = "0x0000000000000000000000000000000000000000"
 
 [router]
 # riftlendRouter
-salt = "0x726966746c656e64526f75746572000000000000000000000000000000000000"
+salt = "riftlendRouter"
 
 [layerzero]
 lz_receive_gas_limit=200000
@@ -116,16 +123,39 @@ chain_b_weth="0x4200000000000000000000000000000000000006"
 chain_b_lz_endpoint_v2="0x1a44076050125825900e736c501f859c50fE728c"
 chain_b_lz_delegate="0xf9E5bFE615853BC0ce310Dd3187277B0bbAC112c"
 
-chain_c_rpc_url = "https://opt-sepolia.g.alchemy.com/v2/muWMumYKuC6W7Oa572HjryTPZMMLbPK3"
-chain_c_chain_id = 11155420
-chain_c_cross_l2_prover_address="0xb8AcB3FE3117A67b665Bc787c977623612f8a461"
-chain_c_weth="0xC355F97a3Aa2808Acb536E555764b8FB26fB4b37"
-chain_c_lz_endpoint_v2="0x6EDCE65403992e310A62460808c4b910D972f10f"
-chain_c_lz_delegate="0xf9E5bFE615853BC0ce310Dd3187277B0bbAC112c"
+chain_test_a_rpc_url = "https://opt-sepolia.g.alchemy.com/v2/muWMumYKuC6W7Oa572HjryTPZMMLbPK3"
+chain_test_a_chain_id = 11155420
+chain_test_a_cross_l2_prover_address="0xb8AcB3FE3117A67b665Bc787c977623612f8a461"
+chain_test_a_weth="0xC355F97a3Aa2808Acb536E555764b8FB26fB4b37"
+chain_test_a_lz_endpoint_v2="0x6EDCE65403992e310A62460808c4b910D972f10f"
+chain_test_a_lz_delegate="0xf9E5bFE615853BC0ce310Dd3187277B0bbAC112c"
 
-chain_d_rpc_url = "https://base-sepolia.g.alchemy.com/v2/muWMumYKuC6W7Oa572HjryTPZMMLbPK3"
-chain_d_chain_id = 84532
-chain_d_cross_l2_prover_address = "0xcDa03d74DEc5B24071D1799899B2e0653C24e5Fa"  
-chain_d_weth = "0x4200000000000000000000000000000000000006" 
-chain_d_lz_endpoint_v2 = "0x6EDCE65403992e310A62460808c4b910D972f10f"  
-chain_d_lz_delegate="0xf9E5bFE615853BC0ce310Dd3187277B0bbAC112c"
+chain_test_b_rpc_url = "https://base-sepolia.g.alchemy.com/v2/muWMumYKuC6W7Oa572HjryTPZMMLbPK3"
+chain_test_b_chain_id = 84532
+chain_test_b_cross_l2_prover_address = "0xcDa03d74DEc5B24071D1799899B2e0653C24e5Fa"  
+chain_test_b_weth = "0x4200000000000000000000000000000000000006" 
+chain_test_b_lz_endpoint_v2 = "0x6EDCE65403992e310A62460808c4b910D972f10f"  
+chain_test_b_lz_delegate="0xf9E5bFE615853BC0ce310Dd3187277B0bbAC112c"
+
+chain_test_c_rpc_url = "https://unichain-sepolia.g.alchemy.com/v2/xFdbkJe3ZbpjHxU2qIpikVBgN7TIMyX8"
+chain_test_c_chain_id = 1301
+chain_test_c_cross_l2_prover_address = "0xcDa03d74DEc5B24071D1799899B2e0653C24e5Fa"  
+chain_test_c_weth = "0x4200000000000000000000000000000000000006" 
+chain_test_c_lz_endpoint_v2 = "0xb8815f3f882614048CbE201a67eF9c6F10fe5035"  
+chain_test_c_lz_delegate="0xf9E5bFE615853BC0ce310Dd3187277B0bbAC112c"
+
+
+chain_test_d_rpc_url = "https://arb-sepolia.g.alchemy.com/v2/muWMumYKuC6W7Oa572HjryTPZMMLbPK3"
+chain_test_d_chain_id = 421614
+chain_test_d_cross_l2_prover_address = "0xcDa03d74DEc5B24071D1799899B2e0653C24e5Fa"  
+chain_test_d_weth = "0x980b62da83eff3d4576c647993b0c1d7faf17c73" 
+chain_test_d_lz_endpoint_v2 = "0x6EDCE65403992e310A62460808c4b910D972f10f"  
+chain_test_d_lz_delegate="0xf9E5bFE615853BC0ce310Dd3187277B0bbAC112c"
+
+
+chain_test_e_rpc_url = "https://eth-sepolia.g.alchemy.com/v2/muWMumYKuC6W7Oa572HjryTPZMMLbPK3"
+chain_test_e_chain_id = 11155111
+chain_test_e_cross_l2_prover_address = "0xcDa03d74DEc5B24071D1799899B2e0653C24e5Fa"  
+chain_test_e_weth = "0xb16f35c0ae2912430dac15764477e179d9b9ebea" 
+chain_test_e_lz_endpoint_v2 = "0x6EDCE65403992e310A62460808c4b910D972f10f"  
+chain_test_e_lz_delegate="0xf9E5bFE615853BC0ce310Dd3187277B0bbAC112c"

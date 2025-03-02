@@ -26,6 +26,7 @@ import {DataTypes} from "./libraries/types/DataTypes.sol";
 import {LendingPoolStorage} from "./LendingPoolStorage.sol";
 import {Predeploys} from "./libraries/Predeploys.sol";
 import {SuperPausable} from "./interop-std/src/utils/SuperPausable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     using WadRayMath for uint256;
@@ -54,11 +55,6 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     error RVAULT_NOT_FOUND_FOR_ASSET();
     error LP_RESERVE_NOT_FOUND();
 
-    event logger(string message);
-    event loggerBytes(bytes message);
-    event loggerBytes32(bytes32 message);
-    event loggerUint(uint256);
-    event loggerAddress(address);
     event logAddresses(address[] addresses);
     event RVaultAssetUpdated(address asset, address rVaultAsset);
 
@@ -110,7 +106,6 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
      */
     function deposit(address sender, address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external {
         onlyRouter();
-
         address rVaultAsset = getRVaultAssetOrRevert(asset);
         DataTypes.ReserveData storage reserve = _reserves[rVaultAsset];
         _updateStates(reserve, rVaultAsset, amount, 0, UPDATE_RATES_AND_STATES_MASK);
@@ -635,12 +630,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
 
     function getRVaultAssetOrRevert(address asset) public returns (address rVaultAsset) {
         rVaultAsset = _rVaultAsset[asset];
-        emit logger("Asset: ");
-        emit loggerAddress(asset);
-        emit logger("rVaultAsset: ");
-        emit loggerAddress(rVaultAsset);
-
-        // if (rVaultAsset == address(0)) revert RVAULT_NOT_FOUND_FOR_ASSET();
+        if (rVaultAsset == address(0)) revert RVAULT_NOT_FOUND_FOR_ASSET();
     }
 
     function getReserveById(uint256 id) public view returns (address asset) {

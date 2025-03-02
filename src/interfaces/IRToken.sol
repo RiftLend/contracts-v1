@@ -62,6 +62,15 @@ interface IRToken is IERC20, IScaledBalanceToken, IInitializableRToken {
     event CrossChainMint(address user, uint256 amountScaled);
 
     /**
+     * @dev Emitted during the cross-chain balance update action
+     * @param user The address receiving the minted tokens
+     * @param amountScaled The amount being minted, scaled to the pool's unit
+     * @param mode 1 if minting, 2 if burning
+     *
+     */
+    event CrossChainBalanceUpdate(address user, uint256 amount, uint256 amountScaled, uint256 mode);
+
+    /**
      * @dev Burns rTokens from `user` and sends the equivalent amount of underlying to `receiverOfUnderlying`
      * @param user The owner of the rTokens, getting them burned
      * @param receiverOfUnderlying The address that will receive the underlying

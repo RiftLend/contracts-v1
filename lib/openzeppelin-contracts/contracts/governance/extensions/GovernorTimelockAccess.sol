@@ -277,7 +277,7 @@ abstract contract GovernorTimelockAccess is Governor {
     }
 
     /**
-     * @dev See {Governor-_cancel}
+     * @dev See {IGovernor-_cancel}
      */
     function _cancel(
         address[] memory targets,

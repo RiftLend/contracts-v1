@@ -1,13 +1,5 @@
 # Changelog
 
-### Breaking Changes
-
-- Replace `GovernorCountingOverridable.VoteReceipt` struct parameter member names `hasOverriden` and `overridenWeight` for `hasOverridden` and `overriddenWeight` respectively.
-
-#### Custom error changes
-
-- Replace `GovernorAlreadyOverridenVote` with `GovernorAlreadyOverriddenVote`.
-
 ## 5.2.0 (2025-01-08)
 
 ### Breaking Changes
@@ -45,7 +37,7 @@ This version comes with changes to the custom error identifiers. Contracts previ
 ### Utils
 
 - `Address`: bubble up revert data on `sendValue` failed call ([#5418](https://github.com/OpenZeppelin/openzeppelin-contracts/pull/5418))
-- `Bytes`: Add a library of common operations that operate on `bytes` objects. ([#5252](https://github.com/OpenZeppelin/openzeppelin-contracts/pull/5252))
+- `Bytes`: Add a library of common operation that operate on `bytes` objects. ([#5252](https://github.com/OpenZeppelin/openzeppelin-contracts/pull/5252))
 - `CAIP2` and `CAIP10`: Add libraries for formatting and parsing CAIP-2 and CAIP-10 identifiers. ([#5252](https://github.com/OpenZeppelin/openzeppelin-contracts/pull/5252))
 - `NoncesKeyed`: Add a variant of `Nonces` that implements the ERC-4337 entrypoint nonce system. ([#5272](https://github.com/OpenZeppelin/openzeppelin-contracts/pull/5272))
 - `Packing`: Add variants for packing `bytes10` and `bytes22` ([#5274](https://github.com/OpenZeppelin/openzeppelin-contracts/pull/5274))
@@ -56,7 +48,7 @@ This version comes with changes to the custom error identifiers. Contracts previ
 ### Breaking changes
 
 - `ERC1967Utils`: Removed duplicate declaration of the `Upgraded`, `AdminChanged` and `BeaconUpgraded` events. These events are still available through the `IERC1967` interface located under the `contracts/interfaces/` directory. Minimum pragma version is now 0.8.21.
-- `Governor`, `GovernorCountingSimple`: The `_countVote` virtual function now returns an `uint256` with the total votes cast. This change allows for more flexibility for partial and fractional voting. Upgrading users may get a compilation error that can be fixed by adding a return statement to the `_countVote` function.
+- `Governor`, `GovernorCountingSimple`: The `_countVote` virtual function now returns an `uint256` with the total votes casted. This change allows for more flexibility for partial and fractional voting. Upgrading users may get a compilation error that can be fixed by adding a return statement to the `_countVote` function.
 
 #### Custom error changes
 

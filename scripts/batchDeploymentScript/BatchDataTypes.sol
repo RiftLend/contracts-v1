@@ -10,25 +10,17 @@ import {LendingPool} from "src/LendingPool.sol";
 
 library BatchDataTypes {
     struct Batch1Params {
-        string underlyingName;
-        string underlyingSymbol;
-        uint8 underlyingDecimals;
-        address crossL2ProverAddress;
-        string superAssetName;
-        string superAssetSymbol;
-        address currentChainWethAddress;
+        string underlyingSalt;
         address ownerAddress;
         string marketId;
         bytes32 lpType;
-        uint256 optimalUtilizationRate;
-        uint256 baseVariableBorrowRate;
-        uint256 variableRateSlope1;
-        uint256 variableRateSlope2;
-        bytes32 superAssetSalt;
-        bytes32 eventValidatorSalt;
-        bytes32 lpAddressProviderSalt;
-        bytes32 oracleSalt;
+        string superAssetSalt;
+        string eventValidatorSalt;
+        string lpAddressProviderSalt;
+        string oracleSalt;
         address owner;
+        string proxyAdminSalt;
+        string strategySalt;
     }
 
     /* ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
@@ -45,6 +37,7 @@ library BatchDataTypes {
         ILendingPoolAddressesProvider lpProvider;
         LendingPoolConfigurator proxyConfigurator;
         LendingPool proxyLp;
+        address[] relayers;
     }
 
     /* ╔══════════════════════════════╗
@@ -105,5 +98,27 @@ library BatchDataTypes {
         Batch2Addresses batch2Addrs;
         Batch3Addresses batch3Addrs;
         Batch4Addresses batch4Addrs;
+    }
+
+    struct SuperAssetInitParams {
+        address underlying;
+        string name;
+        string symbol;
+        address weth;
+    }
+
+    struct DefaultStrategyInitParams {
+        ILendingPoolAddressesProvider lendingPoolAddressesProvider;
+        uint256 optimalUtilizationRate;
+        uint256 baseVariableBorrowRate;
+        uint256 variableRateSlope1;
+        uint256 variableRateSlope2;
+    }
+
+    struct UnderlyingInitParams {
+        string name;
+        string symbol;
+        uint8 decimals;
+        address owner;
     }
 }

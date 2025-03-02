@@ -68,9 +68,9 @@ interface ILendingPoolAddressesProvider {
 
     function setLendingRateOracle(address lendingRateOracle) external;
 
-    function getRelayer() external view returns (address);
+    function getRelayerStatus(address adr) external view returns (bool);
 
-    function setRelayer(address relayer) external;
+    function setRelayerStatus(address relayer, bool isActive) external;
 
     function getRouter() external view returns (address);
 
