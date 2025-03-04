@@ -628,7 +628,7 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
         }
     }
 
-    function getRVaultAssetOrRevert(address asset) public returns (address rVaultAsset) {
+    function getRVaultAssetOrRevert(address asset) public view returns (address rVaultAsset) {
         rVaultAsset = _rVaultAsset[asset];
         if (rVaultAsset == address(0)) revert RVAULT_NOT_FOUND_FOR_ASSET();
     }
