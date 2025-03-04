@@ -184,7 +184,7 @@ library GenericLogic {
             if (userConfig.isBorrowing(vars.i)) {
                 user_balance = IERC20(currentReserve.variableDebtTokenAddress).balanceOf(user);
 
-                vars.compoundedBorrowBalance = vars.compoundedBorrowBalance + user_balance;
+                vars.compoundedBorrowBalance = user_balance;
 
                 vars.totalDebtInETH =
                     vars.totalDebtInETH + ((vars.reserveUnitPrice * vars.compoundedBorrowBalance) / vars.tokenUnit);
