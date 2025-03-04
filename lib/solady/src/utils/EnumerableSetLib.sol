@@ -11,6 +11,9 @@ pragma solidity ^0.8.4;
 /// and indices will be initialized. The amortized cost of adding elements is O(1).
 ///
 /// The AddressSet implementation packs the length with the 0th entry.
+///
+/// All enumerable sets except Uint8Set use a pop and swap mechanism to remove elements.
+/// This means that the iteration order of elements can change between element removals.
 library EnumerableSetLib {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       CUSTOM ERRORS                        */
@@ -21,6 +24,9 @@ library EnumerableSetLib {
 
     /// @dev The value cannot be the zero sentinel.
     error ValueIsZeroSentinel();
+
+    /// @dev Cannot accommodate a new unique value with the capacity.
+    error ExceedsCapacity();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                         CONSTANTS                          */
@@ -367,6 +373,45 @@ library EnumerableSetLib {
         }
     }
 
+    /// @dev Adds `value` to the set. Returns whether `value` was not in the set.
+    /// Reverts if the set grows bigger than the custom on-the-fly capacity `cap`.
+    function add(AddressSet storage set, address value, uint256 cap)
+        internal
+        returns (bool result)
+    {
+        if (result = add(set, value)) if (length(set) > cap) revert ExceedsCapacity();
+    }
+
+    /// @dev Adds `value` to the set. Returns whether `value` was not in the set.
+    /// Reverts if the set grows bigger than the custom on-the-fly capacity `cap`.
+    function add(Bytes32Set storage set, bytes32 value, uint256 cap)
+        internal
+        returns (bool result)
+    {
+        if (result = add(set, value)) if (length(set) > cap) revert ExceedsCapacity();
+    }
+
+    /// @dev Adds `value` to the set. Returns whether `value` was not in the set.
+    /// Reverts if the set grows bigger than the custom on-the-fly capacity `cap`.
+    function add(Uint256Set storage set, uint256 value, uint256 cap)
+        internal
+        returns (bool result)
+    {
+        if (result = add(set, value)) if (length(set) > cap) revert ExceedsCapacity();
+    }
+
+    /// @dev Adds `value` to the set. Returns whether `value` was not in the set.
+    /// Reverts if the set grows bigger than the custom on-the-fly capacity `cap`.
+    function add(Int256Set storage set, int256 value, uint256 cap) internal returns (bool result) {
+        if (result = add(set, value)) if (length(set) > cap) revert ExceedsCapacity();
+    }
+
+    /// @dev Adds `value` to the set. Returns whether `value` was not in the set.
+    /// Reverts if the set grows bigger than the custom on-the-fly capacity `cap`.
+    function add(Uint8Set storage set, uint8 value, uint256 cap) internal returns (bool result) {
+        if (result = add(set, value)) if (length(set) > cap) revert ExceedsCapacity();
+    }
+
     /// @dev Removes `value` from the set. Returns whether `value` was in the set.
     function remove(AddressSet storage set, address value) internal returns (bool result) {
         bytes32 rootSlot = _rootSlot(set);
@@ -409,7 +454,6 @@ library EnumerableSetLib {
                 if iszero(eq(sub(position, 1), n)) {
                     let lastValue := shr(96, sload(add(rootSlot, n)))
                     sstore(add(rootSlot, sub(position, 1)), shl(96, lastValue))
-                    sstore(add(rootSlot, n), 0)
                     mstore(0x00, lastValue)
                     sstore(keccak256(0x00, 0x40), position)
                 }
@@ -461,7 +505,6 @@ library EnumerableSetLib {
                 if iszero(eq(sub(position, 1), n)) {
                     let lastValue := sload(add(rootSlot, n))
                     sstore(add(rootSlot, sub(position, 1)), lastValue)
-                    sstore(add(rootSlot, n), 0)
                     mstore(0x00, lastValue)
                     sstore(keccak256(0x00, 0x40), position)
                 }
@@ -492,6 +535,46 @@ library EnumerableSetLib {
             sstore(set.slot, and(result, not(mask)))
             result := iszero(iszero(and(result, mask)))
         }
+    }
+
+    /// @dev Shorthand for `isAdd ? set.add(value, cap) : set.remove(value)`.
+    function update(AddressSet storage set, address value, bool isAdd, uint256 cap)
+        internal
+        returns (bool)
+    {
+        return isAdd ? add(set, value, cap) : remove(set, value);
+    }
+
+    /// @dev Shorthand for `isAdd ? set.add(value, cap) : set.remove(value)`.
+    function update(Bytes32Set storage set, bytes32 value, bool isAdd, uint256 cap)
+        internal
+        returns (bool)
+    {
+        return isAdd ? add(set, value, cap) : remove(set, value);
+    }
+
+    /// @dev Shorthand for `isAdd ? set.add(value, cap) : set.remove(value)`.
+    function update(Uint256Set storage set, uint256 value, bool isAdd, uint256 cap)
+        internal
+        returns (bool)
+    {
+        return isAdd ? add(set, value, cap) : remove(set, value);
+    }
+
+    /// @dev Shorthand for `isAdd ? set.add(value, cap) : set.remove(value)`.
+    function update(Int256Set storage set, int256 value, bool isAdd, uint256 cap)
+        internal
+        returns (bool)
+    {
+        return isAdd ? add(set, value, cap) : remove(set, value);
+    }
+
+    /// @dev Shorthand for `isAdd ? set.add(value, cap) : set.remove(value)`.
+    function update(Uint8Set storage set, uint8 value, bool isAdd, uint256 cap)
+        internal
+        returns (bool)
+    {
+        return isAdd ? add(set, value, cap) : remove(set, value);
     }
 
     /// @dev Returns all of the values in the set.

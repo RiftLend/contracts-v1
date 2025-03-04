@@ -7,12 +7,12 @@ import {SymTest} from "halmos-cheatcodes/SymTest.sol";
 import {Arrays} from "@openzeppelin/contracts/utils/Arrays.sol";
 
 contract ArraysTest is Test, SymTest {
-    function testSort(uint256[] memory values) public pure {
+    function testSort(uint256[] memory values) public {
         Arrays.sort(values);
         _assertSort(values);
     }
 
-    function symbolicSort() public pure {
+    function symbolicSort() public {
         uint256[] memory values = new uint256[](3);
         for (uint256 i = 0; i < 3; i++) {
             values[i] = svm.createUint256("arrayElement");
@@ -23,7 +23,7 @@ contract ArraysTest is Test, SymTest {
 
     /// Asserts
 
-    function _assertSort(uint256[] memory values) internal pure {
+    function _assertSort(uint256[] memory values) internal {
         for (uint256 i = 1; i < values.length; ++i) {
             assertLe(values[i - 1], values[i]);
         }

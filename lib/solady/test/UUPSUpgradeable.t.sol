@@ -2,7 +2,7 @@
 pragma solidity ^0.8.4;
 
 import "./utils/SoladyTest.sol";
-import {UUPSUpgradeable} from "../src/utils/UUPSUpgradeable.sol";
+import {CallContextChecker, UUPSUpgradeable} from "../src/utils/UUPSUpgradeable.sol";
 import {LibClone} from "../src/utils/LibClone.sol";
 import {MockUUPSImplementation} from "../test/utils/mocks/MockUUPSImplementation.sol";
 
@@ -20,17 +20,6 @@ contract UUPSUpgradeableTest is SoladyTest {
         impl1 = new MockUUPSImplementation();
         proxy = LibClone.deployERC1967(address(impl1));
         MockUUPSImplementation(proxy).initialize(address(this));
-    }
-
-    function testNotDelegatedGuard() public {
-        assertEq(impl1.proxiableUUID(), _ERC1967_IMPLEMENTATION_SLOT);
-        vm.expectRevert(UUPSUpgradeable.UnauthorizedCallContext.selector);
-        MockUUPSImplementation(proxy).proxiableUUID();
-    }
-
-    function testOnlyProxyGuard() public {
-        vm.expectRevert(UUPSUpgradeable.UnauthorizedCallContext.selector);
-        impl1.upgradeToAndCall(address(1), bytes(""));
     }
 
     function testUpgradeTo() public {

@@ -7,14 +7,11 @@ import {UserConfiguration} from "../../src/libraries/configuration/UserConfigura
 import {Identifier} from "../../src/libraries/EventValidator.sol";
 import "forge-std/Vm.sol";
 
-import {CrossChainDeposit, CrossChainWithdraw} from "../../src/interfaces/ILendingPool.sol";
+import {ILendingPool} from "../../src/interfaces/ILendingPool.sol";
 import {ValidationMode} from "../../src/libraries/EventValidator.sol";
 
 contract LendingPoolTestBase is Base {
     using UserConfiguration for DataTypes.UserConfigurationMap;
-
-    uint256 constant INITIAL_BALANCE = 10000 ether;
-    uint256 constant DEPOSIT_AMOUNT = 100 ether;
 
     /// @dev tests that the user can deposit underlying asset to the pool
     /// @dev tests that the user config is updated correctly
@@ -24,5 +21,7 @@ contract LendingPoolTestBase is Base {
         super.setUp();
         deal(address(underlyingAsset), user1, INITIAL_BALANCE);
         deal(address(underlyingAsset), user2, INITIAL_BALANCE);
+        deal(address(underlyingAsset), liquidator, INITIAL_BALANCE);
+        deal(address(underlyingAsset), liquidityProvider, INITIAL_BALANCE);
     }
 }

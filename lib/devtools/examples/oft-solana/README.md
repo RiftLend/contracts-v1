@@ -81,7 +81,7 @@ cp .env.example .env
 
 In the `.env` just created, set `SOLANA_PRIVATE_KEY` to your private key value in base58 format. Since the locally stored keypair is in an integer array format, we'd need to encode it into base58 first.
 
-You can run the `npx hardhat lz:solana:base-58` to output your private key in base58 format. Optionally, pass in a value for the `--keypair-file` flag if you want to use the keypair other than the default at `~/.config/solana.id.json`
+You can run the `npx hardhat lz:solana:base-58` to output your private key in base58 format. Optionally, pass in a value for the `--keypair-file` flag if you want to use the keypair other than the default at `~/.config/solana/id.json`
 
 Also set the `RPC_URL_SOLANA_TESTNET` value. Note that while the naming used here is `TESTNET`, it refers to the [Solana Devnet](https://docs.layerzero.network/v2/developers/evm/technical-reference/deployed-contracts#solana-testnet). We use `TESTNET` to keep it consistent with the existing EVM testnets.
 
@@ -100,7 +100,13 @@ anchor keys sync
 
 :warning: `--force` flag overwrites the existing keys with the ones you generate.
 
-Run `anchor keys list` to view the generated programIds (public keys). The output should look something like this:
+Run
+
+```
+anchor keys list
+```
+
+to view the generated programIds (public keys). The output should look something like this:
 
 ```
 endpoint: <ENDPOINT_PROGRAM_ID>
@@ -150,45 +156,41 @@ Rent-exempt minimum: 3.87415872 SOL
 
 #### Deploy the Solana OFT
 
-```bash
-solana program deploy --program-id target/deploy/oft-keypair.json target/verifiable/oft.so -u devnet
-```
+While for building, we must use Solana `v1.17.31`, for deloying, we will be using `v1.18.26` as it provides an improved program deployment experience (i.e. ability to attach priority fees and also exact-sized on-chain program length which prevents needing to provide 2x the rent as in `v1.17.31`).
 
-:information_source: the `-u` flag specifies the RPC URL that should be used. The options are `mainnet-beta, devnet, testnet, localhost`, which also have their respective shorthands: `-um, -ud, -ut, -ul`
+##### Temporarily switch to Solana `v1.18.26`
 
-:warning: If the deployment is slow, it could be that the network is congested. If so, you can either wait it out or opt to include a `priorityFee`.
-
-#### (optional) Deploying with a priority fee
-
-This section only applies if you are unable to land your deployment transaction due to network congestion.
-
-:information_source: [Priority Fees](https://solana.com/developers/guides/advanced/how-to-use-priority-fees) are Solana's mechanism to allow transactions to be prioritized during periods of network congestion. When the network is busy, transactions without priority fees might never be processed. It is then necessary to include priority fees, or wait until the network is less congested. Priority fees are calculated as follows: `priorityFee = compute budget * compute unit price`. We can make use of priority fees by attaching the `--with-compute-unit-price` flag to our `solana program deploy` command. Note that the flag takes in a value in micro lamports, where 1 micro lamport = 0.000001 lamport.
-
-<details>
-  <summary>View instructions</summary>
-  Because building requires Solana CLI version `1.17.31`, but priority fees are only supported in version `1.18`, we will need to switch Solana CLI versions temporarily.
+First, we switch to Solana `v1.18.26` (remember to switch back to `v1.17.31` later)
 
 ```bash
 sh -c "$(curl -sSfL https://release.solana.com/v1.18.26/install)"
 ```
 
+##### (Recommended) Deploying with a priority fee
+
+This section applies if you are unable to land your deployment transaction due to network congestion.
+
+:information_source: [Priority Fees](https://solana.com/developers/guides/advanced/how-to-use-priority-fees) are Solana's mechanism to allow transactions to be prioritized during periods of network congestion. When the network is busy, transactions without priority fees might never be processed. It is then necessary to include priority fees, or wait until the network is less congested. Priority fees are calculated as follows: `priorityFee = compute budget * compute unit price`. We can make use of priority fees by attaching the `--with-compute-unit-price` flag to our `solana program deploy` command. Note that the flag takes in a value in micro lamports, where 1 micro lamport = 0.000001 lamport.
+
 You can run refer QuickNode's [Solana Priority Fee Tracker](https://www.quicknode.com/gas-tracker/solana) to know what value you'd need to pass into the `--with-compute-unit-price` flag.
 
-:information_source: The average is calculated from getting the prioritization fees across recent blocks, but some blocks may have `0` as the prioritization fee. `averageFeeExcludingZeros` ignores blocks with `0` prioritization fees.
-
-Now let's rerun the deploy command, but with the compute unit price flag.
+##### Run the deploy command
 
 ```bash
 solana program deploy --program-id target/deploy/oft-keypair.json target/verifiable/oft.so -u devnet --with-compute-unit-price <COMPUTE_UNIT_PRICE_IN_MICRO_LAMPORTS>
 ```
 
-:warning: Make sure to switch back to v1.17.31 after deploying. If you need to rebuild artifacts, you must use Solana CLI version `1.17.31` and Anchor version `0.29.0`
+:information_source: the `-u` flag specifies the RPC URL that should be used. The options are `mainnet-beta, devnet, testnet, localhost`, which also have their respective shorthands: `-um, -ud, -ut, -ul`
+
+:warning: If the deployment is slow, it could be that the network is congested and you might need to increase the priority fee.
+
+##### Switch back to Solana `1.17.31`
+
+:warning: After deploying, make sure to switch back to v1.17.31 after deploying. If you need to rebuild artifacts, you must use Solana CLI version `1.17.31` and Anchor version `0.29.0`
 
 ```bash
 sh -c "$(curl -sSfL https://release.solana.com/v1.17.31/install)"
 ```
-
-</details>
 
 ### Create the Solana OFT
 
@@ -214,13 +216,19 @@ pnpm hardhat lz:oft:solana:create --eid 40168 --program-id <PROGRAM_ID>
 pnpm hardhat lz:oft-adapter:solana:create --eid 40168 --program-id <PROGRAM_ID> --mint <TOKEN_MINT> --token-program <TOKEN_PROGRAM_ID>
 ```
 
+:information_source: You can use OFT Adapter if you want to use an existing token on Solana. For OFT Adapter, tokens will be locked when sending to other chains and unlocked when receiving from other chains.
+
 #### For OFT Mint-And-Burn Adapter (MABA):
 
 ```bash
 pnpm hardhat lz:oft:solana:create --eid 40168 --program-id <PROGRAM_ID> --mint <TOKEN_MINT> --token-program <TOKEN_PROGRAM_ID>
 ```
 
-:warning: Use `--additional-minters` flag to add a CSV of additional minter addresses to the Mint Authority Multisig. If you do not want to, you must specify `--only-oft-store true`.
+:information_source: You can use OFT Mint-And-Burn Adapter if you want to use an existing token on Solana. For OFT Mint-And-Burn Adapter, tokens will be burned when sending to other chains and minted when receiving from other chains.
+
+:warning: You cannot use this option if your token's Mint Authority has been renounced.
+
+:warning: Note that for MABA mode, before attempting any cross-chain transfers, **you must transfer the Mint Authority** for `lz_receive` to work, as that is not handled in the script (since you are using an existing token). If you opted for `--additional-minters`, then you must transfer the Mint Authority to the newly created multisig (this is the `mintAuthority` value in the `/deployments/solana-<mainnet/testnet>/OFT.json`). If not, then it should be set to the OFT Store address, which is `oftStore` in the same file.
 
 ### Update [layerzero.config.ts](./layerzero.config.ts)
 
@@ -233,6 +241,8 @@ const solanaContract: OmniPointHardhat = {
 };
 ```
 
+:warning: Ensure that you only specify `address` for the solana contract object. Do not specify addresses for the EVM chain contract objects. Under the hood, we use `hardhat-deploy` to retrieve the contract addresses of the deployed EVM chain contracts. You will run into an error if you specify `address` for an EVM chain contract object.
+
 ### Deploy a sepolia OFT peer
 
 ```bash
@@ -241,23 +251,27 @@ pnpm hardhat lz:deploy # follow the prompts
 
 Note: If you are on testnet, consider using `MyOFTMock` to allow test token minting. If you do use `MyOFTMock`, make sure to update the `sepoliaContract.contractName` in [layerzero.config.ts](./layerzero.config.ts) to `MyOFTMock`.
 
-### Initialize the Solana OFT
+### Initialize the Solana OFT Config
 
-:warning: Only do this the first time you are initializing the OFT.
+:warning: Do this only when initializing the OFT for the first time. The only exception is if a new pathway is added later. If so, run this again to properly initialize the pathway.
+
+Run the following command to init the pathway config. This step is unique to pathways that involve Solana.
 
 ```bash
-npx hardhat lz:oapp:init:solana --oapp-config layerzero.config.ts --solana-secret-key <SECRET_KEY> --solana-program-id <PROGRAM_ID>
+npx hardhat lz:oft:solana:init-config --oapp-config layerzero.config.ts --solana-secret-key <SECRET_KEY> --solana-program-id <PROGRAM_ID>
 ```
 
 :information_source: `<SECRET_KEY>` should also be in base58 format.
 
 ### Wire
 
+Run the following to wire the pathways specified in your `layerzero.config.ts`
+
 ```bash
 npx hardhat lz:oapp:wire --oapp-config layerzero.config.ts --solana-secret-key <PRIVATE_KEY> --solana-program-id <PROGRAM_ID>
 ```
 
-With a squads multisig, you can simply append the `--multisigKey` flag to the end of the above command.
+With a squads multisig, you can simply append the `--multisig-key` flag to the end of the above command.
 
 ### Mint OFT on Solana
 
@@ -271,7 +285,7 @@ First, you need to create the Associated Token Account for your address.
 spl-token create-account <TOKEN_MINT>
 ```
 
-Then, you can mint.
+Then, you can mint. Remember this is in local decimals, so with local decimals of 9, you would need to pass in `--amount 1000000000` to mint 1 OFT.
 
 ```bash
 spl-token mint <TOKEN_MINT> <AMOUNT> --multisig-signer ~/.config/solana/id.json --owner <MINT_AUTHORITY>
@@ -319,14 +333,42 @@ pnpm hardhat lz:oft:solana:setauthority --eid <SOLANA_EID> --mint <TOKEN_MINT> -
 The `OFTStore` is automatically added as a mint authority to the newly created mint authority, and does not need to be
 included in the `--additional-minters` list.
 
-## Common Errors
+## Appendix
 
-### "AnchorError occurred. Error Code: DeclaredProgramIdMismatch. Error Number: 4100. Error Message: The declared program id does not match the actual program id."
+### Transferring ownership
+
+Ownership of OFTs can be transferred via running the wire command after the appropriate changes are made to the LZ Config file (`layerzero.config.ts`). You need to first set the `delegate` value, and then only the `owner` value.
+
+**First, set the `delegate`.**
+
+How to set delegate: https://docs.layerzero.network/v2/developers/evm/create-lz-oapp/configuring-pathways#adding-delegate
+
+Now run
+
+```
+npx hardhat lz:oapp:wire --oapp-config layerzero.config.ts --solana-secret-key <PRIVATE_KEY> --solana-program-id <PROGRAM_ID>
+```
+
+and execute the transactions.
+
+**Then, set the `owner`.**
+
+How to set owner: https://docs.layerzero.network/v2/developers/evm/create-lz-oapp/configuring-pathways#adding-owner
+
+Now, run
+
+```
+npx hardhat lz:ownable:transfer-ownership --oapp-config layerzero.config.ts --solana-secret-key <PRIVATE_KEY> --solana-program-id <PROGRAM_ID>
+```
+
+### Common Errors
+
+#### "AnchorError occurred. Error Code: DeclaredProgramIdMismatch. Error Number: 4100. Error Message: The declared program id does not match the actual program id."
 
 This is often caused by failing to manually update [lib.rs](./programs/oft/src/lib.rs) with the updated program ID prior
 to running `solana program deploy...`.
 
-### `anchor build -v` fails
+#### `anchor build -v` fails
 
 There are known issues with downloading rust crates in older versions of docker. Please ensure you are using the most
 up-to-date docker version. The issue manifests similar to:
@@ -362,7 +404,7 @@ Error: Failed to build program
 
 Note: The error occurs after attempting to update crates.io index.
 
-### When sending tokens from Solana `The value of "offset" is out of range. It must be >= 0 and <= 32. Received 41`
+#### When sending tokens from Solana `The value of "offset" is out of range. It must be >= 0 and <= 32. Received 41`
 
 If you receive this error, it may be caused by an improperly configured executor address in your `layerzero.config.ts`
 configuration file. The value for this address is not the programId from listed as `LZ Executor` in the
@@ -397,7 +439,7 @@ RangeError [ERR_OUT_OF_RANGE]: The value of "offset" is out of range. It must be
   code: 'ERR_OUT_OF_RANGE'
 ```
 
-### Failed while deploying the Solana OFT `Error: Account allocation failed: unable to confirm transaction. This can happen in situations such as transaction expiration and insufficient fee-payer funds`
+#### Failed while deploying the Solana OFT `Error: Account allocation failed: unable to confirm transaction. This can happen in situations such as transaction expiration and insufficient fee-payer funds`
 
 This error is caused by the inability to confirm the transaction in time, or by running out of funds. This is not
 specific to OFT deployment, but Solana programs in general. Fortunately, you can retry by recovering the program key and
@@ -408,7 +450,7 @@ solana-keygen recover -o recover.json
 solana program deploy --buffer recover.json --upgrade-authority <pathToKey> --program-id <programId> target/verifiable/oft.so -u mainnet-beta
 ```
 
-### When sending tokens from Solana `Instruction passed to inner instruction is too large (1388 > 1280)`
+#### When sending tokens from Solana `Instruction passed to inner instruction is too large (1388 > 1280)`
 
 The outbound OApp DVN configuration violates a hard CPI size restriction, as you have included too many DVNs in the
 configuration (more than 3 for Solana outbound). As such, you will need to adjust the DVNs to comply with the CPI size
@@ -437,7 +479,7 @@ which allows more lenient CPI size restrictions, is not yet enabled in the curre
 solana feature status -u devnet --display-all
 ```
 
-### When sending tokens from Solana `base64 encoded solana_sdk::transaction::versioned::VersionedTransaction too large: 1728 bytes (max: encoded/raw 1644/1232).`
+#### When sending tokens from Solana `base64 encoded solana_sdk::transaction::versioned::VersionedTransaction too large: 1728 bytes (max: encoded/raw 1644/1232).`
 
 This error happens when sending for Solana outbound due to the transaction size exceeds the maximum hard limit. To
 alleviate this issue, consider using an Address Lookup Table (ALT) instruction in your transaction. Example ALTs for

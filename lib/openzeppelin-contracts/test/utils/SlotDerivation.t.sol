@@ -42,7 +42,7 @@ contract SlotDerivationTest is Test, SymTest {
 
     mapping(address => bytes) private _addressMapping;
 
-    function testSymbolicDeriveMappingAddress(address key) public view {
+    function testSymbolicDeriveMappingAddress(address key) public {
         bytes32 baseSlot;
         assembly {
             baseSlot := _addressMapping.slot
@@ -59,7 +59,7 @@ contract SlotDerivationTest is Test, SymTest {
 
     mapping(bool => bytes) private _boolMapping;
 
-    function testSymbolicDeriveMappingBoolean(bool key) public view {
+    function testSymbolicDeriveMappingBoolean(bool key) public {
         bytes32 baseSlot;
         assembly {
             baseSlot := _boolMapping.slot
@@ -76,7 +76,7 @@ contract SlotDerivationTest is Test, SymTest {
 
     mapping(bytes32 => bytes) private _bytes32Mapping;
 
-    function testSymbolicDeriveMappingBytes32(bytes32 key) public view {
+    function testSymbolicDeriveMappingBytes32(bytes32 key) public {
         bytes32 baseSlot;
         assembly {
             baseSlot := _bytes32Mapping.slot
@@ -93,7 +93,7 @@ contract SlotDerivationTest is Test, SymTest {
 
     mapping(bytes4 => bytes) private _bytes4Mapping;
 
-    function testSymbolicDeriveMappingBytes4(bytes4 key) public view {
+    function testSymbolicDeriveMappingBytes4(bytes4 key) public {
         bytes32 baseSlot;
         assembly {
             baseSlot := _bytes4Mapping.slot
@@ -110,7 +110,7 @@ contract SlotDerivationTest is Test, SymTest {
 
     mapping(uint256 => bytes) private _uint256Mapping;
 
-    function testSymbolicDeriveMappingUint256(uint256 key) public view {
+    function testSymbolicDeriveMappingUint256(uint256 key) public {
         bytes32 baseSlot;
         assembly {
             baseSlot := _uint256Mapping.slot
@@ -127,7 +127,7 @@ contract SlotDerivationTest is Test, SymTest {
 
     mapping(uint32 => bytes) private _uint32Mapping;
 
-    function testSymbolicDeriveMappingUint32(uint32 key) public view {
+    function testSymbolicDeriveMappingUint32(uint32 key) public {
         bytes32 baseSlot;
         assembly {
             baseSlot := _uint32Mapping.slot
@@ -144,7 +144,7 @@ contract SlotDerivationTest is Test, SymTest {
 
     mapping(int256 => bytes) private _int256Mapping;
 
-    function testSymbolicDeriveMappingInt256(int256 key) public view {
+    function testSymbolicDeriveMappingInt256(int256 key) public {
         bytes32 baseSlot;
         assembly {
             baseSlot := _int256Mapping.slot
@@ -161,7 +161,7 @@ contract SlotDerivationTest is Test, SymTest {
 
     mapping(int32 => bytes) private _int32Mapping;
 
-    function testSymbolicDeriveMappingInt32(int32 key) public view {
+    function testSymbolicDeriveMappingInt32(int32 key) public {
         bytes32 baseSlot;
         assembly {
             baseSlot := _int32Mapping.slot
@@ -178,15 +178,15 @@ contract SlotDerivationTest is Test, SymTest {
 
     mapping(string => bytes) private _stringMapping;
 
-    function testDeriveMappingString(string memory key) public view {
+    function testDeriveMappingString(string memory key) public {
         _assertDeriveMappingString(key);
     }
 
-    function symbolicDeriveMappingString() public view {
+    function symbolicDeriveMappingString() public {
         _assertDeriveMappingString(svm.createString(256, "DeriveMappingStringInput"));
     }
 
-    function _assertDeriveMappingString(string memory key) internal view {
+    function _assertDeriveMappingString(string memory key) internal {
         bytes32 baseSlot;
         assembly {
             baseSlot := _stringMapping.slot
@@ -203,15 +203,15 @@ contract SlotDerivationTest is Test, SymTest {
 
     mapping(bytes => bytes) private _bytesMapping;
 
-    function testDeriveMappingBytes(bytes memory key) public view {
+    function testDeriveMappingBytes(bytes memory key) public {
         _assertDeriveMappingBytes(key);
     }
 
-    function symbolicDeriveMappingBytes() public view {
+    function symbolicDeriveMappingBytes() public {
         _assertDeriveMappingBytes(svm.createBytes(256, "DeriveMappingBytesInput"));
     }
 
-    function _assertDeriveMappingBytes(bytes memory key) internal view {
+    function _assertDeriveMappingBytes(bytes memory key) internal {
         bytes32 baseSlot;
         assembly {
             baseSlot := _bytesMapping.slot

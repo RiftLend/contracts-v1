@@ -628,19 +628,19 @@ library LibBytes {
                 for { let i := 0x20 } 1 {} {
                     let x := mload(add(a, i))
                     let y := mload(add(b, i))
-                    if or(xor(x, y), eq(i, n)) {
-                        result := sub(gt(x, y), lt(x, y))
-                        break
+                    if iszero(or(xor(x, y), eq(i, n))) {
+                        i := add(i, 0x20)
+                        continue
                     }
-                    i := add(i, 0x20)
+                    result := sub(gt(x, y), lt(x, y))
+                    break
                 }
             }
             // forgefmt: disable-next-item
             if iszero(result) {
-                let x := and(mload(add(add(a, 0x20), n)),
-                    not(shr(mul(7, sub(aLen, n)), shr(sub(aLen, n), not(result)))))
-                let y := and(mload(add(add(b, 0x20), n)),
-                    not(shr(mul(7, sub(bLen, n)), shr(sub(bLen, n), not(result)))))
+                let l := 0x201f1e1d1c1b1a191817161514131211100f0e0d0c0b0a090807060504030201
+                let x := and(mload(add(add(a, 0x20), n)), shl(shl(3, byte(sub(aLen, n), l)), not(0)))
+                let y := and(mload(add(add(b, 0x20), n)), shl(shl(3, byte(sub(bLen, n), l)), not(0)))
                 result := sub(gt(x, y), lt(x, y))
                 if iszero(result) { result := sub(gt(aLen, bLen), lt(aLen, bLen)) }
             }
@@ -649,6 +649,7 @@ library LibBytes {
 
     /// @dev Directly returns `a` without copying.
     function directReturn(bytes memory a) internal pure {
+        /// @solidity memory-safe-assembly
         assembly {
             // Assumes that the bytes does not start from the scratch space.
             let retStart := sub(a, 0x20)
@@ -664,6 +665,7 @@ library LibBytes {
 
     /// @dev Directly returns `a` with minimal copying.
     function directReturn(bytes[] memory a) internal pure {
+        /// @solidity memory-safe-assembly
         assembly {
             let n := mload(a) // `a.length`.
             let o := add(a, 0x20) // Start of elements in `a`.

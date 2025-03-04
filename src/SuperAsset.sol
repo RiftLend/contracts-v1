@@ -7,8 +7,10 @@ import {IERC20Metadata} from "@openzeppelin/contracts-v5/token/ERC20/extensions/
 import {ERC20} from "@solady/tokens/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
 import {SuperchainERC20} from "./libraries/op/SuperchainERC20.sol";
+import {Initializable} from "@solady/utils/Initializable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-contract SuperAsset is SuperchainERC20 {
+contract SuperAsset is Initializable, SuperchainERC20, Ownable {
     using SafeERC20 for IERC20;
 
     address public underlying;
@@ -17,7 +19,17 @@ contract SuperAsset is SuperchainERC20 {
     uint8 _decimals;
     address public WETH;
 
-    constructor(address underlying_, string memory name_, string memory symbol_, address WETH_) {
+    error UNDERLYING_NOT_WETH();
+
+    constructor(address ownerAddr) Ownable(ownerAddr) {
+        _transferOwnership(ownerAddr);
+    }
+
+    function initialize(address underlying_, string memory name_, string memory symbol_, address WETH_)
+        external
+        initializer
+        onlyOwner
+    {
         underlying = underlying_;
         _name = name_;
         _symbol = symbol_;
@@ -25,8 +37,9 @@ contract SuperAsset is SuperchainERC20 {
         WETH = WETH_;
     }
 
-    function deposit(address _to, uint256 _amount) external payable {
-        if (msg.value == _amount) {
+    function deposit(address _to, uint256 _amount) public payable {
+        if (msg.value != 0) {
+            if (WETH != underlying) revert UNDERLYING_NOT_WETH();
             assembly ("memory-safe") {
                 let underlyingAddr := sload(underlying.slot)
                 pop(call(gas(), underlyingAddr, callvalue(), codesize(), 0x00, codesize(), 0x00))
@@ -65,10 +78,6 @@ contract SuperAsset is SuperchainERC20 {
     }
 
     receive() external payable {
-        assembly ("memory-safe") {
-            let underlyingAddr := sload(underlying.slot)
-            pop(call(gas(), underlyingAddr, callvalue(), codesize(), 0x00, codesize(), 0x00))
-        }
-        _mint(msg.sender, msg.value);
+        deposit(msg.sender, msg.value);
     }
 }

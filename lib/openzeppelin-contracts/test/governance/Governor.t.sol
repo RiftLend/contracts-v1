@@ -9,11 +9,7 @@ import {Governor} from "@openzeppelin/contracts/governance/Governor.sol";
 contract GovernorInternalTest is Test, Governor {
     constructor() Governor("") {}
 
-    function testValidDescriptionForProposer(
-        string memory description,
-        address proposer,
-        bool includeProposer
-    ) public view {
+    function testValidDescriptionForProposer(string memory description, address proposer, bool includeProposer) public {
         if (includeProposer) {
             description = string.concat(description, "#proposer=", Strings.toHexString(proposer));
         }
@@ -24,7 +20,7 @@ contract GovernorInternalTest is Test, Governor {
         string memory description,
         address commitProposer,
         address actualProposer
-    ) public view {
+    ) public {
         vm.assume(commitProposer != actualProposer);
         description = string.concat(description, "#proposer=", Strings.toHexString(commitProposer));
         assertFalse(_isValidDescriptionForProposer(actualProposer, description));

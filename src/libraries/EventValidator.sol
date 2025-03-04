@@ -5,6 +5,8 @@ import {Predeploys} from "./Predeploys.sol";
 
 import "../interfaces/ICrossL2Inbox.sol";
 import {ICrossL2Prover} from "../interfaces/ICrossL2Prover.sol";
+import {Initializable} from "@solady/utils/Initializable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 enum ValidationMode {
     CUSTOM,
@@ -13,10 +15,14 @@ enum ValidationMode {
     CROSS_L2_PROVER_RECEIPT
 }
 
-contract EventValidator {
+contract EventValidator is Initializable, Ownable {
     ICrossL2Prover private crossL2Prover;
 
-    constructor(address _crossL2Prover) {
+    constructor(address ownerAddr) Ownable(ownerAddr) {
+        _transferOwnership(ownerAddr);
+    }
+
+    function initialize(address _crossL2Prover) external initializer onlyOwner {
         crossL2Prover = ICrossL2Prover(_crossL2Prover);
     }
 

@@ -10,7 +10,14 @@ import {ReserveConfiguration} from "../configuration/ReserveConfiguration.sol";
 import {MathUtils} from "../math/MathUtils.sol";
 import {WadRayMath} from "../math/WadRayMath.sol";
 import {PercentageMath} from "../math/PercentageMath.sol";
-import {Errors} from "../helpers/Errors.sol";
+import {
+    RL_VARIABLE_BORROW_INDEX_OVERFLOW,
+    RL_LIQUIDITY_INDEX_OVERFLOW,
+    RL_RESERVE_ALREADY_INITIALIZED,
+    RL_LIQUIDITY_RATE_OVERFLOW,
+    RL_VARIABLE_BORROW_RATE_OVERFLOW,
+    RL_STABLE_BORROW_RATE_OVERFLOW
+} from "../helpers/Errors.sol";
 import {DataTypes} from "../types/DataTypes.sol";
 import {SafeERC20} from "@openzeppelin/contracts-v5/token/ERC20/utils/SafeERC20.sol";
 
@@ -45,6 +52,7 @@ library ReserveLogic {
         uint256 variableBorrowIndex
     );
 
+    // event ReserveDataUpdated(address,uint256,uint256,uint256,uint256,uint256);
     /**
      * @dev Returns the ongoing normalized income for the reserve
      * A value of 1e27 means there is no income. As time passes, the income is accrued
@@ -133,7 +141,7 @@ library ReserveLogic {
         uint256 result = amountToLiquidityRatio + WadRayMath.ray();
 
         result = result.rayMul(reserve.liquidityIndex);
-        require(result <= type(uint128).max, Errors.RL_LIQUIDITY_INDEX_OVERFLOW);
+        require(result <= type(uint128).max, RL_LIQUIDITY_INDEX_OVERFLOW);
 
         reserve.liquidityIndex = uint128(result);
     }
@@ -153,7 +161,7 @@ library ReserveLogic {
         address variableDebtTokenAddress,
         address interestRateStrategyAddress
     ) external {
-        require(reserve.rTokenAddress == address(0), Errors.RL_RESERVE_ALREADY_INITIALIZED);
+        require(reserve.rTokenAddress == address(0), RL_RESERVE_ALREADY_INITIALIZED);
 
         reserve.liquidityIndex = uint128(WadRayMath.ray());
         reserve.variableBorrowIndex = uint128(WadRayMath.ray());
@@ -203,8 +211,8 @@ library ReserveLogic {
             vars.totalVariableDebt,
             reserve.configuration.getReserveFactor()
         );
-        require(vars.newLiquidityRate <= type(uint128).max, Errors.RL_LIQUIDITY_RATE_OVERFLOW);
-        require(vars.newVariableRate <= type(uint128).max, Errors.RL_VARIABLE_BORROW_RATE_OVERFLOW);
+        require(vars.newLiquidityRate <= type(uint128).max, RL_LIQUIDITY_RATE_OVERFLOW);
+        require(vars.newVariableRate <= type(uint128).max, RL_VARIABLE_BORROW_RATE_OVERFLOW);
 
         reserve.currentLiquidityRate = uint128(vars.newLiquidityRate);
         reserve.currentVariableBorrowRate = uint128(vars.newVariableRate);
@@ -293,7 +301,7 @@ library ReserveLogic {
         if (currentLiquidityRate > 0) {
             uint256 cumulatedLiquidityInterest = MathUtils.calculateLinearInterest(currentLiquidityRate, timestamp);
             newLiquidityIndex = cumulatedLiquidityInterest.rayMul(liquidityIndex);
-            require(newLiquidityIndex <= type(uint128).max, Errors.RL_LIQUIDITY_INDEX_OVERFLOW);
+            require(newLiquidityIndex <= type(uint128).max, RL_LIQUIDITY_INDEX_OVERFLOW);
 
             reserve.liquidityIndex = uint128(newLiquidityIndex);
 
@@ -303,7 +311,7 @@ library ReserveLogic {
                 uint256 cumulatedVariableBorrowInterest =
                     MathUtils.calculateCompoundedInterest(reserve.currentVariableBorrowRate, timestamp);
                 newVariableBorrowIndex = cumulatedVariableBorrowInterest.rayMul(variableBorrowIndex);
-                require(newVariableBorrowIndex <= type(uint128).max, Errors.RL_VARIABLE_BORROW_INDEX_OVERFLOW);
+                require(newVariableBorrowIndex <= type(uint128).max, RL_VARIABLE_BORROW_INDEX_OVERFLOW);
                 reserve.variableBorrowIndex = uint128(newVariableBorrowIndex);
             }
         }

@@ -43,23 +43,14 @@ contract LendingPoolStorage {
      * @notice Total count of reserves in the protocol.
      */
     uint256 internal _reservesCount;
-
+    /**
+     * @notice Premium fee applied to flash loans.
+     * @dev Expressed as a percentage in basis points (bps).
+     */
+    uint8 public pool_type;
     /**
      * @notice Indicates if the protocol is paused.
      * @dev When `true`, all protocol operations are temporarily halted.
      */
     bool internal _paused;
-
-    /**
-     * @notice Premium fee applied to flash loans.
-     * @dev Expressed as a percentage in basis points (bps).
-     */
-    uint256 internal _flashLoanPremiumTotal;
-
-    /**
-     * @notice Maximum number of reserves that can be supported by the protocol.
-     */
-    uint256 internal _maxNumberOfReserves;
-
-    uint8 public pool_type;
 }

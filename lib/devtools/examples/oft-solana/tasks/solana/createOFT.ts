@@ -22,12 +22,19 @@ import { task } from 'hardhat/config'
 import { types as devtoolsTypes } from '@layerzerolabs/devtools-evm-hardhat'
 import { promptToContinue } from '@layerzerolabs/io-devtools'
 import { EndpointId } from '@layerzerolabs/lz-definitions'
-import { OFT_DECIMALS as DEFAULT_SHARED_DECIMALS, oft, types } from '@layerzerolabs/oft-v2-solana-sdk'
+import { OFT_DECIMALS as DEFAULT_SHARED_DECIMALS, oft } from '@layerzerolabs/oft-v2-solana-sdk'
 
 import { checkMultisigSigners, createMintAuthorityMultisig } from './multisig'
 import { assertAccountInitialized } from './utils'
 
-import { addComputeUnitInstructions, deriveConnection, deriveKeys, getExplorerTxLink, output } from './index'
+import {
+    TransactionType,
+    addComputeUnitInstructions,
+    deriveConnection,
+    deriveKeys,
+    getExplorerTxLink,
+    output,
+} from './index'
 
 const DEFAULT_LOCAL_DECIMALS = 9
 
@@ -157,7 +164,7 @@ task('lz:oft:solana:create', 'Mints new SPL Token and creates new OFT Store acco
             uri,
             computeUnitPriceScaleFactor,
         }: CreateOFTTaskArgs) => {
-            const isMABA = !!mintStr
+            const isMABA = !!mintStr // the difference between MABA and OFT Adapter is that MABA uses mint/burn mechanism whereas OFT Adapter uses lock/unlock mechanism
             if (tokenProgramStr !== TOKEN_PROGRAM_ID.toBase58() && !isMABA) {
                 throw new Error('Non-Mint-And-Burn-Adapter does not support custom token programs')
             }
@@ -179,27 +186,36 @@ task('lz:oft:solana:create', 'Mints new SPL Token and creates new OFT Store acco
             }
 
             if (onlyOftStore) {
-                await promptToContinue(
+                const continueWithOnlyOftStore = await promptToContinue(
                     'You have chosen `--only-oft-store true`. This means that only the OFT Store will be able to mint new tokens and that the Freeze Authority will be immediately renounced.  Continue?'
                 )
+                if (!continueWithOnlyOftStore) {
+                    return
+                }
             }
 
             const additionalMinters = additionalMintersAsStrings?.map((minter) => new PublicKey(minter)) ?? []
-            const mintAuthorityPublicKey = await createMintAuthorityMultisig(
-                connection,
-                umi,
-                eid,
-                umiWalletSigner,
-                toWeb3JsPublicKey(oftStorePda),
-                toWeb3JsPublicKey(tokenProgramId), // Only configurable for MABA
-                additionalMinters,
-                computeUnitPriceScaleFactor
-            )
-            console.log(`created SPL multisig @ ${mintAuthorityPublicKey.toBase58()}`)
-            await checkMultisigSigners(connection, mintAuthorityPublicKey, [
-                toWeb3JsPublicKey(oftStorePda),
-                ...additionalMinters,
-            ])
+
+            let mintAuthorityPublicKey: PublicKey = toWeb3JsPublicKey(oftStorePda) // we default to the OFT Store as the Mint Authority when there are no additional minters
+
+            if (additionalMintersAsStrings) {
+                // we only need a multisig when we have additional minters
+                mintAuthorityPublicKey = await createMintAuthorityMultisig(
+                    connection,
+                    umi,
+                    eid,
+                    umiWalletSigner,
+                    toWeb3JsPublicKey(oftStorePda),
+                    toWeb3JsPublicKey(tokenProgramId), // Only configurable for MABA
+                    additionalMinters,
+                    computeUnitPriceScaleFactor
+                )
+                console.log(`created SPL multisig @ ${mintAuthorityPublicKey.toBase58()}`)
+                await checkMultisigSigners(connection, mintAuthorityPublicKey, [
+                    toWeb3JsPublicKey(oftStorePda),
+                    ...additionalMinters,
+                ])
+            }
 
             const mint = isMABA
                 ? createNoopSigner(publicKey(mintStr))
@@ -239,7 +255,8 @@ task('lz:oft:solana:create', 'Mints new SPL Token and creates new OFT Store acco
                     eid,
                     txBuilder,
                     umiWalletSigner,
-                    computeUnitPriceScaleFactor
+                    computeUnitPriceScaleFactor,
+                    TransactionType.CreateToken
                 )
                 const createTokenTx = await txBuilder.sendAndConfirm(umi)
                 await assertAccountInitialized(connection, toWeb3JsPublicKey(mint.publicKey))
@@ -255,7 +272,7 @@ task('lz:oft:solana:create', 'Mints new SPL Token and creates new OFT Store acco
                         mint: mint.publicKey,
                         escrow: lockboxSigner,
                     },
-                    types.OFTType.Native,
+                    oft.types.OFTType.Native,
                     sharedDecimals,
                     {
                         oft: programId,
@@ -269,7 +286,8 @@ task('lz:oft:solana:create', 'Mints new SPL Token and creates new OFT Store acco
                 eid,
                 txBuilder,
                 umiWalletSigner,
-                computeUnitPriceScaleFactor
+                computeUnitPriceScaleFactor,
+                TransactionType.InitOft
             )
             const { signature } = await txBuilder.sendAndConfirm(umi)
             console.log(`initOftTx: ${getExplorerTxLink(bs58.encode(signature), isTestnet)}`)
@@ -298,10 +316,16 @@ task('lz:oft:solana:create', 'Mints new SPL Token and creates new OFT Store acco
                     eid,
                     txBuilder,
                     umiWalletSigner,
-                    computeUnitPriceScaleFactor
+                    computeUnitPriceScaleFactor,
+                    TransactionType.SetAuthority
                 )
                 const { signature } = await txBuilder.sendAndConfirm(umi)
                 console.log(`setAuthorityTx: ${getExplorerTxLink(bs58.encode(signature), isTestnet)}`)
+            }
+            if (isMABA) {
+                console.log(
+                    `Please note that for MABA mode, you must carry out the change of Mint Authority before making any cross-chain transfers. For more details: https://github.com/LayerZero-Labs/devtools/tree/main/examples/oft-solana#for-oft-mint-and-burn-adapter-maba`
+                )
             }
             output(eid, programIdStr, mint.publicKey, mintAuthorityPublicKey.toBase58(), escrowPK, oftStorePda)
         }
