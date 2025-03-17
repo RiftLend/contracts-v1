@@ -22,7 +22,7 @@ contract LendingPoolStorage {
      */
     mapping(address rVaultAsset => DataTypes.ReserveData) internal _reserves;
 
-    mapping(address anything => address rVaultAsset) internal _rVaultAsset;
+    mapping(address underlying => address rVaultAsset) internal _rVaultAsset;
 
     /**
      * @notice Mapping of user configuration by user address.

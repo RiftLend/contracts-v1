@@ -1,7 +1,7 @@
 [deploy_config]
 chains = ["eth_mainnet","op_mainnet","sepolia-eth"]
 [owner]
-address = "0x34b13101802b97cbfbC33a4eb597017dd20dd31C"
+address = "0x5377679614bc0BB997d82D11D79A87e3c5695848"
 
 [underlying]
 # riftlendUnderlying
@@ -49,20 +49,20 @@ lpType="OpSuperchain_LENDING_POOL"
 salt = "riftlendProxyAdmin"
 
 [pool_admin]
-address="0x34b13101802b97cbfbC33a4eb597017dd20dd31C"
+address="0x5377679614bc0BB997d82D11D79A87e3c5695848"
 
 
 [lending_pool]
 # riftlendLendingPool
-salt = "riftlendLendingPool"
+salt = "riftlendLendingPool1"
 
 [lending_pool_configurator]
 # riftlendLpConfigurator
-salt = "riftlendLpConfigurator"
+salt = "riftlendLpConfigurator1"
 
 [lending_pool_collateral_manager]
 # riftlendLpCollateralManager
-salt = "riftlendLpCollateralManager"
+salt = "riftlendLpCollateralManager1"
 
 [default_reserve_interest_rate_strategy]
 # riftlendDefaultStrategy
@@ -78,7 +78,7 @@ stableRateSlope2 = 5
 [price_oracle]
 # riftlendPriceOracle
 salt = "riftlendPriceOracle"
-owner_address = "0x34b13101802b97cbfbC33a4eb597017dd20dd31C"
+owner_address = "0x5377679614bc0BB997d82D11D79A87e3c5695848"
 
 [event_validator]
 # riftlendEventValidator
@@ -94,7 +94,7 @@ address6="0x2EEB89646C0fC522980f08a6DF6f9843fefFBA77"
 total=6
 
 [treasury]
-address = "0x34b13101802b97cbfbC33a4eb597017dd20dd31C"
+address = "0x5377679614bc0BB997d82D11D79A87e3c5695848"
 
 [incentives_controller]
 address = "0x0000000000000000000000000000000000000000"
@@ -159,3 +159,8 @@ chain_test_e_cross_l2_prover_address = "0xcDa03d74DEc5B24071D1799899B2e0653C24e5
 chain_test_e_weth = "0xb16f35c0ae2912430dac15764477e179d9b9ebea" 
 chain_test_e_lz_endpoint_v2 = "0x6EDCE65403992e310A62460808c4b910D972f10f"  
 chain_test_e_lz_delegate="0xf9E5bFE615853BC0ce310Dd3187277B0bbAC112c"
+
+[lz_eids_config]
+
+chains=[11155420,84532,1301,421614,11155111]
+eids=[40232,40245,40333,40231,40161]

@@ -279,6 +279,9 @@ contract Base is TestHelperOz5 {
 
         // Deploy RVaultAsset
         console.log("Deploying RVaultAsset");
+        uint32[] memory lzEids;
+        uint256[] memory lzEidChains;
+
         vm.startPrank(owner);
         rVaultAsset1 = address(new RVaultAsset{salt: "rVaultAsset1Impl"}(owner));
         IRVaultAsset(rVaultAsset1).initialize(
@@ -294,7 +297,9 @@ contract Base is TestHelperOz5 {
                 1 ether * vm.parseTomlUint(deployConfig, ".rvault_asset.max_deposit_limit"),
                 uint128(vm.parseTomlUint(deployConfig, ".layerzero.lz_receive_gas_limit")),
                 uint128(vm.parseTomlUint(deployConfig, ".layerzero.lz_compose_gas_limit")),
-                vm.parseTomlAddress(deployConfig, ".owner.address")
+                vm.parseTomlAddress(deployConfig, ".owner.address"),
+                lzEidChains,
+                lzEids
             )
         );
 
@@ -312,7 +317,9 @@ contract Base is TestHelperOz5 {
                 1000 ether,
                 200000,
                 500000,
-                owner
+                owner,
+                lzEidChains,
+                lzEids
             )
         );
         vm.stopPrank();

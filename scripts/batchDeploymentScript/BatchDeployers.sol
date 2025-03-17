@@ -143,12 +143,10 @@ contract BatchDeployer2 {
     address public lendingPoolImpl;
     address public lendingPoolConfigurator;
 
-    constructor(
-        string memory lpSalt,
-        string memory lpConfiguratorSalt
-    ) {
+    constructor(string memory lpSalt, string memory lpConfiguratorSalt) {
         lendingPoolImpl =
             Create2Helper.deployContractWithArgs("LendingPool", lpSalt, type(LendingPool).creationCode, "");
+
         lendingPoolConfigurator = Create2Helper.deployContractWithArgs(
             "LendingPoolConfigurator", lpConfiguratorSalt, type(LendingPoolConfigurator).creationCode, ""
         );

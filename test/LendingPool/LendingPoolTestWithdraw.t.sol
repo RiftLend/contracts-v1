@@ -188,6 +188,9 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         vm.stopPrank();
 
         // ======== Deploy RVaultAssets ========
+        uint32[] memory lzEids;
+        uint256[] memory lzEidChains;
+
         vm.startPrank(owner);
 
         // Deploy and initialize vault asset for chain A
@@ -205,7 +208,9 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
                 1000 ether,
                 200000,
                 500000,
-                owner
+                owner,
+                lzEidChains,
+                lzEids
             )
         );
 
@@ -224,7 +229,9 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
                 1000 ether,
                 200000,
                 500000,
-                owner
+                owner,
+                lzEidChains,
+                lzEids
             )
         );
 
@@ -499,10 +506,14 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         router1.dispatch(ValidationMode.CUSTOM, _identifier, _eventData, bytes(""), _logindex);
 
         /// assert cross chain balances of rtoken
-        assert(
-            RToken(payable(proxyLp1.getReserveData(address(aRVaultAsset)).rTokenAddress))
-                .totalCrosschainUnderlyingAssets() == depositEventParams.amount
-        );
+        uint256 totalCrosschainUnderlyingAssets = RToken(
+            payable(proxyLp1.getReserveData(address(aRVaultAsset)).rTokenAddress)
+        ).totalCrosschainUnderlyingAssets();
+        // depositParams.amount on source and depositParams.amount on other chain
+        // so exptectedCrosschainBalance = 2*depositParams.amount
+        uint256 expectedCrosschainBalance = 2 * depositEventParams.amount;
+
+        assert(totalCrosschainUnderlyingAssets == expectedCrosschainBalance);
 
         // ======== Execute Withdrawal ========
         // Record events and initiate withdrawal
@@ -565,10 +576,10 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
         router1.dispatch(ValidationMode.CUSTOM, _identifier, _eventData, bytes(""), _logindex);
 
         /// assert cross chain balances of rtoken
-        assert(
-            RToken(payable(proxyLp1.getReserveData(address(aRVaultAsset)).rTokenAddress))
-                .totalCrosschainUnderlyingAssets() == 0
-        );
+        totalCrosschainUnderlyingAssets = RToken(payable(proxyLp1.getReserveData(address(aRVaultAsset)).rTokenAddress))
+            .totalCrosschainUnderlyingAssets();
+        console.log("totalCrosschainUnderlyingAssets", totalCrosschainUnderlyingAssets);
+        assert(totalCrosschainUnderlyingAssets == 0);
 
         // ======== Verify Cross-Chain Messages ========
         verifyPackets(bEid, addressToBytes32(address(bRVaultAsset)));
