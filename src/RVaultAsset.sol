@@ -142,16 +142,19 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
             _bridge(receiverOfUnderlying, toChainId, amount);
         } else {
             _burn(msg.sender, amount);
-            _handleCurrentChainBurn(receiverOfUnderlying, amount);
+            handleCurentChainTransfer(receiverOfUnderlying, amount);
         }
     }
 
-    function _handleCurrentChainBurn(address receiverOfUnderlying, uint256 amount) internal {
+    function handleCurentChainTransfer(address receiverOfUnderlying, uint256 amount) internal {
         uint256 totalUnderylying = totalAssets();
         uint256 sendAmount;
         // when rVaultAsset does not have enough uderlying due to bridging
         if (totalUnderylying >= amount) sendAmount = amount;
         else sendAmount = totalUnderylying;
+
+        uint256 rVaultToBeMinted = amount - sendAmount;
+        if (rVaultToBeMinted > 0) super._mint(receiverOfUnderlying, rVaultToBeMinted);
 
         if (pool_type == 1) {
             ISuperAsset(underlying).withdraw(receiverOfUnderlying, sendAmount);
@@ -244,17 +247,7 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
         if (_getPeerOrRevert(_origin.srcEid) != _origin.sender) {
             revert OnlyPeer(_origin.srcEid, _origin.sender);
         }
-
-        uint256 payAmount = amount;
-        if (totalAssets() < amount) {
-            payAmount = totalAssets();
-            super._mint(receiverOfUnderlying, amount - payAmount);
-        }
-        if (pool_type == 1) {
-            ISuperAsset(underlying).withdraw(receiverOfUnderlying, payAmount);
-        } else {
-            IERC20(underlying).safeTransfer(receiverOfUnderlying, payAmount);
-        }
+        handleCurentChainTransfer(receiverOfUnderlying, amount);
 
         emit OFTReceived(_guid, _origin.srcEid, address(0), 0);
     }
@@ -270,7 +263,7 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
             (SendParam memory sendParam, MessagingFee memory fee) = getFeeQuote(receiverOfUnderlying, toChainId, amount);
             _send(sendParam, fee, payable(address(this)));
         } else {
-            _handleCurrentChainBurn(receiverOfUnderlying, amount);
+            handleCurentChainTransfer(receiverOfUnderlying, amount);
         }
     }
 

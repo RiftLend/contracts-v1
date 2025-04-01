@@ -73,12 +73,8 @@ contract Router is Initializable, SuperPausable {
     ) external whenNotPaused {
         if (ILendingPoolAddressesProvider(addressesProvider).getRelayerStatus(msg.sender) != true) revert NOT_RELAYER();
 
-        if (_mode == ValidationMode.CROSS_L2_PROVER_RECEIPT) {
-            EventValidator(eventValidator).validate(_mode, _identifier[0], _data, _logIndex, _proof);
-        }
-
         for (uint256 i = 0; i < _identifier.length; i++) {
-            if (_mode != ValidationMode.CUSTOM && _mode != ValidationMode.CROSS_L2_PROVER_RECEIPT) {
+            if (_mode != ValidationMode.CUSTOM ) {
                 EventValidator(eventValidator).validate(_mode, _identifier[i], _data, _logIndex, _proof);
             }
 

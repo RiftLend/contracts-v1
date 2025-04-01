@@ -111,12 +111,12 @@ contract MainDeployer is Script {
     SystemConfigManager systemConfigManager;
 
     function deployBatches() internal {
-        string memory systemConfigManagerSalt = "systemConfigManager3";
+        string memory systemConfigManagerSalt = "systemConfigManager4";
         string memory batchDeployer1Salt = "batchDeployer1";
         string memory batchDeployer2Salt = "batchDeployer2";
         string memory batchDeployer3Salt = "batchDeployer3";
         string memory batchDeployer4Salt = "batchDeployer4";
-
+        console.log("deploying systemConfigManager...");
         systemConfigManager = SystemConfigManager(
             Create2Helper.deployContractWithArgs(
                 "SystemConfigManager",
@@ -347,14 +347,7 @@ contract MainDeployer is Script {
         console.log("  LendingPoolCollateralManager:", batchAddressesSet.batch4Addrs.lendingPoolCollateralManager);
 
         console.log("  Router :", batchAddressesSet.batch4Addrs.proxyRouter);
-
-        console.log(
-            "  DefaultReserveInterestRateStrategy:", batchAddressesSet.batch1Addrs.defaultReserveInterestRateStrategy
-        );
-        console.log("  EventValidator:", batchAddressesSet.batch1Addrs.eventValidator);
         console.log("  ProxyAdmin:", batchAddressesSet.batch1Addrs.proxyAdmin);
-
-        console.log("  MockPriceOracle:", batchAddressesSet.batch1Addrs.mockPriceOracle);
         console.log("  VariableDebtToken:", batchAddressesSet.batch3Addrs.variableDebtToken);
 
         string memory deploymentFile = "deployment.json";
@@ -375,13 +368,7 @@ contract MainDeployer is Script {
         vm.serializeAddress(
             obj, "LendingPoolCollateralManager", batchAddressesSet.batch4Addrs.lendingPoolCollateralManager
         );
-        vm.serializeAddress(
-            obj, "DefaultReserveInterestRateStrategy", batchAddressesSet.batch1Addrs.defaultReserveInterestRateStrategy
-        );
-        vm.serializeAddress(obj, "MockPriceOracle", batchAddressesSet.batch1Addrs.mockPriceOracle);
-        vm.serializeAddress(obj, "EventValidator", batchAddressesSet.batch1Addrs.eventValidator);
         vm.serializeAddress(obj, "ProxyAdmin", batchAddressesSet.batch1Addrs.proxyAdmin);
-
         string memory jsonOutput =
             vm.serializeAddress(obj, "Owner", vm.parseTomlAddress(deployConfig, ".owner.address"));
         vm.writeJson(jsonOutput, deploymentFile);

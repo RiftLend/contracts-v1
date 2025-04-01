@@ -11,19 +11,29 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 enum ValidationMode {
     CUSTOM,
     CROSS_L2_INBOX,
-    CROSS_L2_PROVER_EVENT,
-    CROSS_L2_PROVER_RECEIPT
+    CROSS_L2_PROVER_EVENT
 }
+
 
 contract EventValidator is Initializable, Ownable {
     ICrossL2Prover private crossL2Prover;
+    address router;
+    address lendingPool;
+
+    event logger(string message);
+    event loggerUint(uint256);
+    event loggerBytes32(bytes32);
+    event loggerBytes(bytes);
 
     constructor(address ownerAddr) Ownable(ownerAddr) {
         _transferOwnership(ownerAddr);
     }
 
-    function initialize(address _crossL2Prover) external initializer onlyOwner {
+    function initialize(address _crossL2Prover, address _router,address _lendingPool) external initializer onlyOwner {
         crossL2Prover = ICrossL2Prover(_crossL2Prover);
+        router=_router;
+        lendingPool=_lendingPool;
+
     }
 
     function validate(
@@ -33,37 +43,53 @@ contract EventValidator is Initializable, Ownable {
         uint256[] calldata _logIndex,
         bytes calldata _proof
     ) external {
+
         /// @dev use ICrossL2Inbox to validate message
         if (_mode == ValidationMode.CROSS_L2_INBOX) {
             if (_identifier.origin != address(this)) {
                 revert("!origin");
             }
-            ICrossL2Inbox(Predeploys.CROSS_L2_INBOX).validateMessage(_identifier, keccak256(_data[0]));
+            ICrossL2Inbox(Predeploys.CROSS_L2_INBOX).validateMessage(
+                _identifier,
+                keccak256(_data[0])
+            );
         }
-        if (_mode == ValidationMode.CROSS_L2_PROVER_EVENT) {
+        else if (_mode == ValidationMode.CROSS_L2_PROVER_EVENT) {
             /// @dev use ICrossL2Prover to validate message
-            (, address emittingContract, bytes[] memory topics, bytes memory unindexedData) =
-                crossL2Prover.validateEvent(_logIndex[0], _proof);
-            if (emittingContract != address(this)) {
-                revert("!origin");
-            }
-            if (keccak256(abi.encode(topics[0], unindexedData)) != keccak256(_data[0])) {
-                revert("!data");
-            }
-        }
-        if (_mode == ValidationMode.CROSS_L2_PROVER_RECEIPT) {
-            /// @dev use ICrossL2Prover to validate receipt
-            (, bytes memory rlpEncodedBytes) = crossL2Prover.validateReceipt(_proof);
-            for (uint256 i = 0; i < _logIndex.length; i++) {
-                (address emittingContract, bytes[] memory topics, bytes memory unindexedData) =
-                    crossL2Prover.parseLog(_logIndex[i], rlpEncodedBytes);
-                if (emittingContract != address(this)) {
-                    revert("!origin");
+            (
+                ,
+                address sourceContract,
+                bytes memory topics,
+                bytes memory unindexedData
+            ) = crossL2Prover.validateEvent(_proof);
+
+            // Step 2: Split concatenated topics into individual 32-byte values
+            bytes32[] memory topicsArray = new bytes32[](3); // [eventSig, sender, hashedKey]
+
+            // // Use assembly for efficient memory operations when splitting topics
+            assembly {
+                // Skip first 32 bytes (length prefix of bytes array)
+                let topicsPtr := add(topics, 32)
+
+                // Load each 32-byte topic into the array
+                // topicsArray structure: [eventSig, sender, hashedKey]
+                for {
+                    let i := 0
+                } lt(i, 3) {
+                    i := add(i, 1)
+                } {
+                    mstore(
+                        add(add(topicsArray, 32), mul(i, 32)),
+                        mload(add(topicsPtr, mul(i, 32)))
+                    )
                 }
-                if (keccak256(abi.encode(topics[0], unindexedData)) != keccak256(_data[i])) {
-                    revert("!data");
-                }
             }
+
+            require(topicsArray[0] == bytes32(_data[0]), "Invalid event signature");
+            bytes memory dataSlice = _data[0][32:];
+            require(keccak256(unindexedData) == keccak256(dataSlice), "Malformed data");
+            require (sourceContract == lendingPool || sourceContract == router,"Malformed origin");   
+
         }
     }
 }

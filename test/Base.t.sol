@@ -190,8 +190,6 @@ contract Base is TestHelperOz5 {
         // ################ Deploy Components ################
         vm.prank(owner);
         eventValidator = new EventValidator(owner);
-        vm.prank(owner);
-        eventValidator.initialize(supportedChains[0].crossL2Prover);
 
         vm.prank(owner);
         proxyAdmin = address(new ProxyAdmin{salt: "proxyAdmin"}(owner));
@@ -243,6 +241,11 @@ contract Base is TestHelperOz5 {
         vm.prank(owner);
         router.initialize(address(proxyLp), address(lpAddressProvider1), address(eventValidator));
         vm.deal(address(router), 100 ether);
+
+
+        vm.prank(owner);
+        eventValidator.initialize(supportedChains[0].crossL2Prover, address(router), address(proxyLp));
+
 
         vm.label(address(lpAddressProvider1), "lpAddressProvider1");
         vm.label(address(lpAddressProvider2), "lpAddressProvider2");
