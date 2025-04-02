@@ -20,6 +20,8 @@ struct RVaultAssetInitializeParams {
     uint128 lzReceiveGasLimit;
     uint128 lzComposeGasLimit;
     address owner;
+    uint256[] lzEidChains;
+    uint32[] lzEids;
 }
 
 interface IRVaultAsset {

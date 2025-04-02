@@ -7,7 +7,10 @@ import {ILendingPoolAddressesProvider} from "src/interfaces/ILendingPoolAddresse
 import {ISuperAsset} from "src/interfaces/ISuperAsset.sol";
 import {ILendingPool} from "src/interfaces/ILendingPool.sol";
 import {
-    Origin, MessagingReceipt, ILayerZeroEndpointV2
+    Origin,
+    MessagingReceipt,
+    ILayerZeroEndpointV2,
+    MessagingParams
 } from "src/libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
 
 import {Initializable} from "@solady/utils/Initializable.sol";
@@ -103,6 +106,11 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
         lzComposeGasLimit = params.lzComposeGasLimit;
         _initializeSuperOwner(uint64(block.chainid), params.owner);
         OFT__Init(params.lzEndpoint, params.delegate, params.decimals);
+
+        for (uint256 i = 0; i < params.lzEidChains.length; i++) {
+            chainToEid[params.lzEidChains[i]] = params.lzEids[i];
+            _setPeer(params.lzEids[i], bytes32(uint256(uint160(address(this)))));
+        }
     }
 
     /// @param shares - the amount of shares to mint
@@ -114,7 +122,9 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
     /// @param assets - the amount of assets to deposit
     /// @param receiver - the address to which the assets are deposited
     function deposit(uint256 assets, address receiver) public returns (uint256) {
-        if (totalAssets() + assets > maxDepositLimit) revert DEPOSIT_LIMIT_EXCEEDED();
+        if (totalAssets() + assets > maxDepositLimit) {
+            revert DEPOSIT_LIMIT_EXCEEDED();
+        }
 
         balances[receiver] += assets;
         super._mint(receiver, assets);
@@ -132,11 +142,24 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
             _bridge(receiverOfUnderlying, toChainId, amount);
         } else {
             _burn(msg.sender, amount);
-            if (pool_type == 1) {
-                ISuperAsset(underlying).withdraw(receiverOfUnderlying, amount);
-            } else {
-                IERC20(underlying).safeTransfer(receiverOfUnderlying, amount);
-            }
+            handleCurentChainTransfer(receiverOfUnderlying, amount);
+        }
+    }
+
+    function handleCurentChainTransfer(address receiverOfUnderlying, uint256 amount) internal {
+        uint256 totalUnderylying = totalAssets();
+        uint256 sendAmount;
+        // when rVaultAsset does not have enough uderlying due to bridging
+        if (totalUnderylying >= amount) sendAmount = amount;
+        else sendAmount = totalUnderylying;
+
+        uint256 rVaultToBeMinted = amount - sendAmount;
+        if (rVaultToBeMinted > 0) super._mint(receiverOfUnderlying, rVaultToBeMinted);
+
+        if (pool_type == 1) {
+            ISuperAsset(underlying).withdraw(receiverOfUnderlying, sendAmount);
+        } else {
+            IERC20(underlying).safeTransfer(receiverOfUnderlying, sendAmount);
         }
     }
 
@@ -167,7 +190,9 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
         address _underlying,
         uint256 _underlyingAmount
     ) external onlySuperAdmin {
-        if (!isSupportedBungeeTarget[_bungeeTarget]) revert BUNGEE_TARGET_NOT_SUPPORTED();
+        if (!isSupportedBungeeTarget[_bungeeTarget]) {
+            revert BUNGEE_TARGET_NOT_SUPPORTED();
+        }
         if (pool_type == 1) {
             ISuperAsset(_underlying).withdraw(address(this), _underlyingAmount);
         }
@@ -198,7 +223,9 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
 
         // @dev Sends the message to the LayerZero endpoint and returns the LayerZero msg receipt.
         msgReceipt = _lzSend(_sendParam.dstEid, message, options, _fee, _refundAddress);
-        if (msgReceipt.guid == 0 && msgReceipt.nonce == 0) revert OFT_SEND_FAILED();
+        if (msgReceipt.guid == 0 && msgReceipt.nonce == 0) {
+            revert OFT_SEND_FAILED();
+        }
 
         // @dev Formulate the OFT receipt.
         oftReceipt = OFTReceipt(0, 0);
@@ -214,21 +241,13 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
         bytes calldata /*_extraData*/
     ) public payable override {
         (address receiverOfUnderlying, uint256 amount, address oftTxCaller) = OFTLogic.decodeMessage(_message);
-        if (msg.sender != address(endpoint) && oftTxCaller != address(this)) revert UNAUTHORIZED_SENDER();
+        if (msg.sender != address(endpoint) && oftTxCaller != address(this)) {
+            revert UNAUTHORIZED_SENDER();
+        }
         if (_getPeerOrRevert(_origin.srcEid) != _origin.sender) {
             revert OnlyPeer(_origin.srcEid, _origin.sender);
         }
-
-        uint256 payAmount = amount;
-        if (totalAssets() < amount) {
-            payAmount = totalAssets();
-            super._mint(receiverOfUnderlying, amount - payAmount);
-        }
-        if (pool_type == 1) {
-            ISuperAsset(underlying).withdraw(receiverOfUnderlying, payAmount);
-        } else {
-            IERC20(underlying).safeTransfer(receiverOfUnderlying, payAmount);
-        }
+        handleCurentChainTransfer(receiverOfUnderlying, amount);
 
         emit OFTReceived(_guid, _origin.srcEid, address(0), 0);
     }
@@ -244,27 +263,36 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
             (SendParam memory sendParam, MessagingFee memory fee) = getFeeQuote(receiverOfUnderlying, toChainId, amount);
             _send(sendParam, fee, payable(address(this)));
         } else {
-            if (pool_type == 1) {
-                ISuperAsset(underlying).withdraw(receiverOfUnderlying, amount);
-            } else {
-                IERC20(underlying).safeTransfer(receiverOfUnderlying, amount);
-            }
+            handleCurentChainTransfer(receiverOfUnderlying, amount);
         }
     }
+
+    event loggerUint(uint256);
+    event logger(string);
+    event loggerBytes(bytes);
+    event loggerBytes32(bytes32);
 
     function getFeeQuote(address receiverOfUnderlying, uint256 toChainId, uint256 amount)
         public
         view
-        returns (SendParam memory sendParam, MessagingFee memory)
+        returns (SendParam memory sendParam, MessagingFee memory fee)
     {
         bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(lzReceiveGasLimit, 0)
             .addExecutorLzComposeOption(0, lzComposeGasLimit, 0);
-
         bytes memory compose_message = OFTLogic.encodeMessage(receiverOfUnderlying, amount);
         sendParam = SendParam(
             chainToEid[toChainId], bytes32(uint256(uint160(address(this)))), 0, 0, options, compose_message, ""
         );
-        return (sendParam, quoteSend(sendParam, false));
+
+        // same as in send
+        uint256 amountReceivedLD = amount;
+        // @dev Builds the options and OFT message to quote in the endpoint.
+        bytes memory message;
+        (message, options) = _buildMsgAndOptions(sendParam, amountReceivedLD);
+        fee = endpoint.quote(
+            MessagingParams(sendParam.dstEid, _getPeerOrRevert(sendParam.dstEid), message, options, false),
+            address(this)
+        );
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -276,7 +304,7 @@ contract RVaultAsset is Initializable, SuperOwnable, OFT {
     }
     // Setter function for chain to EID mapping
 
-    function setChainToEid(uint256 _chainId, uint32 _eid) public onlySuperAdmin {
+    function setChainToEid(uint256 _chainId, uint32 _eid) external onlySuperAdmin {
         chainToEid[_chainId] = _eid;
     }
 

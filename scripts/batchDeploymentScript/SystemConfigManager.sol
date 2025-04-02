@@ -20,15 +20,14 @@ import {EventValidator} from "src/libraries/EventValidator.sol";
 import {console} from "forge-std/Script.sol";
 
 contract SystemConfigManager is Initializable {
-    
     address owner;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                  Constructor                               */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-    
-    constructor(address _owner )  {
-        owner=_owner;
+
+    constructor(address _owner) {
+        owner = _owner;
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -46,13 +45,13 @@ contract SystemConfigManager is Initializable {
     ) external initializer returns (address proxyRouter) {
         console.log(owner);
         console.log(msg.sender);
-        
-        require(owner==msg.sender,"OnlyOwner");
+
+        require(owner == msg.sender, "OnlyOwner");
 
         require(vars.ownerAddress != address(0), "Owner address cannot be zero");
 
         // Initialize Basic Contract's params
-        EventValidator(batchAddressesSet.batch1Addrs.eventValidator).initialize(vars.crossL2ProverAddress);
+
         DefaultReserveInterestRateStrategy(batchAddressesSet.batch1Addrs.defaultReserveInterestRateStrategy).initialize(
             strategyParams.lendingPoolAddressesProvider,
             strategyParams.optimalUtilizationRate,
@@ -106,6 +105,9 @@ contract SystemConfigManager is Initializable {
             )
         );
 
+        EventValidator(batchAddressesSet.batch1Addrs.eventValidator).initialize(
+            vars.crossL2ProverAddress, proxyRouter, proxyLp
+        );
         vars.lpProvider.setRouter(proxyRouter);
 
         // Initialize the LendingPool.
@@ -123,7 +125,6 @@ contract SystemConfigManager is Initializable {
 
         // Initialize RVaultAsset.
         RVaultAsset(payable(batchAddressesSet.batch3Addrs.rVaultAsset)).initialize(rVaultAssetInitializeParams);
-
         proxyConfigurator.setRvaultAssetForUnderlying(
             batchAddressesSet.batch1Addrs.underlying, batchAddressesSet.batch3Addrs.rVaultAsset
         );

@@ -11,11 +11,8 @@ docs/
 # Dotenv file
 .env
 
-deployment.json
 node_modules/
 .specstory/
 .gitpod.yml
 pnpm-lock.yaml
 count_lines.py
-lib
-lib/

@@ -43,18 +43,18 @@ contract SuperAssetTestDeposit is SuperAssetTestBase {
         );
     }
 
-    function testFail_superAssetDepositInsufficientApproval() public {
+    function test_superAssetDepositInsufficientApprovalFails() public {
         // Remove approval
         vm.startPrank(user1);
         IERC20(superAsset.underlying()).approve(address(superAsset), 0);
+        vm.expectRevert();
         superAsset.deposit(user1, DEPOSIT_AMOUNT); // Should fail due to no approval
-        vm.stopPrank();
     }
 
-    function testFail_superAssetDepositInsufficientBalance() public {
+    function test_superAssetDepositInsufficientBalanceFails() public {
         vm.startPrank(user1);
+        vm.expectRevert();
         superAsset.deposit(user1, INITIAL_BALANCE + 1); // Should fail as user doesn't have this much
-        vm.stopPrank();
     }
 
     /// @notice Test that the superasset's deposit function behaves correctly

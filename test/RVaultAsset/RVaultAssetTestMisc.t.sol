@@ -24,9 +24,10 @@ contract RVaultAssetTestMisc is RVaultAssetTestBase {
      * @dev Tests that only the super admin can modify the rVaultAsset's state.
      */
     function test_rVaultAssetSuperAdminFunctions() public {
-        vm.startPrank(proxyAdmin);
         // Test withdrawal cooldown period modification
         uint256 newPeriod = 2 days;
+        vm.startPrank(vm.parseTomlAddress(deployConfig, ".owner.address"));
+        
         IRVaultAsset(rVaultAsset1).setWithdrawCoolDownPeriod(newPeriod);
         assertEq(IRVaultAsset(rVaultAsset1).withdrawCoolDownPeriod(), newPeriod);
         vm.stopPrank();
@@ -35,11 +36,10 @@ contract RVaultAssetTestMisc is RVaultAssetTestBase {
     /**
      * @dev Tests that non-admins cannot modify the rVaultAsset's state.
      */
-    function testFail_rVaultAssetNonAdminFunctions() public {
+    function test_rVaultAssetNonAdminFunctionsFails() public {
         vm.startPrank(user1);
         vm.expectRevert();
         IRVaultAsset(rVaultAsset1).setWithdrawCoolDownPeriod(2 days);
-        vm.stopPrank();
     }
 
     /// @dev tests that the rVaultAsset has the correct underlying

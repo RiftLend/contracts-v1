@@ -78,23 +78,30 @@ abstract contract OAppOptionsType3 is IOAppOptionsType3, Ownable {
         if (_extraOptions.length >= 2) {
             _assertOptionsType3(_extraOptions);
             // @dev Remove the first 2 bytes containing the type from the _extraOptions and combine with enforced.
-            // TODO: @tabshaikh check this math
-            // return bytes.concat(enforced, _extraOptions[2:]);
-            assembly {
-                mstore(add(_extraOptions, 32), sub(mload(_extraOptions), 2)) // reduce length by 2
-                mstore(_extraOptions, add(mload(add(_extraOptions, 32)), 2)) // increase data pointer by 2
+
+            bytes memory result = new bytes(enforced.length + _extraOptions.length - 2);
+
+            // Copy enforcedOptions into result
+            for (uint256 i = 0; i < enforced.length; i++) {
+                result[i] = enforced[i];
             }
-            return bytes.concat(enforced, _extraOptions);
+
+            // Copy _extraOptions[2:] into result
+            for (uint256 i = 2; i < _extraOptions.length; i++) {
+                result[enforced.length + i - 2] = _extraOptions[i];
+            }
+
+            return result;
         }
 
         // No valid set of options was found.
         revert InvalidOptions(_extraOptions);
     }
-
     /**
      * @dev Internal function to assert that options are of type 3.
      * @param _options The options to be checked.
      */
+
     function _assertOptionsType3(bytes memory _options) internal pure virtual {
         uint16 optionsType;
         assembly {

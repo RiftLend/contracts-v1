@@ -212,11 +212,10 @@ contract LendingPoolAddressesProvider is SuperOwnable {
         _addresses[LENDING_RATE_ORACLE] = lendingRateOracle;
         emit LendingRateOracleUpdated(lendingRateOracle);
     }
-    
-    function getRelayerStatus(address adr) external view returns (bool){
+
+    function getRelayerStatus(address adr) external view returns (bool) {
         return isRelayer[adr];
     }
-
 
     function setRelayerStatus(address relayer, bool isActive) external onlyOwner {
         isRelayer[relayer] = isActive;

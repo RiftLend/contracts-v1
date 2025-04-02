@@ -111,17 +111,18 @@ contract MainDeployer is Script {
     SystemConfigManager systemConfigManager;
 
     function deployBatches() internal {
-        string memory systemConfigManagerSalt = "systemConfigManager";
+        string memory systemConfigManagerSalt = "systemConfigManager4";
         string memory batchDeployer1Salt = "batchDeployer1";
         string memory batchDeployer2Salt = "batchDeployer2";
         string memory batchDeployer3Salt = "batchDeployer3";
         string memory batchDeployer4Salt = "batchDeployer4";
-
+        console.log("deploying systemConfigManager...");
         systemConfigManager = SystemConfigManager(
             Create2Helper.deployContractWithArgs(
-                "SystemConfigManager", systemConfigManagerSalt, type(SystemConfigManager).creationCode, abi.encode(
-                    vm.parseTomlAddress(deployConfig, ".owner.address")
-                )
+                "SystemConfigManager",
+                systemConfigManagerSalt,
+                type(SystemConfigManager).creationCode,
+                abi.encode(vm.parseTomlAddress(deployConfig, ".owner.address"))
             )
         );
         address initialOwner = address(systemConfigManager);
@@ -252,6 +253,15 @@ contract MainDeployer is Script {
             rTokenImpl: batchAddressesSet.batch3Addrs.rToken,
             eventValidator: batchAddressesSet.batch1Addrs.eventValidator
         });
+        // uint256[] memory lzEidsChains;
+        uint256[] memory lzEids_ = vm.parseTomlUintArray(deployConfig, ".lz_eids_config.eids");
+        uint32[] memory lzEids = new uint32[](lzEids_.length);
+        for (uint256 k = 0; k < lzEids_.length; k++) {
+            lzEids[k] = uint32(lzEids_[k]);
+        }
+        // lzEidsChains = vm.parseTomlUintArray(deployConfig, ".lz_eids_config.chains");
+        // lzEids = vm.parseTomlUintArray(deployConfig, ".lz_eids_config.eids");
+
         RVaultAssetInitializeParams memory rvaultAssetInitializeParams = RVaultAssetInitializeParams(
             batchAddressesSet.batch1Addrs.superAsset,
             vars.lpProvider,
@@ -264,7 +274,9 @@ contract MainDeployer is Script {
             vm.parseTomlUint(deployConfig, ".rvault_asset.max_deposit_limit"),
             uint128(vm.parseTomlUint(deployConfig, ".layerzero.lz_receive_gas_limit")),
             uint128(vm.parseTomlUint(deployConfig, ".layerzero.lz_compose_gas_limit")),
-            vm.parseTomlAddress(deployConfig, ".owner.address")
+            vm.parseTomlAddress(deployConfig, ".owner.address"),
+            vm.parseTomlUintArray(deployConfig, ".lz_eids_config.chains"),
+            lzEids
         );
 
         BatchDataTypes.SuperAssetInitParams memory superAssetInitParams = BatchDataTypes.SuperAssetInitParams(
@@ -293,7 +305,7 @@ contract MainDeployer is Script {
         );
         vars.relayers = new address[](vm.parseTomlUint(deployConfig, ".relayers.total"));
         for (uint256 i = 1; i <= vars.relayers.length; i++) {
-            vars.relayers[i-1] =
+            vars.relayers[i - 1] =
                 vm.parseTomlAddress(deployConfig, string.concat(".relayers.address", Strings.toString(i)));
         }
 
@@ -335,14 +347,7 @@ contract MainDeployer is Script {
         console.log("  LendingPoolCollateralManager:", batchAddressesSet.batch4Addrs.lendingPoolCollateralManager);
 
         console.log("  Router :", batchAddressesSet.batch4Addrs.proxyRouter);
-
-        console.log(
-            "  DefaultReserveInterestRateStrategy:", batchAddressesSet.batch1Addrs.defaultReserveInterestRateStrategy
-        );
-        console.log("  EventValidator:", batchAddressesSet.batch1Addrs.eventValidator);
         console.log("  ProxyAdmin:", batchAddressesSet.batch1Addrs.proxyAdmin);
-
-        console.log("  MockPriceOracle:", batchAddressesSet.batch1Addrs.mockPriceOracle);
         console.log("  VariableDebtToken:", batchAddressesSet.batch3Addrs.variableDebtToken);
 
         string memory deploymentFile = "deployment.json";
@@ -363,13 +368,7 @@ contract MainDeployer is Script {
         vm.serializeAddress(
             obj, "LendingPoolCollateralManager", batchAddressesSet.batch4Addrs.lendingPoolCollateralManager
         );
-        vm.serializeAddress(
-            obj, "DefaultReserveInterestRateStrategy", batchAddressesSet.batch1Addrs.defaultReserveInterestRateStrategy
-        );
-        vm.serializeAddress(obj, "MockPriceOracle", batchAddressesSet.batch1Addrs.mockPriceOracle);
-        vm.serializeAddress(obj, "EventValidator", batchAddressesSet.batch1Addrs.eventValidator);
         vm.serializeAddress(obj, "ProxyAdmin", batchAddressesSet.batch1Addrs.proxyAdmin);
-
         string memory jsonOutput =
             vm.serializeAddress(obj, "Owner", vm.parseTomlAddress(deployConfig, ".owner.address"));
         vm.writeJson(jsonOutput, deploymentFile);

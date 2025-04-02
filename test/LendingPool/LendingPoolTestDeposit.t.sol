@@ -120,10 +120,14 @@ contract LendingPoolTestDeposit is LendingPoolTestBase {
         router.dispatch(ValidationMode.CUSTOM, _identifier, depositLocalVars._eventData, bytes(""), _logindex);
 
         /// assert cross chain balances of rtoken
-        assert(
-            RToken(payable(proxyLp.getReserveData(address(rVaultAsset1)).rTokenAddress)).totalCrosschainUnderlyingAssets(
-            ) == depositLocalVars.depositParams.amount
-        );
+        uint256 totalCrcosschainUnderlying = RToken(
+            payable(proxyLp.getReserveData(address(rVaultAsset1)).rTokenAddress)
+        ).totalCrosschainUnderlyingAssets();
+        console.log(totalCrcosschainUnderlying, depositLocalVars.depositParams.amount);
+        uint256 expectedCrosschainBalance = 2 * depositLocalVars.depositParams.amount;
+        // depositLocalVars.depositParams.amount on source and depositLocalVars.depositParams.amount on other chain
+        // so exptectedCrosschainBalance = 2*depositLocalVars.depositParams.amount
+        assert(totalCrcosschainUnderlying == expectedCrosschainBalance);
     }
 
     function getActionXConfig()

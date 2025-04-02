@@ -28,6 +28,7 @@ import {Predeploys} from "../libraries/Predeploys.sol";
 import {MessagingFee} from "src/libraries/helpers/layerzero/ILayerZeroEndpointV2.sol";
 import {DataTypes} from "src/libraries/types/DataTypes.sol";
 import {LendingPool} from "src/LendingPool.sol";
+import {SendParam} from "src/libraries/helpers/layerzero/IOFT.sol";
 
 /**
  * @title Aave ERC20 RToken
@@ -61,8 +62,14 @@ contract RToken is Initializable, IncentivizedERC20, IRToken, SuperPausable {
     uint256 public totalCrosschainUnderlyingAssets;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                  Events                                    */
+    /*                  Debug Logs                                */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    event logger(string message);
+    event loggerBytes(bytes message);
+    event loggerBytes32(bytes32 message);
+    event loggerUint(uint256);
+    event loggerAddress(address);
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                  Modifiers                                 */
@@ -88,7 +95,7 @@ contract RToken is Initializable, IncentivizedERC20, IRToken, SuperPausable {
     }
 
     function _onlyRelayer() internal view {
-        require(_addressesProvider.getRelayerStatus(msg.sender)==true, ONLY_RELAYER_CALL);
+        require(_addressesProvider.getRelayerStatus(msg.sender) == true, ONLY_RELAYER_CALL);
     }
 
     modifier onlyLendingPoolConfigurator() {
@@ -225,13 +232,18 @@ contract RToken is Initializable, IncentivizedERC20, IRToken, SuperPausable {
 
         MessagingFee memory fee;
         address rVaultAddress = _underlyingAsset;
-        // todo: if lp rtoken does not have enough underlying to burn, skip burning
-        if (IERC20(rVaultAddress).balanceOf(address(this)) >= amount) {
-            if (toChainId != block.chainid) {
-                (, fee) = IRVaultAsset(rVaultAddress).getFeeQuote(receiverOfUnderlying, toChainId, amount);
-            }
-            IRVaultAsset(rVaultAddress).burn{value: fee.nativeFee}(receiverOfUnderlying, toChainId, amount);
+        // // todo: if lp rtoken does not have enough underlying to burn, skip burning
+        if (toChainId != block.chainid) {
+            bytes memory data =
+                abi.encodeWithSignature("getFeeQuote(address,uint256,uint256)", receiverOfUnderlying, toChainId, amount);
+            bool success;
+            (success, data) = (address(rVaultAddress)).call(data);
+            SendParam memory sendParam;
+            (sendParam, fee) = abi.decode(data, (SendParam, MessagingFee));
         }
+        IRVaultAsset(rVaultAddress).burn{value: fee.nativeFee}(receiverOfUnderlying, toChainId, amount);
+
+        totalCrosschainUnderlyingAssets -= amount;
 
         emit Transfer(user, address(0), amount);
         emit Burn(user, receiverOfUnderlying, amount, index);
@@ -260,6 +272,7 @@ contract RToken is Initializable, IncentivizedERC20, IRToken, SuperPausable {
         require(amountScaled != 0, CT_INVALID_MINT_AMOUNT);
         _mint(user, amountScaled);
         crosschainUnderlyingAsset[user] += amount;
+        totalCrosschainUnderlyingAssets += amount;
 
         emit Transfer(address(0), user, amount);
         emit Mint(user, amount, index);

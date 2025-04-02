@@ -59,6 +59,16 @@ contract LendingPool is Initializable, LendingPoolStorage, SuperPausable {
     event RVaultAssetUpdated(address asset, address rVaultAsset);
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                  Debug Logs                                */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    event logger(string message);
+    event loggerBytes(bytes message);
+    event loggerBytes32(bytes32 message);
+    event loggerUint(uint256);
+    event loggerAddress(address);
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                  Modifiers                                 */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 

@@ -190,8 +190,6 @@ contract Base is TestHelperOz5 {
         // ################ Deploy Components ################
         vm.prank(owner);
         eventValidator = new EventValidator(owner);
-        vm.prank(owner);
-        eventValidator.initialize(supportedChains[0].crossL2Prover);
 
         vm.prank(owner);
         proxyAdmin = address(new ProxyAdmin{salt: "proxyAdmin"}(owner));
@@ -244,6 +242,9 @@ contract Base is TestHelperOz5 {
         router.initialize(address(proxyLp), address(lpAddressProvider1), address(eventValidator));
         vm.deal(address(router), 100 ether);
 
+        vm.prank(owner);
+        eventValidator.initialize(supportedChains[0].crossL2Prover, address(router), address(proxyLp));
+
         vm.label(address(lpAddressProvider1), "lpAddressProvider1");
         vm.label(address(lpAddressProvider2), "lpAddressProvider2");
 
@@ -279,6 +280,9 @@ contract Base is TestHelperOz5 {
 
         // Deploy RVaultAsset
         console.log("Deploying RVaultAsset");
+        uint32[] memory lzEids;
+        uint256[] memory lzEidChains;
+
         vm.startPrank(owner);
         rVaultAsset1 = address(new RVaultAsset{salt: "rVaultAsset1Impl"}(owner));
         IRVaultAsset(rVaultAsset1).initialize(
@@ -294,7 +298,9 @@ contract Base is TestHelperOz5 {
                 1 ether * vm.parseTomlUint(deployConfig, ".rvault_asset.max_deposit_limit"),
                 uint128(vm.parseTomlUint(deployConfig, ".layerzero.lz_receive_gas_limit")),
                 uint128(vm.parseTomlUint(deployConfig, ".layerzero.lz_compose_gas_limit")),
-                vm.parseTomlAddress(deployConfig, ".owner.address")
+                vm.parseTomlAddress(deployConfig, ".owner.address"),
+                lzEidChains,
+                lzEids
             )
         );
 
@@ -312,7 +318,9 @@ contract Base is TestHelperOz5 {
                 1000 ether,
                 200000,
                 500000,
-                owner
+                owner,
+                lzEidChains,
+                lzEids
             )
         );
         vm.stopPrank();
