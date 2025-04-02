@@ -18,6 +18,7 @@ abstract contract SuperOwnable is Ownable, ISemver {
     error DataNotCrosschainSuperAdminChainIdUpdate();
     error OwnershipNotInSync();
     error NoOwnershipChange();
+    error NotSuperAdmin();
     error ChainNotSuperAdmin();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -42,7 +43,7 @@ abstract contract SuperOwnable is Ownable, ISemver {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     modifier onlySuperAdmin() {
-        if (!(msg.sender == owner() && block.chainid == superAdminChainId)) revert ChainNotSuperAdmin();
+        if (!(msg.sender == owner() && block.chainid == superAdminChainId)) revert NotSuperAdmin();
         _;
     }
 

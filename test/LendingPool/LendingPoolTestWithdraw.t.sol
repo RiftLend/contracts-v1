@@ -371,7 +371,9 @@ contract LendingPoolTestWithdraw is LendingPoolTestBase {
 
         // ======== Cross-Chain Configuration ========
         // Set chain ID mappings for cross-chain communication
+        vm.prank(owner);
         (aRVaultAsset).setChainToEid(bEid, bEid);
+        vm.prank(owner);
         (bRVaultAsset).setChainToEid(aEid, aEid);
 
         // ======== Initial Token Distribution ========
