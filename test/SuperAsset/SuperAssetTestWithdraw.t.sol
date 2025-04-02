@@ -67,9 +67,9 @@ contract SuperAssetTestWithdraw is SuperAssetTestBase {
         );
     }
 
-    function testFail_superAssetWithdrawInsufficientBalance() public {
+    function test_superAssetWithdrawInsufficientBalanceFails() public {
         vm.startPrank(user1);
+        vm.expectRevert();
         superAsset.withdraw(user1, 1); // Should fail as user1 has no balance
-        vm.stopPrank();
     }
 }

@@ -104,8 +104,10 @@ contract SystemConfigManager is Initializable {
                 batchAddressesSet.batch4Addrs.routerImpl, batchAddressesSet.batch1Addrs.proxyAdmin, initData
             )
         );
-        
-        EventValidator(batchAddressesSet.batch1Addrs.eventValidator).initialize(vars.crossL2ProverAddress,proxyRouter,proxyLp);
+
+        EventValidator(batchAddressesSet.batch1Addrs.eventValidator).initialize(
+            vars.crossL2ProverAddress, proxyRouter, proxyLp
+        );
         vars.lpProvider.setRouter(proxyRouter);
 
         // Initialize the LendingPool.
