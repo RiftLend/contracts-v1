@@ -59,11 +59,6 @@ contract Router is Initializable, SuperPausable {
         pool_type = ILendingPool(lendingPool).pool_type();
     }
 
-    // event logger(string message);
-    // event loggerBytes(bytes message);
-    // event loggerBytes32(bytes32 message);
-    // event loggerUint(uint);
-
     function dispatch(
         ValidationMode _mode,
         Identifier[] calldata _identifier,
