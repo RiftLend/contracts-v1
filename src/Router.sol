@@ -77,8 +77,6 @@ contract Router is Initializable, SuperPausable {
         }
     }
 
-    event logger(string message);
-
     function _dispatch(Identifier calldata _identifier, bytes calldata _data) internal {
         bytes32 selector = abi.decode(_data[:32], (bytes32));
 
@@ -105,7 +103,6 @@ contract Router is Initializable, SuperPausable {
                 uint16 referralCode
             ) = abi.decode(_data[32:], (uint256, address, address, uint256, address, uint16));
             if (fromChainId == block.chainid) {
-                emit logger("deposit");
                 lendingPool.deposit(sender, asset, amount, onBehalfOf, referralCode);
             }
         }
